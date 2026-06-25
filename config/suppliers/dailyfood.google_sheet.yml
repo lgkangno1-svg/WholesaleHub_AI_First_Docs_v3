@@ -1,0 +1,27 @@
+supplier_id: dailyfood
+supplier_name: 데일리푸드
+source_type: google_sheet
+enabled: true
+
+google_sheet:
+  spreadsheet_id: "1YvIxuhGYhA7PTxu9nH5cUNC8dkfykUSb4C8D77UKlUQ"
+  gid: "860422621"
+  sheet_url: "https://docs.google.com/spreadsheets/d/1YvIxuhGYhA7PTxu9nH5cUNC8dkfykUSb4C8D77UKlUQ/edit?gid=860422621#gid=860422621"
+  csv_export_url: "https://docs.google.com/spreadsheets/d/1YvIxuhGYhA7PTxu9nH5cUNC8dkfykUSb4C8D77UKlUQ/export?format=csv&gid=860422621"
+  access_mode: "csv_export_or_google_oauth"
+
+schedule:
+  timezone: Asia/Seoul
+  cron: "0 9,12,15,18 * * *"
+
+column_mapping:
+  product_name_column: "상품명"
+  option_column: "규격"
+  price_column: "판매가"
+  stock_column: "재고"
+  memo_column: "비고"
+
+collection:
+  playwright_enabled: false
+  auto_order_enabled: false
+  data_retention: latest_only

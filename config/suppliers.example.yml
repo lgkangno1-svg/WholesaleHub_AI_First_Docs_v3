@@ -1,0 +1,18 @@
+suppliers:
+  - supplier_id: dailyfood
+    supplier_name: 데일리푸드
+    source_type: google_sheet
+    enabled: true
+    config_file: config/suppliers/dailyfood.google_sheet.yml
+
+  - supplier_id: example_excel_supplier
+    supplier_name: 엑셀링크공급처
+    source_type: excel_csv_link
+    enabled: false
+    config_file: config/suppliers/excel_link_supplier.example.yml
+
+  - supplier_id: example_adminplus_supplier
+    supplier_name: 어드민플러스공급처예시
+    source_type: adminplus_limited
+    enabled: false
+    config_file: config/suppliers/adminplus.limited_crawl.example.yml

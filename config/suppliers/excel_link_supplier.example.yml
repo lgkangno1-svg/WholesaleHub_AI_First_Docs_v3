@@ -1,0 +1,25 @@
+supplier_id: excel_supplier_example
+supplier_name: 엑셀 링크 공급처 예시
+source_type: excel_csv_link
+enabled: false
+
+file_source:
+  url: "https://example.com/price.xlsx"
+  file_type: "xlsx"
+  auth_required: false
+
+schedule:
+  timezone: Asia/Seoul
+  cron: "0 10,16 * * *"
+
+column_mapping:
+  product_name_column: "상품명"
+  option_column: "옵션"
+  price_column: "공급가"
+  stock_column: "재고"
+  memo_column: "비고"
+
+collection:
+  playwright_enabled: false
+  auto_order_enabled: false
+  data_retention: latest_only
