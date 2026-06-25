@@ -30,3 +30,39 @@ AI 개발 도구: Codex, Antigravity
 6. `PRD/06_DailyFood_GoogleSheet.md`
 7. `PRD/07_AdminPlus_Limited_Crawling.md`
 8. `Tasks/Phase_1_MVP.md`
+
+## Phase 1 MVP 실행
+
+요구사항:
+
+- Node.js 22.5 이상
+- npm
+
+설치 및 검증:
+
+```bash
+npm install
+npm run check
+```
+
+실제 DailyFood CSV export URL을 사용한 dry-run:
+
+```bash
+npm run phase1 -- --db data/wholesalehub.sqlite --margin 1500
+```
+
+로컬 CSV fixture를 사용한 dry-run:
+
+```bash
+npm run phase1 -- \
+  --csv tests/fixtures/dailyfood.csv \
+  --db data/wholesalehub.sqlite \
+  --margin 1500
+```
+
+`GEMINI_API_KEY`가 설정되면 룰 기반 파싱으로 확정할 수 없는 상품을 Gemini Flash가
+정규화한다. 키가 없으면 룰 기반 결과를 사용하며, 신뢰도가 낮은 매핑은 최저가 비교에서
+제외된다.
+
+CLI 출력은 WooCommerce dry-run JSON이며 공급처 ID, 공급처명, 원가, 원본 URL을 포함하지
+않는다. 실제 WooCommerce API 업데이트는 Phase 1 범위에 포함되지 않는다.
