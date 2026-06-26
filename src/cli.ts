@@ -40,7 +40,9 @@ async function main(): Promise<void> {
   const database = new DatabaseSync(databasePath)
   try {
     applySchema(database, schema)
-    const apiKey = process.env["OPENROUTER_API_KEY"] ?? process.env["GEMINI_API_KEY"] ?? ""
+    const apiKey = process.env["OPENROUTER_API_KEY"]?.trim()
+      ? process.env["OPENROUTER_API_KEY"]
+      : (process.env["GEMINI_API_KEY"] ?? "")
     const gemini =
       apiKey.length > 0 ? OpenRouterGeminiProductParser.fromEnvironment(process.env) : null
     const result = await runPhase1Pipeline({

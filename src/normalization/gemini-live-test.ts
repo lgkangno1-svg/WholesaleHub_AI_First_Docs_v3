@@ -47,7 +47,9 @@ type FailedProduct = {
 async function main(): Promise<void> {
   await loadDotEnv(".env")
   const options = parseArguments(process.argv.slice(2))
-  const apiKey = process.env["OPENROUTER_API_KEY"] ?? process.env["GEMINI_API_KEY"] ?? ""
+  const apiKey = process.env["OPENROUTER_API_KEY"]?.trim()
+    ? process.env["OPENROUTER_API_KEY"]
+    : (process.env["GEMINI_API_KEY"] ?? "")
   if (apiKey.trim().length === 0) {
     throw new Error("GEMINI_API_KEY or OPENROUTER_API_KEY is required")
   }

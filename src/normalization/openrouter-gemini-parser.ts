@@ -97,7 +97,9 @@ export class OpenRouterGeminiProductParser implements ProductParser {
   }
 
   static fromEnvironment(environment: NodeJS.ProcessEnv): OpenRouterGeminiProductParser {
-    const apiKey = environment["OPENROUTER_API_KEY"] ?? environment["GEMINI_API_KEY"] ?? ""
+    const apiKey = environment["OPENROUTER_API_KEY"]?.trim()
+      ? environment["OPENROUTER_API_KEY"]
+      : (environment["GEMINI_API_KEY"] ?? "")
     return new OpenRouterGeminiProductParser({
       apiKey,
       modelName: environment["OPENROUTER_MODEL"] ?? "google/gemini-2.5-flash",
