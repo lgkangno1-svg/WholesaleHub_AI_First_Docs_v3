@@ -12,21 +12,14 @@ export type WooCommerceSyncCandidate = {
 }
 
 export type WooCommerceUpdatePayload = {
-  readonly name: string
   readonly regular_price: string
   readonly sale_price: ""
   readonly stock_status: "instock" | "outofstock"
   readonly manage_stock: false
-  readonly meta_data: readonly [
-    {
-      readonly key: "_wholesalehub_compare_key"
-      readonly value: string
-    },
-  ]
 }
 
 export type WooCommerceDryRunOperation = {
   readonly mode: "dry-run"
-  readonly lookupKey: string
+  readonly productId: number | null
   readonly payload: WooCommerceUpdatePayload
 }

@@ -1,3 +1,26 @@
+# WooCommerce 상품 매칭 절차
+
+WooCommerce 실제 업데이트 전에는 내부 표준 상품과 WooCommerce 상품 ID를 반드시 명시적으로 매칭해야 한다.
+
+권장 순서:
+
+```bash
+npm run phase1 -- --db data/wholesalehub.sqlite --margin 1500
+npm run mapping:woocommerce:seed-pending -- --db data/wholesalehub.sqlite
+npm run mapping:woocommerce:list -- --db data/wholesalehub.sqlite
+npm run mapping:woocommerce:approve -- --db data/wholesalehub.sqlite --compare-key "COMPARE_KEY" --product-id 123
+npm run report:woocommerce-dry-run -- --db data/wholesalehub.sqlite --margin 1500
+```
+
+정책:
+
+- `seed-pending`은 `compare_products`에는 있지만 `woocommerce_product_mapping`에 없는 항목만 `pending`으로 생성한다.
+- `approved` 상태만 WooCommerce dry-run 업데이트 후보가 된다.
+- `pending`, `disabled`, 매핑 없음 항목은 dry-run 리포트에서 `skipped`로 분류된다.
+- `approve`는 `--product-id`가 필수이고 숫자만 허용한다. 옵션 상품은 `--variation-id`를 추가로 지정할 수 있다.
+- 실제 live update 전에는 반드시 `seed-pending → list → approve → report:woocommerce-dry-run` 순서로 사람이 검수해야 한다.
+- 고객/WooCommerce update payload에는 `supplier_id`, `supplier_name`, `source_url`, `raw_cost`, `forwardFilled`, `cheapest_supplier_id`, `compare_key`, `normalized_name`, `option_key`를 포함하지 않는다.
+
 # WholesaleHub AI-First Development Docs v3
 
 대상 사이트: `hub.avocadoss.co.kr`  

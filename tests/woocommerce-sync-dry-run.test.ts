@@ -7,12 +7,12 @@ import {
 
 const candidate = {
   compareKey: "corn-domestic-30",
-  normalizedName: "미백 찰옥수수",
-  optionKey: "국내산|특품|30개",
+  normalizedName: "corn",
+  optionKey: "30ea",
   price: 10_000,
   stockStatus: "in_stock",
   supplierId: "dailyfood",
-  supplierName: "데일리푸드",
+  supplierName: "DailyFood",
   sourceUrl: "https://supplier.example/products/1",
   rawCost: 10_000,
 } as const
@@ -29,18 +29,18 @@ describe("buildWooCommerceDryRunOperations", () => {
     expect(operations).toEqual([
       {
         mode: "dry-run",
-        lookupKey: "corn-domestic-30",
+        productId: null,
         payload: {
-          name: "미백 찰옥수수 국내산|특품|30개",
           regular_price: "11500",
           sale_price: "",
           stock_status: "instock",
           manage_stock: false,
-          meta_data: [{ key: "_wholesalehub_compare_key", value: "corn-domestic-30" }],
         },
       },
     ])
-    expect(JSON.stringify(operations)).not.toMatch(/supplier_id|supplier_name|source_url|raw_cost/)
+    expect(JSON.stringify(operations)).not.toMatch(
+      /supplier_id|supplier_name|source_url|raw_cost|compare_key|normalized_name|option_key/,
+    )
   })
 })
 
@@ -50,15 +50,16 @@ describe("assertSupplierSafeWooCommercePayload", () => {
     "supplier_name",
     "source_url",
     "raw_cost",
+    "compare_key",
+    "normalized_name",
+    "option_key",
   ])("rejects the forbidden field %s", (forbiddenField) => {
     // Given
     const unsafePayload = {
-      name: "미백 찰옥수수",
       regular_price: "11500",
       sale_price: "",
       stock_status: "instock",
       manage_stock: false,
-      meta_data: [{ key: "_wholesalehub_compare_key", value: "corn-domestic-30" }],
       [forbiddenField]: "secret",
     }
 
@@ -72,7 +73,6 @@ describe("assertSupplierSafeWooCommercePayload", () => {
   it("rejects supplier data hidden inside WooCommerce metadata", () => {
     // Given
     const unsafePayload = {
-      name: "미백 찰옥수수",
       regular_price: "11500",
       sale_price: "",
       stock_status: "instock",

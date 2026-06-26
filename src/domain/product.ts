@@ -95,8 +95,8 @@ export interface ProductParser {
 }
 
 export type WooCommerceDryRunPayload = {
-  readonly lookupKey: string
-  readonly name: string
+  readonly product_id?: number
+  readonly variation_id?: number
   readonly regular_price: string
   readonly stock_status: "instock" | "outofstock"
   readonly manage_stock: false

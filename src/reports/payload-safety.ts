@@ -5,6 +5,9 @@ export const FORBIDDEN_WOOCOMMERCE_PAYLOAD_FIELDS = [
   "raw_cost",
   "forwardFilled",
   "cheapest_supplier_id",
+  "compare_key",
+  "normalized_name",
+  "option_key",
 ] as const
 
 export type PayloadSafetyResult = {

@@ -6,23 +6,17 @@ const FORBIDDEN_FIELDS: ReadonlySet<string> = new Set([
   "supplier_name",
   "source_url",
   "raw_cost",
+  "compare_key",
+  "normalized_name",
+  "option_key",
 ] as const)
 
 const WooCommerceUpdatePayloadSchema = z
   .object({
-    name: z.string().min(1),
     regular_price: z.string().regex(/^\d+$/),
     sale_price: z.literal(""),
     stock_status: z.enum(["instock", "outofstock"]),
     manage_stock: z.literal(false),
-    meta_data: z.tuple([
-      z
-        .object({
-          key: z.literal("_wholesalehub_compare_key"),
-          value: z.string().min(1),
-        })
-        .strict(),
-    ]),
   })
   .strict()
 

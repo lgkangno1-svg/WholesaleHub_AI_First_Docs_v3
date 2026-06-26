@@ -113,6 +113,22 @@ CREATE TABLE IF NOT EXISTS compare_products (
   calculated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS woocommerce_product_mapping (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  compare_key TEXT NOT NULL UNIQUE,
+  normalized_name TEXT NOT NULL,
+  option_key TEXT NOT NULL,
+  woocommerce_product_id INTEGER,
+  woocommerce_variation_id INTEGER,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'disabled')),
+  admin_note TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_woocommerce_product_mapping_status
+  ON woocommerce_product_mapping(status);
+
 CREATE TABLE IF NOT EXISTS woocommerce_sync_logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   compare_product_id INTEGER,

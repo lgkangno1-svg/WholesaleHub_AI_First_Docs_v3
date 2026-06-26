@@ -33,13 +33,18 @@ describe("operator reports", () => {
     })
     expect(compareReport).toMatchObject({ totalCompareProducts: 1 })
     expect(wooReport).toMatchObject({
-      matchedProducts: 1,
-      unmatchedProducts: 0,
-      skippedProducts: 0,
+      matchedProducts: 0,
+      pendingProducts: 0,
+      disabledProducts: 0,
+      missingMappingProducts: 1,
+      skippedProducts: 1,
       payloadSafety: { safe: true, forbiddenFieldHits: [] },
     })
     expect(JSON.stringify(wooReport)).not.toMatch(
       /supplier_id|supplier_name|source_url|raw_cost|forwardFilled|cheapest_supplier_id/,
+    )
+    expect(JSON.stringify((wooReport as { updatePayloads: unknown }).updatePayloads)).not.toMatch(
+      /compare_key|normalized_name|option_key/,
     )
     database.close()
   })
@@ -102,6 +107,18 @@ CREATE TABLE compare_products (
   stock_status TEXT,
   product_url TEXT,
   calculated_at TEXT
+);
+CREATE TABLE woocommerce_product_mapping (
+  id INTEGER PRIMARY KEY,
+  compare_key TEXT,
+  normalized_name TEXT,
+  option_key TEXT,
+  woocommerce_product_id INTEGER,
+  woocommerce_variation_id INTEGER,
+  status TEXT,
+  admin_note TEXT,
+  created_at TEXT,
+  updated_at TEXT
 );
 `
 

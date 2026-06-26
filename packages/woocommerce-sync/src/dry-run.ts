@@ -15,22 +15,15 @@ export function buildWooCommerceDryRunOperations(
   const margin = MarginAmountSchema.parse(marginAmount)
   return candidates.map((candidate) => {
     const payload: WooCommerceUpdatePayload = {
-      name: `${candidate.normalizedName.trim()} ${candidate.optionKey.trim()}`,
       regular_price: String(candidate.price + margin),
       sale_price: "",
       stock_status: candidate.stockStatus === "out_of_stock" ? "outofstock" : "instock",
       manage_stock: false,
-      meta_data: [
-        {
-          key: "_wholesalehub_compare_key",
-          value: candidate.compareKey,
-        },
-      ],
     }
     assertSupplierSafeWooCommercePayload(payload)
     return {
       mode: "dry-run",
-      lookupKey: candidate.compareKey,
+      productId: null,
       payload,
     }
   })

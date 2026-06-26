@@ -19,8 +19,6 @@ const CliOutputSchema = z.object({
   }),
   dryRunPayloads: z.array(
     z.object({
-      lookupKey: z.string(),
-      name: z.string(),
       regular_price: z.string(),
       stock_status: z.enum(["instock", "outofstock"]),
       manage_stock: z.literal(false),

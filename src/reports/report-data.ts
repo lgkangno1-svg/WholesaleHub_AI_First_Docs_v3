@@ -1,6 +1,6 @@
 import type { DatabaseSync } from "node:sqlite"
 import { z } from "zod"
-import { buildWooCommerceDryRunPayloads } from "../woocommerce/dry-run.js"
+import type { WooCommerceDryRunPayload } from "../domain/product.js"
 import { inspectWooCommercePayloadSafety } from "./payload-safety.js"
 
 const CountRowSchema = z.object({ count: z.number().int() })
@@ -45,6 +45,20 @@ const CompareRowSchema = z.object({
   product_url: z.string().nullable(),
   calculated_at: z.string().nullable(),
 })
+const WooCommerceDryRunRowSchema = CompareRowSchema.extend({
+  woocommerce_product_id: z.number().int().nullable(),
+  woocommerce_variation_id: z.number().int().nullable(),
+  mapping_status: z.enum(["pending", "approved", "disabled"]).nullable(),
+})
+
+type WooCommerceDryRunRow = z.infer<typeof WooCommerceDryRunRowSchema>
+
+type SkippedWooCommerceProduct = {
+  readonly compare_key: string
+  readonly normalized_name: string
+  readonly option_key: string
+  readonly reason: "pending" | "disabled" | "missing_mapping"
+}
 
 export function buildRawProductsReport(database: DatabaseSync): unknown {
   return {
@@ -135,30 +149,25 @@ export function buildWooCommerceDryRunReport(
   database: DatabaseSync,
   marginAmount: number,
 ): unknown {
-  const compareRows = readCompareRows(database)
-  const payloads = buildWooCommerceDryRunPayloads(
-    compareRows.map((row) => ({
-      compareKey: row.compare_key,
-      normalizedName: row.normalized_name,
-      optionKey: row.option_key,
-      supplierId: row.cheapest_supplier_id,
-      rawProductId: row.cheapest_raw_product_id,
-      price: row.cheapest_price,
-      unitPrice: row.cheapest_unit_price ?? row.cheapest_price,
-      stockStatus: row.stock_status === "out_of_stock" ? "out_of_stock" : "in_stock",
-      productUrl: row.product_url,
-    })),
-    marginAmount,
+  const rows = readWooCommerceDryRunRows(database)
+  const approvedRows = rows.filter(
+    (row) => row.mapping_status === "approved" && row.woocommerce_product_id !== null,
   )
-  const safety = inspectWooCommercePayloadSafety(payloads)
+  const updatePayloads = approvedRows.map((row) => buildApprovedUpdatePayload(row, marginAmount))
+  const skipped = rows
+    .filter((row) => row.mapping_status !== "approved" || row.woocommerce_product_id === null)
+    .map(toSkippedWooCommerceProduct)
+  const safety = inspectWooCommercePayloadSafety(updatePayloads)
   return {
     generatedAt: new Date().toISOString(),
-    matchedProducts: payloads.length,
-    unmatchedProducts: 0,
-    skippedProducts: 0,
-    skipped: [],
+    matchedProducts: updatePayloads.length,
+    pendingProducts: skipped.filter((item) => item.reason === "pending").length,
+    disabledProducts: skipped.filter((item) => item.reason === "disabled").length,
+    missingMappingProducts: skipped.filter((item) => item.reason === "missing_mapping").length,
+    skippedProducts: skipped.length,
+    skipped,
     payloadSafety: safety,
-    payloads,
+    updatePayloads,
   }
 }
 
@@ -181,4 +190,62 @@ function readCompareRows(database: DatabaseSync): readonly z.infer<typeof Compar
 function countTable(database: DatabaseSync, tableName: string): number {
   return CountRowSchema.parse(database.prepare(`SELECT COUNT(*) AS count FROM ${tableName}`).get())
     .count
+}
+
+function readWooCommerceDryRunRows(database: DatabaseSync): readonly WooCommerceDryRunRow[] {
+  return z.array(WooCommerceDryRunRowSchema).parse(
+    database
+      .prepare(`
+        SELECT c.id, c.compare_key, c.normalized_name, c.option_key,
+          c.cheapest_supplier_id, s.supplier_name, c.cheapest_raw_product_id,
+          c.cheapest_price, c.cheapest_unit_price, c.stock_status,
+          c.product_url, c.calculated_at, m.woocommerce_product_id,
+          m.woocommerce_variation_id, m.status AS mapping_status
+        FROM compare_products c
+        LEFT JOIN suppliers s ON s.supplier_id = c.cheapest_supplier_id
+        LEFT JOIN woocommerce_product_mapping m ON m.compare_key = c.compare_key
+        ORDER BY c.normalized_name, c.option_key
+      `)
+      .all(),
+  )
+}
+
+function buildApprovedUpdatePayload(
+  row: WooCommerceDryRunRow,
+  marginAmount: number,
+): WooCommerceDryRunPayload {
+  if (row.woocommerce_product_id === null) {
+    throw new Error(`approved WooCommerce mapping has no product id: ${row.compare_key}`)
+  }
+  const payload = {
+    product_id: row.woocommerce_product_id,
+    regular_price: String(row.cheapest_price + marginAmount),
+    stock_status: row.stock_status === "out_of_stock" ? "outofstock" : "instock",
+    manage_stock: false,
+  } satisfies WooCommerceDryRunPayload
+  return row.woocommerce_variation_id === null
+    ? payload
+    : { ...payload, variation_id: row.woocommerce_variation_id }
+}
+
+function toSkippedWooCommerceProduct(row: WooCommerceDryRunRow): SkippedWooCommerceProduct {
+  return {
+    compare_key: row.compare_key,
+    normalized_name: row.normalized_name,
+    option_key: row.option_key,
+    reason: toSkippedReason(row),
+  }
+}
+
+function toSkippedReason(row: WooCommerceDryRunRow): SkippedWooCommerceProduct["reason"] {
+  switch (row.mapping_status) {
+    case "pending":
+      return "pending"
+    case "disabled":
+      return "disabled"
+    case "approved":
+      return "pending"
+    case null:
+      return "missing_mapping"
+  }
 }
