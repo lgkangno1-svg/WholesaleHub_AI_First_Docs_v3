@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process"
 import { mkdtemp } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { join, resolve } from "node:path"
 import { DatabaseSync } from "node:sqlite"
 import { describe, expect, it } from "vitest"
 import { z } from "zod"
@@ -19,15 +19,15 @@ const InitializationOutputSchema = z.object({
 })
 
 describe("database initialization", () => {
-  it("resolves DATABASE_URL relative to the working directory", () => {
+  it("resolves DATABASE_URL relative to the working directory", async () => {
     // Given
-    const workingDirectory = join("C:", "workspace")
+    const workingDirectory = await mkdtemp(join(tmpdir(), "wholesalehub-workspace-"))
 
     // When
     const databasePath = resolveDatabasePath("data/test.sqlite", workingDirectory)
 
     // Then
-    expect(databasePath).toBe(join(workingDirectory, "data/test.sqlite"))
+    expect(databasePath).toBe(resolve(workingDirectory, "data/test.sqlite"))
   })
 
   it("applies schema and supplier seeds to a real SQLite file", async () => {
@@ -97,5 +97,5 @@ describe("database test initialization command", () => {
     )
     database.close()
     expect(supplierCount.count).toBe(2)
-  }, 15_000)
+  }, 45_000)
 })

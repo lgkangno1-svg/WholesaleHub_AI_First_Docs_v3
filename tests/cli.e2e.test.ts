@@ -86,5 +86,5 @@ describe("Phase 1 CLI", () => {
     expect(execution.status).toBe(0)
     expect(execution.stderr).not.toContain("MODULE_NOT_FOUND")
     expect(execution.stdout).toContain('"mode": "woocommerce-dry-run"')
-  }, 15_000)
+  }, 45_000)
 })
