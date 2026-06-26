@@ -136,6 +136,10 @@ npm run report:woocommerce-dry-run -- --db data/wholesalehub.sqlite --margin 150
 `report:compare`는 내부 운영자용 리포트라 최저가 공급처 확인이 가능하다. `report:woocommerce-dry-run`의
 고객/쇼핑몰 payload에는 `supplier_id`, `supplier_name`, `source_url`, `raw_cost`, `forwardFilled`,
 `cheapest_supplier_id`를 포함하지 않도록 검사한다. `reports/` 결과 파일은 GitHub에 올리지 않는다.
+# Future note: 충전금 주문 구조
+
+향후 주문/결제는 고객이 충전금을 선충전하고, 주문 시 잔액 확인 후 확정 시 ledger 방식으로 차감하는 구조를 검토한다. 실제 PG/입금확인/환불 자동화와 공급처 자동주문은 별도 후순위로 분리한다.
+
 # WooCommerce 상품 ID 조회
 
 ```bash
