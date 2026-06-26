@@ -78,3 +78,25 @@ DailyFood Google Sheet CSV export의 실제 header는 다음 구조를 기준으
 
 상품명 칸이 비어 있고 `중량`과 `단가`가 있는 행은 직전 상품명을 이어받아 수집한다. 이때 내부
 `raw_json`에는 `forwardFilled: true`를 기록하지만 WooCommerce dry-run payload에는 노출하지 않는다.
+
+## 운영자 리포트 CLI
+
+Phase 1 실행 후 Mini PC에서 다음 명령으로 운영자용 JSON 리포트를 생성한다.
+
+```bash
+npm run report:raw -- --db data/wholesalehub.sqlite
+npm run report:mapping -- --db data/wholesalehub.sqlite
+npm run report:compare -- --db data/wholesalehub.sqlite
+npm run report:woocommerce-dry-run -- --db data/wholesalehub.sqlite --margin 1500
+```
+
+생성 파일:
+
+- `reports/raw-products.json`
+- `reports/mapping-summary.json`
+- `reports/compare-products.json`
+- `reports/woocommerce-dry-run.json`
+
+`report:compare`는 내부 운영자용 리포트라 최저가 공급처 확인이 가능하다. `report:woocommerce-dry-run`의
+고객/쇼핑몰 payload에는 `supplier_id`, `supplier_name`, `source_url`, `raw_cost`, `forwardFilled`,
+`cheapest_supplier_id`를 포함하지 않도록 검사한다. `reports/` 결과 파일은 GitHub에 올리지 않는다.

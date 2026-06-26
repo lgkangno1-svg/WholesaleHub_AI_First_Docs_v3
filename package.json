@@ -19,6 +19,10 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "phase1": "npm run build && node dist/cli.js phase1",
+    "report:compare": "npm run build && node dist/reports/report-cli.js compare",
+    "report:mapping": "npm run build && node dist/reports/report-cli.js mapping",
+    "report:raw": "npm run build && node dist/reports/report-cli.js raw",
+    "report:woocommerce-dry-run": "npm run build && node dist/reports/report-cli.js woocommerce-dry-run",
     "test": "npm run build && vitest run",
     "test:gemini-live": "npm run build && node dist/normalization/gemini-live-test.js",
     "typecheck": "tsc --noEmit"
