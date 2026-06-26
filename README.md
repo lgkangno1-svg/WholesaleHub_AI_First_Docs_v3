@@ -21,6 +21,19 @@ npm run report:woocommerce-dry-run -- --db data/wholesalehub.sqlite --margin 150
 - 실제 live update 전에는 반드시 `seed-pending → list → approve → report:woocommerce-dry-run` 순서로 사람이 검수해야 한다.
 - 고객/WooCommerce update payload에는 `supplier_id`, `supplier_name`, `source_url`, `raw_cost`, `forwardFilled`, `cheapest_supplier_id`, `compare_key`, `normalized_name`, `option_key`를 포함하지 않는다.
 
+## DailyFood 정규화 캐시 재생성
+
+상품명 정규화 규칙이나 Gemini/OpenRouter 프롬프트를 바꾼 뒤에는 기존 `product_mapping` 캐시가 예전 결과를 재사용할 수 있다. DailyFood 기준으로 정규화 결과를 다시 만들려면 다음 순서로 실행한다.
+
+```bash
+npm run mapping:dailyfood:reset -- --db data/wholesalehub.sqlite
+npm run phase1 -- --db data/wholesalehub.sqlite --margin 1500
+npm run mapping:woocommerce:seed-pending -- --db data/wholesalehub.sqlite
+npm run mapping:woocommerce:list -- --db data/wholesalehub.sqlite
+```
+
+이 reset 명령은 DailyFood의 `product_mapping`, `normalized_products`, `compare_products`, `woocommerce_product_mapping` 재생성을 위한 개발/운영자 검수용 명령이다. WooCommerce live update는 실행하지 않는다.
+
 # WholesaleHub AI-First Development Docs v3
 
 대상 사이트: `hub.avocadoss.co.kr`  

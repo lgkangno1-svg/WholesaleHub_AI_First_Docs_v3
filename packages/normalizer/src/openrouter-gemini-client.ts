@@ -71,16 +71,7 @@ export class OpenRouterGeminiFlashClient implements ProductNormalizerClient {
         json: {
           model: this.modelName,
           messages: [
-            {
-              role: "system",
-              content: [
-                "너는 한국 도매 식품/농산물 상품명을 구조화하는 파서다.",
-                "반드시 JSON만 출력한다.",
-                "상품 상세 설명을 생성하지 않는다.",
-                "없는 정보는 null로 둔다.",
-                "추측이 강하면 confidence를 낮게 준다.",
-              ].join("\n"),
-            },
+            { role: "system", content: buildSystemPrompt() },
             {
               role: "user",
               content: [
@@ -99,9 +90,7 @@ export class OpenRouterGeminiFlashClient implements ProductNormalizerClient {
               schema: NORMALIZED_PRODUCT_JSON_SCHEMA,
             },
           },
-          provider: {
-            require_parameters: true,
-          },
+          provider: { require_parameters: true },
         },
       })
       .json()
@@ -137,4 +126,16 @@ export function parseOpenRouterResponse(response: unknown): NormalizedProduct {
     }
     throw new OpenRouterResponseError({ cause: error })
   }
+}
+
+function buildSystemPrompt(): string {
+  return [
+    "너는 한국 도매 농산물 상품명을 구조화하는 파서다.",
+    "반드시 JSON만 출력한다.",
+    "normalized_name에는 프로모션, 날짜, 시즌, 이모지, 마케팅 문구를 넣지 않는다.",
+    "제거 대상 예: 🔥, ★, 추천템, 특가, 실중량, 2026, 햇, 5 6월, 6월, 7월, 행사, 한정, MD추천, md 추천.",
+    "상품 상세 설명은 생성하지 않는다.",
+    "없는 정보는 null로 둔다.",
+    "추측이 강하면 confidence를 낮게 준다.",
+  ].join("\n")
 }

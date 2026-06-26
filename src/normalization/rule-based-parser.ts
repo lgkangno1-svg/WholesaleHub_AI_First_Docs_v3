@@ -1,30 +1,33 @@
 import type { ParsedProduct, ProductParser } from "../domain/product.js"
+import { cleanProductText, normalizeWhitespace } from "./product-name-cleaner.js"
 
-const ORIGIN_PATTERN = /(국내산|국산|수입산|미국산|중국산|호주산)/
-const GRADE_PATTERN = /(특품|상품|상급|중품|실속|프리미엄)/
-const QUANTITY_PATTERN = /(\d+(?:\.\d+)?)\s*(개입|개|입|망|팩|봉|박스|과)/
-const WEIGHT_PATTERN = /(\d+(?:\.\d+)?)\s*(kg|g|킬로|그램)/i
+const ORIGIN_PATTERN = /(국내산|국산|수입산|미국산|중국산|제주산|성주산|금산)/u
+const GRADE_PATTERN = /(특품|상품|상급|중품|못난이|프리미엄)/u
+const QUANTITY_PATTERN = /(\d+(?:\.\d+)?)\s*(개입|개|입|망|봉|박스|과|팩)/u
+const WEIGHT_PATTERN = /(\d+(?:\.\d+)?)\s*(kg|g|킬로|그램)/iu
+const PRODUCT_NOISE_PATTERN = /(이미지|내외|17센치 이상)/gu
 
 export class RuleBasedProductParser implements ProductParser {
-  readonly modelName = "rule-based-v1"
+  readonly modelName = "rule-based-v2"
 
   async parse(productName: string, optionName: string | null): Promise<ParsedProduct> {
-    const combined = `${productName} ${optionName ?? ""}`
-    const origin = ORIGIN_PATTERN.exec(combined)?.[1] ?? null
+    const cleaned = cleanProductText(productName, optionName)
+    const combined = `${cleaned.productName} ${cleaned.optionName ?? ""}`
+    const origin = normalizeOrigin(ORIGIN_PATTERN.exec(combined)?.[1] ?? null)
     const grade = GRADE_PATTERN.exec(combined)?.[1] ?? null
     const quantityMatch = QUANTITY_PATTERN.exec(combined)
     const weightMatch = WEIGHT_PATTERN.exec(combined)
     const quantity = quantityMatch?.[1] === undefined ? null : Number(quantityMatch[1])
-    const unit = quantityMatch?.[2] ?? null
+    const unit = normalizeQuantityUnit(quantityMatch?.[2] ?? null)
     const weightValue = weightMatch?.[1] === undefined ? null : Number(weightMatch[1])
     const weightUnit = normalizeWeightUnit(weightMatch?.[2] ?? null)
-    const normalizedName = normalizeName(productName)
+    const normalizedName = normalizeName(cleaned.productName, cleaned.optionName)
     const optionKey = [
       origin ?? "원산지미상",
       grade ?? "등급미상",
       quantity === null ? null : `${quantity}${unit ?? ""}`,
       weightValue === null ? null : `${weightValue}${weightUnit ?? ""}`,
-      quantity === null && weightValue === null ? normalizeOption(optionName) : null,
+      quantity === null && weightValue === null ? normalizeOption(cleaned.optionName) : null,
     ]
       .filter((value) => value !== null && value.length > 0)
       .join("|")
@@ -41,32 +44,53 @@ export class RuleBasedProductParser implements ProductParser {
       optionKey,
       confidence: normalizedName.length > 0 && optionKey.length > 0 ? 0.9 : 0.5,
       parserModel: this.modelName,
-      parserReason: "Rule-based extraction of origin, grade, quantity, and weight",
+      parserReason: `Rule-based extraction after marketing cleanup: ${cleaned.removedTerms.join(", ")}`,
     }
   }
 }
 
-function normalizeName(value: string): string {
-  return value
-    .replace(/[🔥⭐✅✨💥]/gu, " ")
-    .replace(/\b20\d{2}\b/g, " ")
-    .replace(/\b햇\b/g, " ")
-    .replace(ORIGIN_PATTERN, " ")
-    .replace(GRADE_PATTERN, " ")
-    .replace(QUANTITY_PATTERN, " ")
-    .replace(WEIGHT_PATTERN, " ")
-    .replace(/[()[\],/]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
+function normalizeName(productName: string, optionName: string | null): string {
+  const optionCore = stripStructuredParts(optionName ?? "")
+  const productCore = stripStructuredParts(productName)
+  if (optionCore.length > 0 && productCore.includes(optionCore.replace(/\s/gu, ""))) {
+    return optionCore
+  }
+  return productCore
+}
+
+function stripStructuredParts(value: string): string {
+  return normalizeWhitespace(
+    value
+      .replace(ORIGIN_PATTERN, " ")
+      .replace(GRADE_PATTERN, " ")
+      .replace(QUANTITY_PATTERN, " ")
+      .replace(WEIGHT_PATTERN, " ")
+      .replace(PRODUCT_NOISE_PATTERN, " ")
+      .replace(/[()[\],/]/gu, " "),
+  )
 }
 
 function normalizeOption(value: string | null): string {
-  return value?.replace(/\s+/g, " ").trim() ?? "기본"
+  return value === null ? "기본" : normalizeWhitespace(value)
+}
+
+function normalizeOrigin(value: string | null): string | null {
+  if (value === null) {
+    return null
+  }
+  return value === "국산" ? "국내산" : value
+}
+
+function normalizeQuantityUnit(value: string | null): string | null {
+  if (value === null) {
+    return null
+  }
+  return value === "개입" || value === "입" ? "개" : value
 }
 
 function normalizeWeightUnit(value: string | null): string | null {
   if (value === null) {
     return null
   }
-  return /kg|킬로/i.test(value) ? "kg" : "g"
+  return /kg|킬로/iu.test(value) ? "kg" : "g"
 }

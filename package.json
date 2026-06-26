@@ -18,6 +18,7 @@
     "dev": "npm run build && node dist/cli.js",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
+    "mapping:dailyfood:reset": "npm run build && node dist/normalization/reset-dailyfood-mappings-cli.js",
     "mapping:woocommerce:approve": "npm run build && node dist/woocommerce/mapping-cli.js approve",
     "mapping:woocommerce:disable": "npm run build && node dist/woocommerce/mapping-cli.js disable",
     "mapping:woocommerce:list": "npm run build && node dist/woocommerce/mapping-cli.js list",

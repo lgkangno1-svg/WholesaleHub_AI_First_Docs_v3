@@ -17,15 +17,7 @@ const OpenRouterGeminiProductSchema = z.object({
 })
 
 const OpenRouterChatResponseSchema = z.object({
-  choices: z
-    .array(
-      z.object({
-        message: z.object({
-          content: z.string().min(1),
-        }),
-      }),
-    )
-    .min(1),
+  choices: z.array(z.object({ message: z.object({ content: z.string().min(1) }) })).min(1),
 })
 
 const OPENROUTER_PRODUCT_JSON_SCHEMA = {
@@ -119,14 +111,7 @@ export class OpenRouterGeminiProductParser implements ProductParser {
         json: {
           model: this.modelName,
           messages: [
-            {
-              role: "system",
-              content: [
-                "너는 한국 농산물/식품 도매 상품명을 표준 비교용 JSON으로 정규화한다.",
-                "반드시 JSON만 반환하고, 모르는 값은 null로 둔다.",
-                "상품 상세 설명, 이미지, 리뷰, 디자인 문구를 생성하지 않는다.",
-              ].join("\n"),
-            },
+            { role: "system", content: buildSystemPrompt() },
             {
               role: "user",
               content: [
@@ -179,4 +164,15 @@ export function parseOpenRouterGeminiResponse(response: unknown, modelName: stri
     }
     throw new OpenRouterGeminiResponseError("invalid JSON or schema", { cause: error })
   }
+}
+
+function buildSystemPrompt(): string {
+  return [
+    "너는 한국 농산물 도매 상품명을 표준 상품명과 옵션 정보로 정규화한다.",
+    "반드시 JSON만 반환하고, 모르는 값은 null로 둔다.",
+    "normalized_name에는 프로모션, 날짜, 시즌, 이모지, 마케팅 문구를 절대 넣지 않는다.",
+    "제거 대상 예: 🔥, ★, 추천템, 특가, 실중량, 2026, 햇, 5 6월, 6월, 7월, 행사, 한정, MD추천, md 추천.",
+    "normalized_name은 순수 상품명만 남긴다. 예: '🔥7월 추천템 2026 햇 미백찰옥수수'는 '미백 찰옥수수'.",
+    "option_key는 원산지|등급|수량/중량 순서로 구성한다. 모르면 원산지미상, 등급미상.",
+  ].join("\n")
 }
