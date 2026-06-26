@@ -30,7 +30,8 @@
     "report:woocommerce-dry-run": "npm run build && node dist/reports/report-cli.js woocommerce-dry-run",
     "test": "npm run build && vitest run",
     "test:gemini-live": "npm run build && node dist/normalization/gemini-live-test.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "woocommerce:search": "npm run build && node dist/woocommerce/search-cli.js"
   },
   "dependencies": {
     "csv-parse": "^6.1.0",

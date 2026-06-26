@@ -136,3 +136,10 @@ npm run report:woocommerce-dry-run -- --db data/wholesalehub.sqlite --margin 150
 `report:compare`는 내부 운영자용 리포트라 최저가 공급처 확인이 가능하다. `report:woocommerce-dry-run`의
 고객/쇼핑몰 payload에는 `supplier_id`, `supplier_name`, `source_url`, `raw_cost`, `forwardFilled`,
 `cheapest_supplier_id`를 포함하지 않도록 검사한다. `reports/` 결과 파일은 GitHub에 올리지 않는다.
+# WooCommerce 상품 ID 조회
+
+```bash
+npm run woocommerce:search -- --query "성주참외"
+```
+
+조회 결과는 `reports/woocommerce-search.json`에 저장된다. 이 명령은 WooCommerce REST API 조회만 수행하며 상품 수정은 하지 않는다.
