@@ -1,0 +1,76 @@
+{
+  "id": "WF003AdminPlusLimited",
+  "name": "WF-003 AdminPlus Limited Crawl",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 11 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-320, -80],
+      "id": "1f47e7d3-3a74-4ae9-857d-018633020001",
+      "name": "매일 오전 11시"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-320, 80],
+      "id": "1f47e7d3-3a74-4ae9-857d-018633020002",
+      "name": "관리자 수동 실행"
+    },
+    {
+      "parameters": {
+        "command": "cd /home/node/karrot_sourcing/wholesalehub_adminplus && node packages/supplier-adapters/dist/adminplus-runner.js"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [0, 0],
+      "id": "1f47e7d3-3a74-4ae9-857d-018633020003",
+      "name": "제한 크롤러 실행"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "매일 오전 11시": {
+      "main": [
+        [
+          {
+            "node": "제한 크롤러 실행",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "관리자 수동 실행": {
+      "main": [
+        [
+          {
+            "node": "제한 크롤러 실행",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "timezone": "Asia/Seoul",
+    "executionOrder": "v1"
+  },
+  "versionId": "1f47e7d3-3a74-4ae9-857d-018633020004",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}

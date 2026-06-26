@@ -60,4 +60,31 @@ describe("Phase 1 CLI", () => {
     expect(z.object({ count: z.number() }).parse(count).count).toBe(3)
     expect(await readFile(databasePath)).not.toHaveLength(0)
   })
+
+  it("runs through the documented npm phase1 script", async () => {
+    // Given
+    const directory = await mkdtemp(join(tmpdir(), "wholesalehub-npm-"))
+    const databasePath = join(directory, "phase1.sqlite")
+    const npmCliPath = z.string().min(1).parse(process.env["npm_execpath"])
+    const commandArguments = [
+      npmCliPath,
+      "run",
+      "phase1",
+      "--",
+      "--csv",
+      "tests/fixtures/dailyfood.csv",
+      "--db",
+      databasePath,
+      "--margin",
+      "1500",
+    ]
+
+    // When
+    const execution = spawnSync(process.execPath, commandArguments, { encoding: "utf8" })
+
+    // Then
+    expect(execution.status).toBe(0)
+    expect(execution.stderr).not.toContain("MODULE_NOT_FOUND")
+    expect(execution.stdout).toContain('"mode": "woocommerce-dry-run"')
+  }, 15_000)
 })

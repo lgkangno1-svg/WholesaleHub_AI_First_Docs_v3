@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "engines": {
     "node": ">=22.5"
   },
@@ -10,10 +14,11 @@
     "build": "npm run clean && tsc -p tsconfig.build.json",
     "check": "npm run lint && npm run typecheck && npm test",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
-    "dev": "npm run build && node dist/src/cli.js",
+    "db:test:init": "npm run test:init --workspace @wholesalehub/database",
+    "dev": "npm run build && node dist/cli.js",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "phase1": "npm run build && node dist/src/cli.js phase1",
+    "phase1": "npm run build && node dist/cli.js phase1",
     "test": "npm run build && vitest run",
     "typecheck": "tsc --noEmit"
   },

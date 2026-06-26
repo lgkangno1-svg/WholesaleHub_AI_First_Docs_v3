@@ -1,0 +1,46 @@
+schedule:
+  timezone: Asia/Seoul
+  cron: "0 11 * * *"
+  max_runs_per_day: 1
+
+sites:
+  - supplier_id: adminplus_supplier_example
+    supplier_name: AdminPlus 공급처 예시
+    enabled: false
+    list_urls:
+      - "https://supplier.example.com/products"
+    allowed_hosts:
+      - supplier.example.com
+      - cdn.supplier.example.com
+    allowed_path_prefixes:
+      - /products
+    forbidden_path_patterns:
+      - /cart
+      - /basket
+      - /order
+      - /orders
+      - /checkout
+      - /payment
+      - /purchase
+      - /api
+      - /graphql
+    collect_only:
+      - product_name
+      - option_text
+      - price
+      - stock_status
+      - product_url
+    selectors:
+      row: ".product-row"
+      product_name: ".product-name"
+      option_text: ".product-option"
+      price: ".product-price"
+      stock_status: ".stock-status"
+      product_url: "a.product-name"
+      security_warning: ".captcha, .security-warning, .access-denied"
+    out_of_stock_texts:
+      - 품절
+      - 판매중지
+      - 재고없음
+    storage_state_path: "data/adminplus_supplier_example.storage-state.json"
+    max_pages: 3

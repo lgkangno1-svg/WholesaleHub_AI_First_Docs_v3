@@ -15,4 +15,4 @@ suppliers:
     supplier_name: 어드민플러스공급처예시
     source_type: adminplus_limited
     enabled: false
-    config_file: config/suppliers/adminplus.limited_crawl.example.yml
+    config_file: config/suppliers/adminplus.sites.yml

@@ -3,4 +3,10 @@ dist/
 coverage/
 data/*.sqlite
 data/*.sqlite-*
+data/*.db
+.env.*
 .env
+!.env.example
+logs/
+*.log
+check_db.mjs

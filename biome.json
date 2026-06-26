@@ -8,7 +8,7 @@
     }
   },
   "files": {
-    "includes": ["**", "!node_modules", "!dist", "!coverage", "!data"]
+    "includes": ["**", "!node_modules", "!**/dist", "!coverage", "!data", "!check_db.mjs"]
   },
   "formatter": {
     "enabled": true,
