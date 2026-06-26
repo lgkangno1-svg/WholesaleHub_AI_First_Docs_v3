@@ -23,11 +23,16 @@ describe("runPhase1Pipeline", () => {
     })
 
     // Then
-    expect(result.rawProductCount).toBe(3)
-    expect(result.normalizedProductCount).toBe(3)
-    expect(result.compareProductCount).toBe(2)
+    expect(result.rawProductCount).toBe(4)
+    expect(result.normalizedProductCount).toBe(4)
+    expect(result.compareProductCount).toBe(4)
+    expect(result.skippedRowsByReason).toMatchObject({
+      invalid_price: 1,
+      empty_row: 1,
+    })
     expect(result.dryRunPayloads[0]).not.toHaveProperty("supplierId")
     expect(result.dryRunPayloads[0]).not.toHaveProperty("rawCost")
+    expect(result.dryRunPayloads[0]).not.toHaveProperty("forwardFilled")
   })
 
   it("reuses product_mapping without invoking the parser again", async () => {
@@ -43,7 +48,7 @@ describe("runPhase1Pipeline", () => {
     const secondRun = await runPhase1Pipeline({ database, config, csv, parser })
 
     // Then
-    expect(secondRun.mappingCacheHits).toBe(3)
+    expect(secondRun.mappingCacheHits).toBe(4)
     expect(secondRun.parserCalls).toBe(0)
   })
 })

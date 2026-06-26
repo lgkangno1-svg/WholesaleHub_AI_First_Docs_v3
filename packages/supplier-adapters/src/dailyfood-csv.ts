@@ -16,6 +16,11 @@ export class DailyFoodCsvError extends Error {
   }
 }
 
+type PriceParseResult =
+  | { readonly kind: "valid"; readonly price: number }
+  | { readonly kind: "missing" }
+  | { readonly kind: "invalid" }
+
 export function parseDailyFoodCsv(
   csv: string,
   config: DailyFoodSupplierConfig,
@@ -38,14 +43,26 @@ export function parseDailyFoodCsv(
     productName: requireColumn(header, [config.columnMapping.productNameColumn]),
     option: requireColumn(header, [config.columnMapping.optionColumn, ...OPTION_ALIASES]),
     price: requireColumn(header, [config.columnMapping.priceColumn, ...PRICE_ALIASES]),
-    stock: optionalColumn(header, [config.columnMapping.stockColumn, ...STOCK_ALIASES]),
+    stock: optionalColumn(
+      header,
+      nullableCandidates(config.columnMapping.stockColumn, STOCK_ALIASES),
+    ),
     memo: optionalColumn(header, [config.columnMapping.memoColumn, ...MEMO_ALIASES]),
   }
   const products: RawProduct[] = []
+  let currentProductName: string | null = null
+
   for (const row of rows.slice(headerIndex + 1)) {
-    const productName = cleanCell(row[columns.productName])
-    const price = cleanPrice(row[columns.price])
-    if (productName.length === 0 || price === null) {
+    if (isEmptyRow(row)) {
+      continue
+    }
+    const rawProductName = cleanCell(row[columns.productName])
+    if (rawProductName.length > 0) {
+      currentProductName = rawProductName
+    }
+    const productName = rawProductName.length > 0 ? rawProductName : currentProductName
+    const price = parsePrice(row[columns.price])
+    if (productName === null || price.kind !== "valid") {
       continue
     }
     const optionName = cleanCell(row[columns.option])
@@ -55,23 +72,29 @@ export function parseDailyFoodCsv(
       sourceType: config.sourceType,
       originalProductName: productName,
       originalOptionName: optionName.length > 0 ? optionName : null,
-      price,
+      price: price.price,
       shippingFee: 0,
       stockStatus: parseStockStatus(stockText),
       productUrl: null,
-      rawJson: JSON.stringify(row),
+      rawJson: JSON.stringify({
+        row,
+        forwardFilled: rawProductName.length === 0,
+      }),
     })
   }
   return products
 }
 
 export function cleanPrice(value: string | undefined): number | null {
-  const digits = cleanCell(value).replace(/[^\d]/g, "")
-  if (digits.length === 0) {
-    return null
-  }
-  const price = Number.parseInt(digits, 10)
-  return Number.isSafeInteger(price) && price > 0 ? price : null
+  const price = parsePrice(value)
+  return price.kind === "valid" ? price.price : null
+}
+
+function nullableCandidates(
+  configured: string | null,
+  aliases: readonly string[],
+): readonly string[] {
+  return configured === null ? aliases : [configured, ...aliases]
 }
 
 function normalizeHeader(value: string): string {
@@ -103,6 +126,23 @@ function cleanCell(value: string | undefined): string {
 
 function readOptional(row: readonly string[], index: number | null): string {
   return index === null ? "" : cleanCell(row[index])
+}
+
+function parsePrice(value: string | undefined): PriceParseResult {
+  const cleaned = cleanCell(value)
+  if (cleaned.length === 0) {
+    return { kind: "missing" }
+  }
+  const digits = cleaned.replace(/[^\d]/g, "")
+  if (digits.length === 0) {
+    return { kind: "invalid" }
+  }
+  const price = Number.parseInt(digits, 10)
+  return Number.isSafeInteger(price) && price > 0 ? { kind: "valid", price } : { kind: "invalid" }
+}
+
+function isEmptyRow(row: readonly string[]): boolean {
+  return row.every((cell) => cleanCell(cell).length === 0)
 }
 
 function parseStockStatus(value: string): StockStatus {

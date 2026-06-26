@@ -10,6 +10,13 @@ const CliOutputSchema = z.object({
   mode: z.literal("woocommerce-dry-run"),
   rawProductCount: z.number().int(),
   compareProductCount: z.number().int(),
+  skippedRowsByReason: z.object({
+    empty_product_name_without_context: z.number().int(),
+    missing_price: z.number().int(),
+    invalid_price: z.number().int(),
+    empty_row: z.number().int(),
+    etc: z.number().int(),
+  }),
   dryRunPayloads: z.array(
     z.object({
       lookupKey: z.string(),
@@ -46,18 +53,24 @@ describe("Phase 1 CLI", () => {
     // Then
     expect(execution.status).toBe(0)
     const output = CliOutputSchema.parse(JSON.parse(execution.stdout))
-    expect(output.rawProductCount).toBe(3)
-    expect(output.compareProductCount).toBe(2)
-    expect(output.dryRunPayloads.map((payload) => payload.regular_price).sort()).toEqual([
-      "12500",
-      "7500",
-    ])
+    expect(output.rawProductCount).toBe(4)
+    expect(output.compareProductCount).toBe(4)
+    expect(output.skippedRowsByReason).toMatchObject({
+      invalid_price: 1,
+      empty_row: 1,
+    })
+    expect(
+      output.dryRunPayloads
+        .map((payload) => Number(payload.regular_price))
+        .sort((left, right) => left - right),
+    ).toEqual([7500, 9300, 11600, 18300])
     expect(JSON.stringify(output)).not.toContain("supplier")
+    expect(JSON.stringify(output)).not.toContain("forwardFilled")
 
     const database = new DatabaseSync(databasePath, { readOnly: true })
     const count = database.prepare("SELECT COUNT(*) AS count FROM raw_products").get()
     database.close()
-    expect(z.object({ count: z.number() }).parse(count).count).toBe(3)
+    expect(z.object({ count: z.number() }).parse(count).count).toBe(4)
     expect(await readFile(databasePath)).not.toHaveLength(0)
   })
 

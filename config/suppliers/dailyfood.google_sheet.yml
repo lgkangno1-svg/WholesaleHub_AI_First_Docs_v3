@@ -16,10 +16,10 @@ schedule:
 
 column_mapping:
   product_name_column: "상품명"
-  option_column: "규격"
-  price_column: "판매가"
-  stock_column: "재고"
-  memo_column: "비고"
+  option_column: "중량"
+  price_column: "단가"
+  stock_column: null
+  memo_column: "md 코멘트"
 
 collection:
   playwright_enabled: false

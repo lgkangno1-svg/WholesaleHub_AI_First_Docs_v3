@@ -23,7 +23,7 @@ const SupplierConfigFileSchema = z.object({
     product_name_column: z.string().min(1),
     option_column: z.string().min(1),
     price_column: z.string().min(1),
-    stock_column: z.string().min(1),
+    stock_column: z.string().min(1).nullable(),
     memo_column: z.string().min(1),
   }),
   collection: z.object({

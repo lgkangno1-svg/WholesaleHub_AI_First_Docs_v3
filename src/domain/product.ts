@@ -18,7 +18,7 @@ export type SupplierConfig = {
     readonly productNameColumn: string
     readonly optionColumn: string
     readonly priceColumn: string
-    readonly stockColumn: string
+    readonly stockColumn: string | null
     readonly memoColumn: string
   }
   readonly collection: {
@@ -39,6 +39,15 @@ export type CollectedProduct = {
   readonly productUrl: string | null
   readonly rawJson: string
 }
+
+export type DailyFoodSkipReason =
+  | "empty_product_name_without_context"
+  | "missing_price"
+  | "invalid_price"
+  | "empty_row"
+  | "etc"
+
+export type DailyFoodSkippedRowsByReason = Record<DailyFoodSkipReason, number>
 
 export type ParsedProduct = {
   readonly normalizedName: string

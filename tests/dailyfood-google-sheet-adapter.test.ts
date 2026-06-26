@@ -25,10 +25,10 @@ const config: DailyFoodSupplierConfig = {
   },
   columnMapping: {
     productNameColumn: "상품명",
-    optionColumn: "규격",
-    priceColumn: "판매가",
-    stockColumn: "재고",
-    memoColumn: "비고",
+    optionColumn: "중량",
+    priceColumn: "단가",
+    stockColumn: null,
+    memoColumn: "md 코멘트",
   },
   collection: {
     playwrightEnabled: false,
@@ -38,27 +38,27 @@ const config: DailyFoodSupplierConfig = {
 }
 
 describe("parseDailyFoodCsv", () => {
-  it("applies configured columns and cleans numeric prices", () => {
+  it("applies DailyFood columns, nullable stock, and forward-filled product names", () => {
     // Given
     const csv = [
-      "안내 문구,,,,",
-      "상품명,규격,판매가,재고,비고",
-      '미백 찰옥수수,"특품 5개입","₩ 6,000원",판매중,추천',
-      '홍매실,2kg,"9,500",품절,',
-      "가격 오류,1kg,문의,판매중,",
-      ",,,,",
+      ",안내 문구,,,,,,",
+      ",품목 사진,상품명,중량,단가,md 코멘트,,발주&단가 상담 링크",
+      ',이미지,"🔥7월 추천템\\n2026 햇 미백찰옥수수",미백 찰옥수수 특품 5개입,"6,000",판매중,,',
+      ',,,미백 찰옥수수 특품 10개입,"7,800",,,',
+      ",,,가격문의,문의,,,",
     ].join("\n")
 
     // When
     const products = parseDailyFoodCsv(csv, config)
 
     // Then
+    expect(products).toHaveLength(2)
     expect(products).toEqual([
       {
         supplierId: "dailyfood",
         sourceType: "google_sheet",
-        originalProductName: "미백 찰옥수수",
-        originalOptionName: "특품 5개입",
+        originalProductName: "🔥7월 추천템\\n2026 햇 미백찰옥수수",
+        originalOptionName: "미백 찰옥수수 특품 5개입",
         price: 6000,
         shippingFee: 0,
         stockStatus: "in_stock",
@@ -68,22 +68,26 @@ describe("parseDailyFoodCsv", () => {
       {
         supplierId: "dailyfood",
         sourceType: "google_sheet",
-        originalProductName: "홍매실",
-        originalOptionName: "2kg",
-        price: 9500,
+        originalProductName: "🔥7월 추천템\\n2026 햇 미백찰옥수수",
+        originalOptionName: "미백 찰옥수수 특품 10개입",
+        price: 7800,
         shippingFee: 0,
-        stockStatus: "out_of_stock",
+        stockStatus: "unknown",
         productUrl: null,
         rawJson: expect.any(String),
       },
     ])
+    expect(JSON.parse(products[1]?.rawJson ?? "{}")).toMatchObject({ forwardFilled: true })
   })
 })
 
 describe("DailyFoodGoogleSheetAdapter", () => {
   it("fetches the configured CSV export URL and returns RawProduct entries", async () => {
     // Given
-    const csv = ["상품명,규격,판매가,재고,비고", '세척사과,1kg,"7,500",판매중,베스트'].join("\n")
+    const csv = [
+      ",품목 사진,상품명,중량,단가,md 코멘트,,발주&단가 상담 링크",
+      ',이미지,홍매실,홍매실 2kg,"7,500",판매중,,',
+    ].join("\n")
     const server = createServer((_request, response) => {
       response.writeHead(200, { "content-type": "text/csv; charset=utf-8" })
       response.end(csv)
@@ -108,8 +112,8 @@ describe("DailyFoodGoogleSheetAdapter", () => {
     // Then
     expect(products).toHaveLength(1)
     expect(products[0]).toMatchObject({
-      originalProductName: "세척사과",
-      originalOptionName: "1kg",
+      originalProductName: "홍매실",
+      originalOptionName: "홍매실 2kg",
       price: 7500,
     })
   })
@@ -126,6 +130,7 @@ describe("loadDailyFoodSupplierConfig", () => {
     // Then
     expect(loaded.supplierId).toBe("dailyfood")
     expect(loaded.googleSheet.csvExportUrl).toContain("export?format=csv")
+    expect(loaded.columnMapping.stockColumn).toBeNull()
     expect(loaded.collection.playwrightEnabled).toBe(false)
   })
 })

@@ -66,3 +66,15 @@ npm run phase1 -- \
 
 CLI 출력은 WooCommerce dry-run JSON이며 공급처 ID, 공급처명, 원가, 원본 URL을 포함하지
 않는다. 실제 WooCommerce API 업데이트는 Phase 1 범위에 포함되지 않는다.
+## DailyFood CSV 컬럼 기준
+
+DailyFood Google Sheet CSV export의 실제 header는 다음 구조를 기준으로 처리한다.
+
+- `상품명`: 대표 상품명
+- `중량`: 옵션/규격
+- `단가`: 공급가
+- `md 코멘트`: 재고 문구와 운영 메모
+- `재고`: 현재 실제 CSV에는 없으므로 optional/null로 처리
+
+상품명 칸이 비어 있고 `중량`과 `단가`가 있는 행은 직전 상품명을 이어받아 수집한다. 이때 내부
+`raw_json`에는 `forwardFilled: true`를 기록하지만 WooCommerce dry-run payload에는 노출하지 않는다.

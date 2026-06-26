@@ -32,7 +32,7 @@ export type DailyFoodSupplierConfig = {
     readonly productNameColumn: string
     readonly optionColumn: string
     readonly priceColumn: string
-    readonly stockColumn: string
+    readonly stockColumn: string | null
     readonly memoColumn: string
   }
   readonly collection: {

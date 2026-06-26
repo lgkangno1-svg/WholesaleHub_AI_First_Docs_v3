@@ -2,7 +2,12 @@ import { createHash } from "node:crypto"
 import type { DatabaseSync } from "node:sqlite"
 import { parseDailyFoodCsv } from "../adapters/dailyfood/dailyfood-adapter.js"
 import { Phase1Repository } from "../database/phase1-repository.js"
-import type { ProductParser, SupplierConfig, WooCommerceDryRunPayload } from "../domain/product.js"
+import type {
+  DailyFoodSkippedRowsByReason,
+  ProductParser,
+  SupplierConfig,
+  WooCommerceDryRunPayload,
+} from "../domain/product.js"
 import { calculateLowestPrices } from "../pricing/price-engine.js"
 import { buildWooCommerceDryRunPayloads } from "../woocommerce/dry-run.js"
 
@@ -21,6 +26,7 @@ export type Phase1PipelineResult = {
   readonly mappingCacheHits: number
   readonly parserCalls: number
   readonly skippedRows: number
+  readonly skippedRowsByReason: DailyFoodSkippedRowsByReason
   readonly dryRunPayloads: readonly WooCommerceDryRunPayload[]
 }
 
@@ -56,6 +62,7 @@ export async function runPhase1Pipeline(input: Phase1PipelineInput): Promise<Pha
     mappingCacheHits,
     parserCalls,
     skippedRows: parsedCsv.skippedRows,
+    skippedRowsByReason: parsedCsv.skippedRowsByReason,
     dryRunPayloads,
   }
 }

@@ -1,7 +1,11 @@
 import { parse } from "csv-parse/sync"
 import ky from "ky"
 import { z } from "zod"
-import type { CollectedProduct, SupplierConfig } from "../../domain/product.js"
+import type {
+  CollectedProduct,
+  DailyFoodSkippedRowsByReason,
+  SupplierConfig,
+} from "../../domain/product.js"
 
 const CsvRowsSchema = z.array(z.array(z.string()))
 const PRODUCT_ALIASES = ["상품명"] as const
@@ -22,7 +26,13 @@ export class DailyFoodCsvError extends Error {
 export type DailyFoodParseResult = {
   readonly products: readonly CollectedProduct[]
   readonly skippedRows: number
+  readonly skippedRowsByReason: DailyFoodSkippedRowsByReason
 }
+
+type PriceParseResult =
+  | { readonly kind: "valid"; readonly price: number }
+  | { readonly kind: "missing" }
+  | { readonly kind: "invalid" }
 
 export async function fetchDailyFoodCsv(
   config: SupplierConfig,
@@ -46,7 +56,9 @@ export function parseDailyFoodCsv(csv: string, config: SupplierConfig): DailyFoo
       skip_empty_lines: true,
     }),
   )
-  const headerIndex = rows.findIndex((row) => row.some((cell) => matches(cell, PRODUCT_ALIASES)))
+  const headerIndex = rows.findIndex((row) =>
+    row.some((cell) => matches(cell, [config.columnMapping.productNameColumn, ...PRODUCT_ALIASES])),
+  )
   if (headerIndex < 0) {
     throw new DailyFoodCsvError("상품명 header was not found")
   }
@@ -59,21 +71,46 @@ export function parseDailyFoodCsv(csv: string, config: SupplierConfig): DailyFoo
     product: findColumn(header, [config.columnMapping.productNameColumn, ...PRODUCT_ALIASES]),
     option: findColumn(header, [config.columnMapping.optionColumn, ...OPTION_ALIASES]),
     price: findColumn(header, [config.columnMapping.priceColumn, ...PRICE_ALIASES]),
-    stock: findOptionalColumn(header, [config.columnMapping.stockColumn, ...STOCK_ALIASES]),
+    stock: findOptionalColumn(
+      header,
+      nullableCandidates(config.columnMapping.stockColumn, STOCK_ALIASES),
+    ),
     memo: findOptionalColumn(header, [config.columnMapping.memoColumn, ...MEMO_ALIASES]),
     url: findOptionalColumn(header, URL_ALIASES),
   }
 
   const products: CollectedProduct[] = []
-  let skippedRows = 0
+  const skippedRowsByReason = createSkippedRowsByReason()
+  let currentProductName: string | null = null
+
   for (const row of rows.slice(headerIndex + 1)) {
-    const productName = cleanCell(row[indexes.product])
-    const price = parsePrice(row[indexes.price])
-    if (productName.length === 0 || price === null) {
-      skippedRows += 1
+    if (isEmptyRow(row)) {
+      skippedRowsByReason.empty_row += 1
       continue
     }
+
+    const rawProductName = cleanCell(row[indexes.product])
+    if (rawProductName.length > 0) {
+      currentProductName = rawProductName
+    }
+
     const optionName = cleanCell(row[indexes.option])
+    const price = parsePrice(row[indexes.price])
+    const productName = rawProductName.length > 0 ? rawProductName : currentProductName
+    if (productName === null) {
+      skippedRowsByReason.empty_product_name_without_context += 1
+      continue
+    }
+    if (price.kind === "missing") {
+      skippedRowsByReason.missing_price += 1
+      continue
+    }
+    if (price.kind === "invalid") {
+      skippedRowsByReason.invalid_price += 1
+      continue
+    }
+
+    const forwardFilled = rawProductName.length === 0
     const stockText = [readOptional(row, indexes.stock), readOptional(row, indexes.memo)].join(" ")
     const productUrl = readOptional(row, indexes.url)
     products.push({
@@ -81,14 +118,38 @@ export function parseDailyFoodCsv(csv: string, config: SupplierConfig): DailyFoo
       sourceType: config.sourceType,
       originalProductName: productName,
       originalOptionName: optionName.length > 0 ? optionName : null,
-      price,
+      price: price.price,
       shippingFee: 0,
       stockStatus: parseStockStatus(stockText),
       productUrl: productUrl.length > 0 ? productUrl : null,
-      rawJson: JSON.stringify(row),
+      rawJson: JSON.stringify({
+        row,
+        forwardFilled,
+      }),
     })
   }
-  return { products, skippedRows }
+  return {
+    products,
+    skippedRows: Object.values(skippedRowsByReason).reduce((sum, count) => sum + count, 0),
+    skippedRowsByReason,
+  }
+}
+
+function createSkippedRowsByReason(): DailyFoodSkippedRowsByReason {
+  return {
+    empty_product_name_without_context: 0,
+    missing_price: 0,
+    invalid_price: 0,
+    empty_row: 0,
+    etc: 0,
+  }
+}
+
+function nullableCandidates(
+  configured: string | null,
+  aliases: readonly string[],
+): readonly string[] {
+  return configured === null ? aliases : [configured, ...aliases]
 }
 
 function normalizeHeader(value: string): string {
@@ -124,13 +185,21 @@ function readOptional(row: readonly string[], index: number | null): string {
   return index === null ? "" : cleanCell(row[index])
 }
 
-function parsePrice(value: string | undefined): number | null {
-  const digits = cleanCell(value).replace(/[^\d]/g, "")
+function parsePrice(value: string | undefined): PriceParseResult {
+  const cleaned = cleanCell(value)
+  if (cleaned.length === 0) {
+    return { kind: "missing" }
+  }
+  const digits = cleaned.replace(/[^\d]/g, "")
   if (digits.length === 0) {
-    return null
+    return { kind: "invalid" }
   }
   const price = Number.parseInt(digits, 10)
-  return Number.isSafeInteger(price) && price > 0 ? price : null
+  return Number.isSafeInteger(price) && price > 0 ? { kind: "valid", price } : { kind: "invalid" }
+}
+
+function isEmptyRow(row: readonly string[]): boolean {
+  return row.every((cell) => cleanCell(cell).length === 0)
 }
 
 function parseStockStatus(value: string): CollectedProduct["stockStatus"] {

@@ -12,6 +12,13 @@ describe("loadSupplierConfig", () => {
     // Then
     expect(config.supplierId).toBe("dailyfood")
     expect(config.googleSheet.gid).toBe("860422621")
+    expect(config.columnMapping).toMatchObject({
+      productNameColumn: "상품명",
+      optionColumn: "중량",
+      priceColumn: "단가",
+      stockColumn: null,
+      memoColumn: "md 코멘트",
+    })
     expect(config.collection.playwrightEnabled).toBe(false)
     expect(config.collection.autoOrderEnabled).toBe(false)
   })
