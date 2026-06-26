@@ -165,7 +165,7 @@ async function loadDotEnv(path: string): Promise<void> {
     }
     const key = trimmed.slice(0, separatorIndex)
     const value = trimmed.slice(separatorIndex + 1)
-    if (process.env[key] === undefined) {
+    if (process.env[key] === undefined || process.env[key]?.trim().length === 0) {
       process.env[key] = value
     }
   }
