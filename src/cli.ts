@@ -6,8 +6,8 @@ import { fetchDailyFoodCsv } from "./adapters/dailyfood/dailyfood-adapter.js"
 import { runPhase1Pipeline } from "./application/phase1-pipeline.js"
 import { loadSupplierConfig } from "./config/supplier-config-loader.js"
 import { applySchema } from "./database/apply-schema.js"
-import { GeminiFlashProductParser } from "./normalization/gemini-flash-parser.js"
 import { HybridProductParser } from "./normalization/hybrid-parser.js"
+import { OpenRouterGeminiProductParser } from "./normalization/openrouter-gemini-parser.js"
 
 const CliOptionsSchema = z.object({
   command: z.literal("phase1"),
@@ -40,8 +40,9 @@ async function main(): Promise<void> {
   const database = new DatabaseSync(databasePath)
   try {
     applySchema(database, schema)
-    const apiKey = process.env["GEMINI_API_KEY"] ?? ""
-    const gemini = apiKey.length > 0 ? new GeminiFlashProductParser(apiKey) : null
+    const apiKey = process.env["OPENROUTER_API_KEY"] ?? process.env["GEMINI_API_KEY"] ?? ""
+    const gemini =
+      apiKey.length > 0 ? OpenRouterGeminiProductParser.fromEnvironment(process.env) : null
     const result = await runPhase1Pipeline({
       database,
       config,
