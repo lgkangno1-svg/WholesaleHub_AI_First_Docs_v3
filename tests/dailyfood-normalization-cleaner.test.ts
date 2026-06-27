@@ -55,4 +55,14 @@ describe("RuleBasedProductParser", () => {
       optionKey: "원산지미상|등급미상|10kg",
     })
   })
+  it("canonicalizes obvious supplier name aliases", async () => {
+    // Given
+    const parser = new RuleBasedProductParser()
+
+    // When
+    const result = await parser.parse("성주 참외 가정용", "대과 10kg")
+
+    // Then
+    expect(result.normalizedName).toBe("가정용 성주참외")
+  })
 })

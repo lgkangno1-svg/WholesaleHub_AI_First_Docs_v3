@@ -62,18 +62,34 @@ function normalizeName(productName: string, optionName: string | null): string {
 }
 
 function stripStructuredParts(value: string): string {
-  return normalizeWhitespace(
-    value
-      .replace(/\([^)]*\d[^)]*\)/gu, " ")
-      .replace(/\[[^\]]*\d[^\]]*\]/gu, " ")
-      .replace(/\d+(?:\.\d+)?\s*g\s*\*\s*\d+\s*망/giu, " ")
-      .replace(ORIGIN_PATTERN, " ")
-      .replace(GRADE_PATTERN, " ")
-      .replace(QUANTITY_PATTERN, " ")
-      .replace(WEIGHT_PATTERN, " ")
-      .replace(PRODUCT_NOISE_PATTERN, " ")
-      .replace(/[()[\],/]/gu, " "),
+  return normalizeProductAlias(
+    normalizeWhitespace(
+      value
+        .replace(/\([^)]*\d[^)]*\)/gu, " ")
+        .replace(/\[[^\]]*\d[^\]]*\]/gu, " ")
+        .replace(/\d+(?:\.\d+)?\s*g\s*\*\s*\d+\s*망/giu, " ")
+        .replace(ORIGIN_PATTERN, " ")
+        .replace(GRADE_PATTERN, " ")
+        .replace(QUANTITY_PATTERN, " ")
+        .replace(WEIGHT_PATTERN, " ")
+        .replace(PRODUCT_NOISE_PATTERN, " ")
+        .replace(/[()[\],/]/gu, " "),
+    ),
   )
+}
+
+function normalizeProductAlias(value: string): string {
+  const compact = value.replace(/\s/gu, "")
+  if (compact.includes("가정용") && compact.includes("성주") && compact.includes("참외")) {
+    return "가정용 성주참외"
+  }
+  if (compact.includes("신비") && compact.includes("복숭아")) {
+    return "신비복숭아"
+  }
+  if (compact.includes("홍감자")) {
+    return "홍감자"
+  }
+  return value
 }
 
 function normalizeOption(value: string | null): string {
