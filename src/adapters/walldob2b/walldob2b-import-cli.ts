@@ -10,11 +10,14 @@ import {
   fetchWalldob2bCandidatesFromWooCommerce,
   fetchWalldob2bDetailHtml,
   parseWalldob2bDetailHtml,
+  type Walldob2bCandidate,
 } from "./walldob2b-adapter.js"
+import { fetchWalldob2bCandidatesFromWordPressDb } from "./wordpress-db-candidates.js"
 
 const OptionsSchema = z.object({
   databasePath: z.string().min(1),
   limit: z.number().int().min(1).max(20),
+  candidateLimit: z.number().int().min(1).max(50),
 })
 
 type Options = z.infer<typeof OptionsSchema>
@@ -30,19 +33,24 @@ class CliArgumentError extends Error {
 async function main(): Promise<void> {
   await loadDotEnv()
   const options = parseArguments(process.argv.slice(2))
-  const candidates = await fetchWalldob2bCandidatesFromWooCommerce({
+  const restCandidates = await fetchWalldob2bCandidatesFromWooCommerce({
     baseUrl: readRequiredEnv("WOOCOMMERCE_BASE_URL"),
     consumerKey: readRequiredEnv("WOOCOMMERCE_CONSUMER_KEY"),
     consumerSecret: readRequiredEnv("WOOCOMMERCE_CONSUMER_SECRET"),
-    limit: options.limit,
+    limit: options.candidateLimit,
   })
+  const dbCandidates = await fetchWalldob2bCandidatesFromWordPressDb({
+    limit: options.candidateLimit,
+  })
+  const candidates = mergeCandidates(restCandidates, dbCandidates).slice(0, options.candidateLimit)
+  const importCandidates = candidates.slice(0, options.limit)
   const login = {
     username: readRequiredEnv("WALLDOB2B_USERNAME"),
     password: readRequiredEnv("WALLDOB2B_PASSWORD"),
   }
   const products = []
   const failedCandidates = []
-  for (const candidate of candidates) {
+  for (const candidate of importCandidates) {
     try {
       const html = await fetchWalldob2bDetailHtml(candidate.itId, login)
       products.push(...parseWalldob2bDetailHtml(html, candidate))
@@ -69,7 +77,10 @@ async function main(): Promise<void> {
     console.log(
       JSON.stringify(
         {
+          restCandidateCount: restCandidates.length,
+          dbCandidateCount: dbCandidates.length,
           candidateCount: candidates.length,
+          processedCandidateCount: importCandidates.length,
           optionCount: products.length,
           failedCandidateCount: failedCandidates.length,
           failedCandidates,
@@ -86,6 +97,19 @@ async function main(): Promise<void> {
   } finally {
     database.close()
   }
+}
+
+function mergeCandidates(
+  restCandidates: readonly Walldob2bCandidate[],
+  dbCandidates: readonly Walldob2bCandidate[],
+): readonly Walldob2bCandidate[] {
+  const merged = new Map<string, Walldob2bCandidate>()
+  for (const candidate of [...restCandidates, ...dbCandidates]) {
+    if (!merged.has(candidate.itId)) {
+      merged.set(candidate.itId, candidate)
+    }
+  }
+  return [...merged.values()]
 }
 
 function countWalldob2bCompareProducts(database: DatabaseSync): number {
@@ -156,6 +180,7 @@ function parseArguments(args: readonly string[]): Options {
   return OptionsSchema.parse({
     databasePath: values.get("--db") ?? "data/wholesalehub.sqlite",
     limit: Number(values.get("--limit") ?? "20"),
+    candidateLimit: Number(values.get("--candidate-limit") ?? "50"),
   })
 }
 

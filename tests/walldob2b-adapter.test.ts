@@ -5,6 +5,7 @@ import {
   findWalldob2bCandidatesFromWooProducts,
   parseWalldob2bDetailHtml,
 } from "../src/adapters/walldob2b/walldob2b-adapter.js"
+import { findWalldob2bCandidatesFromWordPressRows } from "../src/adapters/walldob2b/wordpress-db-candidates.js"
 
 describe("walldob2b read-only adapter", () => {
   it("finds WooCommerce products imported from walldob2b meta and source links", () => {
@@ -77,6 +78,35 @@ describe("walldob2b read-only adapter", () => {
     expect(requestedMethods).toEqual(["GET"])
     expect(candidates).toHaveLength(2)
     expect(candidates[0]?.itId).toBe("JW000038")
+  })
+
+  it("finds walldob2b candidates from WordPress DB rows", () => {
+    // Given
+    const rows = [
+      {
+        productId: 314,
+        productName: "무지개망고",
+        location: "post_content",
+        value: '<a href="https://walldob2b.com/shop/item.php?it_id=manbae_1775904375">원문</a>',
+      },
+      {
+        productId: 314,
+        productName: "무지개망고",
+        location: "postmeta:_b2b_walldo_it_id",
+        value: "manbae_1775904375",
+      },
+    ]
+
+    // When
+    const candidates = findWalldob2bCandidatesFromWordPressRows(rows)
+
+    // Then
+    expect(candidates).toHaveLength(1)
+    expect(candidates[0]).toMatchObject({
+      wooProductId: 314,
+      productName: "무지개망고",
+      itId: "manbae_1775904375",
+    })
   })
 
   it("parses base price plus option delta as raw product supply price", () => {
