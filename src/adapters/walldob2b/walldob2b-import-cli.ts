@@ -15,7 +15,7 @@ import {
 
 const OptionsSchema = z.object({
   databasePath: z.string().min(1),
-  limit: z.number().int().min(1).max(50),
+  limit: z.number().int().min(1).max(250),
 })
 
 type Options = z.infer<typeof OptionsSchema>
