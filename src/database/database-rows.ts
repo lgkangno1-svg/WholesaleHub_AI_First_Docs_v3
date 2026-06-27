@@ -4,7 +4,7 @@ import type { PriceCandidate, ProductMappingRecord, RawProductRecord } from "../
 export const RawProductRowSchema = z.object({
   id: z.number().int(),
   supplier_id: z.string(),
-  source_type: z.literal("google_sheet"),
+  source_type: z.enum(["google_sheet", "website"]),
   original_product_name: z.string(),
   original_option_name: z.string().nullable(),
   price: z.number().int(),

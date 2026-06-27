@@ -30,7 +30,7 @@ export type SupplierConfig = {
 
 export type CollectedProduct = {
   readonly supplierId: string
-  readonly sourceType: "google_sheet"
+  readonly sourceType: "google_sheet" | "website"
   readonly originalProductName: string
   readonly originalOptionName: string | null
   readonly price: number
