@@ -1,6 +1,7 @@
 ﻿import { readFile } from "node:fs/promises"
 import { z } from "zod"
 import { fetchWooCommerceCatalog } from "../woocommerce/catalog.js"
+import { executeWooProductSyncPriceUpdates } from "./woocommerce-product-sync-execute.js"
 import {
   buildWooProductSyncPlan,
   readProductPlans,
@@ -22,27 +23,55 @@ async function main(): Promise<void> {
   await loadDotEnv()
   const options = parseArguments(process.argv.slice(2))
   enforceExecutionGuards(options)
-  const catalog = await fetchWooCommerceCatalog({
+  const credentials = {
     baseUrl: readRequiredEnv("WOOCOMMERCE_BASE_URL"),
     consumerKey: readRequiredEnv("WOOCOMMERCE_CONSUMER_KEY"),
     consumerSecret: readRequiredEnv("WOOCOMMERCE_CONSUMER_SECRET"),
-  })
+  }
+  const catalog = await fetchWooCommerceCatalog(credentials)
   const plans = await readProductPlans(options.groupPath, options.optionPath)
   const rows = buildWooProductSyncPlan(plans.groups, plans.options, catalog, options.mode)
-  const limitedRows =
-    options.execute && options.limit !== null ? rows.slice(0, options.limit) : rows
-  const summary = summarizeWooProductSyncPlan(limitedRows)
-  await writeWooProductSyncPlanFiles(limitedRows, summary)
-  console.log(JSON.stringify({ ...summary, execute: options.execute, changed: false }, null, 2))
+  const summary = summarizeWooProductSyncPlan(rows)
+  await writeWooProductSyncPlanFiles(rows, summary)
+  const executeLog = options.execute
+    ? await executeWooProductSyncPriceUpdates(rows, {
+        ...credentials,
+        limit: options.limit ?? 0,
+        outputPath: "reports/woocommerce-sync-execute-log.json",
+      })
+    : null
+  console.log(
+    JSON.stringify(
+      {
+        ...summary,
+        execute: options.execute,
+        changed: executeLog === null ? false : executeLog.updatedCount > 0,
+        executeLog:
+          executeLog === null
+            ? null
+            : {
+                attemptedCount: executeLog.attemptedCount,
+                updatedCount: executeLog.updatedCount,
+                noOpCount: executeLog.noOpCount,
+                failedCount: executeLog.failedCount,
+                outputPath: "reports/woocommerce-sync-execute-log.json",
+              },
+      },
+      null,
+      2,
+    ),
+  )
 }
 
 function enforceExecutionGuards(options: Options): void {
   if (!options.execute) return
+  if (options.mode !== "update-existing")
+    throw new Error("--execute requires --mode update-existing")
   if (options.limit === null) throw new Error("--execute requires --limit")
+  if (options.limit > 10) throw new Error("first product sync execute is limited to 10 rows")
   if (options.confirm !== "SYNC_WOOCOMMERCE_PRODUCTS") {
     throw new Error('--execute requires --confirm "SYNC_WOOCOMMERCE_PRODUCTS"')
   }
-  throw new Error("execute mode is intentionally not implemented in this dry-run sync engine")
 }
 
 function parseArguments(args: readonly string[]): Options {

@@ -1,4 +1,5 @@
 ﻿import { describe, expect, it } from "vitest"
+import { selectExecutableSyncRows } from "../src/reports/woocommerce-product-sync-execute.js"
 import {
   buildWooProductSyncPlan,
   summarizeWooProductSyncPlan,
@@ -54,6 +55,22 @@ describe("buildWooProductSyncPlan", () => {
       reviewNeededCount: 1,
     })
   })
+  it("selects only safe update_variation_price rows for execution", () => {
+    // Given
+    const rows = [
+      syncRow("update_variation_price", "safe", 1),
+      syncRow("update_variation_price", "safe", 1),
+      syncRow("add_variation", "safe", null),
+      syncRow("update_variation_price", "review_needed", 2),
+      syncRow("blocked", "blocked", 3),
+    ]
+
+    // When
+    const selected = selectExecutableSyncRows(rows, 10)
+
+    // Then
+    expect(selected).toEqual([expect.objectContaining({ action: "update_variation_price" })])
+  })
 })
 
 function option(
@@ -75,5 +92,30 @@ function option(
     alternative_suppliers_summary: "dailyfood:1000",
     compared_exact_same_option: false,
     recommended_action: "create_variation_candidate" as const,
+  }
+}
+
+function syncRow(
+  action: "update_variation_price" | "add_variation" | "blocked",
+  safety: "safe" | "review_needed" | "blocked",
+  variationId: number | null,
+) {
+  return {
+    mode: "update-existing" as const,
+    product_group_key: "g1",
+    display_product_name: "망고스틴",
+    matched_woocommerce_product_id: 10,
+    action,
+    option_display_name: "망고스틴 5kg",
+    selected_supplier_id: "dailyfood",
+    selected_supplier_original_product_name: "망고스틴",
+    selected_supplier_original_option_name: "망고스틴 5kg",
+    selected_price: 46000,
+    current_woocommerce_price: "49000",
+    current_woocommerce_variation_id: variationId,
+    compared_exact_same_option: false,
+    safety_status: safety,
+    safety_reason: "test",
+    internal_supplier_meta_plan: [],
   }
 }
