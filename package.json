@@ -37,7 +37,8 @@
     "report:overlap-audit": "npm run build && node dist/reports/overlap-audit-cli.js",
     "report:overlap-review": "npm run build && node dist/reports/overlap-review-cli.js",
     "report:sell-plan": "npm run build && node dist/reports/sell-plan-cli.js",
-    "report:woocommerce-match": "npm run build && node dist/reports/woocommerce-match-cli.js"
+    "report:woocommerce-match": "npm run build && node dist/reports/woocommerce-match-cli.js",
+    "mapping:woocommerce:approve-exact-safe": "npm run build && node dist/reports/approved-mapping-cli.js"
   },
   "dependencies": {
     "csv-parse": "^6.1.0",

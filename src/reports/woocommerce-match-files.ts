@@ -16,6 +16,7 @@ const CSV_HEADER = [
   "woocommerce_product_name",
   "woocommerce_option_name",
   "woocommerce_current_price",
+  "woocommerce_product_type",
   "confidence",
   "reason",
   "recommended_action",

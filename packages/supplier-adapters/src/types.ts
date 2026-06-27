@@ -2,7 +2,7 @@ export type StockStatus = "in_stock" | "out_of_stock" | "unknown"
 
 export type RawProduct = {
   readonly supplierId: string
-  readonly sourceType: "google_sheet"
+  readonly sourceType: "google_sheet" | "google_sheet_htmlview" | "google_sheet_htmlview"
   readonly originalProductName: string
   readonly originalOptionName: string | null
   readonly price: number
@@ -15,7 +15,7 @@ export type RawProduct = {
 export type DailyFoodSupplierConfig = {
   readonly supplierId: "dailyfood"
   readonly supplierName: string
-  readonly sourceType: "google_sheet"
+  readonly sourceType: "google_sheet" | "google_sheet_htmlview" | "google_sheet_htmlview"
   readonly enabled: boolean
   readonly googleSheet: {
     readonly spreadsheetId: string

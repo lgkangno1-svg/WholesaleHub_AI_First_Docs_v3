@@ -40,6 +40,7 @@ export type WooMatchCandidate = {
   readonly woocommerce_product_name: string | null
   readonly woocommerce_option_name: string | null
   readonly woocommerce_current_price: string | null
+  readonly woocommerce_product_type: string | null
   readonly confidence: Confidence
   readonly reason: string
   readonly recommended_action: Action
@@ -152,6 +153,7 @@ function toReportRow(
     woocommerce_product_name: item?.productName ?? null,
     woocommerce_option_name: item?.optionName ?? null,
     woocommerce_current_price: item?.price ?? null,
+    woocommerce_product_type: item?.type ?? null,
     confidence,
     reason,
     recommended_action: action,

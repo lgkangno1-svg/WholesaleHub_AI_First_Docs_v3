@@ -6,7 +6,7 @@ import type { SupplierConfig } from "../domain/product.js"
 const SupplierConfigFileSchema = z.object({
   supplier_id: z.string().min(1),
   supplier_name: z.string().min(1),
-  source_type: z.literal("google_sheet"),
+  source_type: z.enum(["google_sheet", "google_sheet_htmlview"]),
   enabled: z.boolean(),
   google_sheet: z.object({
     spreadsheet_id: z.string().min(1),

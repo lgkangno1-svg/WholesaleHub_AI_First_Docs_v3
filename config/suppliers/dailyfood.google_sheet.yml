@@ -1,6 +1,6 @@
 supplier_id: dailyfood
 supplier_name: 데일리푸드
-source_type: google_sheet
+source_type: google_sheet_htmlview
 enabled: true
 
 google_sheet:
