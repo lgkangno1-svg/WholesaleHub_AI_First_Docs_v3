@@ -14,7 +14,7 @@ import {
 
 const OptionsSchema = z.object({
   databasePath: z.string().min(1),
-  limit: z.number().int().min(1).max(5),
+  limit: z.number().int().min(1).max(20),
 })
 
 type Options = z.infer<typeof OptionsSchema>
@@ -155,7 +155,7 @@ function parseArguments(args: readonly string[]): Options {
   }
   return OptionsSchema.parse({
     databasePath: values.get("--db") ?? "data/wholesalehub.sqlite",
-    limit: Number(values.get("--limit") ?? "5"),
+    limit: Number(values.get("--limit") ?? "20"),
   })
 }
 

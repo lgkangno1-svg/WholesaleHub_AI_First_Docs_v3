@@ -5,6 +5,8 @@ import type { CollectedProduct } from "../../domain/product.js"
 const WooProductSchema = z.object({
   id: z.number().int(),
   name: z.string(),
+  description: z.string().default(""),
+  short_description: z.string().default(""),
   meta_data: z.array(z.object({ key: z.string(), value: z.unknown() })).default([]),
 })
 
@@ -38,9 +40,9 @@ export async function fetchWalldob2bCandidatesFromWooCommerce(
   const headers = {
     Authorization: `Basic ${Buffer.from(`${options.consumerKey}:${options.consumerSecret}`).toString("base64")}`,
   }
-  const candidates: Walldob2bCandidate[] = []
+  const candidates = new Map<string, Walldob2bCandidate>()
   const maxPages = options.maxPages ?? 10
-  for (let page = 1; page <= maxPages && candidates.length < options.limit; page += 1) {
+  for (let page = 1; page <= maxPages && candidates.size < options.limit; page += 1) {
     const products = await ky
       .get(`${baseUrl}/wp-json/wc/v3/products`, {
         headers,
@@ -49,35 +51,38 @@ export async function fetchWalldob2bCandidatesFromWooCommerce(
         retry: { limit: 1 },
       })
       .json()
-    const pageCandidates = findWalldob2bCandidatesFromWooProducts(products)
-    candidates.push(...pageCandidates)
-    if (z.array(WooProductSchema).parse(products).length === 0) {
+    const parsedProducts = z.array(WooProductSchema).parse(products)
+    for (const candidate of findWalldob2bCandidatesFromWooProducts(parsedProducts)) {
+      if (!candidates.has(candidate.itId) && candidates.size < options.limit) {
+        candidates.set(candidate.itId, candidate)
+      }
+    }
+    if (parsedProducts.length === 0) {
       break
     }
   }
-  return candidates.slice(0, options.limit)
+  return [...candidates.values()]
 }
 
 export function findWalldob2bCandidatesFromWooProducts(
   products: unknown,
 ): readonly Walldob2bCandidate[] {
-  return z
-    .array(WooProductSchema)
-    .parse(products)
-    .flatMap((product) => {
-      const source = findMeta(product.meta_data, "_b2b_source")
-      const itId = findMeta(product.meta_data, "_b2b_walldo_it_id")
-      return source === SUPPLIER_ID && itId !== null
-        ? [
-            {
-              wooProductId: product.id,
-              productName: product.name,
-              itId,
-              sourceUrl: `${BASE_URL}/shop/item.php?it_id=${encodeURIComponent(itId)}`,
-            },
-          ]
-        : []
-    })
+  const candidates = new Map<string, Walldob2bCandidate>()
+  for (const product of z.array(WooProductSchema).parse(products)) {
+    const source = findMeta(product.meta_data, "_b2b_source")
+    const metaItId = findMeta(product.meta_data, "_b2b_walldo_it_id")
+    if (source === SUPPLIER_ID && metaItId !== null) {
+      candidates.set(metaItId, toCandidate(product.id, product.name, metaItId))
+    }
+    for (const linkedItId of extractWalldob2bItIds(
+      `${product.description} ${product.short_description}`,
+    )) {
+      if (!candidates.has(linkedItId)) {
+        candidates.set(linkedItId, toCandidate(product.id, product.name, linkedItId))
+      }
+    }
+  }
+  return [...candidates.values()]
 }
 
 export async function fetchWalldob2bDetailHtml(
@@ -183,6 +188,26 @@ function parseOption(
 function parseLabelPriceDelta(label: string): number {
   const optionMatch = /\+\s*([0-9,]+)\s*원/u.exec(label)
   return optionMatch?.[1] === undefined ? 0 : parseMoney(optionMatch[1])
+}
+
+function extractWalldob2bItIds(value: string): readonly string[] {
+  const ids = new Set<string>()
+  const pattern = /walldob2b\.com\/shop\/item\.php\?[^\s"'<>]*it_id=([A-Za-z0-9_-]+)/giu
+  for (const match of value.matchAll(pattern)) {
+    if (match[1] !== undefined) {
+      ids.add(match[1])
+    }
+  }
+  return [...ids]
+}
+
+function toCandidate(wooProductId: number, productName: string, itId: string): Walldob2bCandidate {
+  return {
+    wooProductId,
+    productName,
+    itId,
+    sourceUrl: `${BASE_URL}/shop/item.php?it_id=${encodeURIComponent(itId)}`,
+  }
 }
 
 function findMeta(

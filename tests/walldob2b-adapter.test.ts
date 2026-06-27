@@ -7,7 +7,7 @@ import {
 } from "../src/adapters/walldob2b/walldob2b-adapter.js"
 
 describe("walldob2b read-only adapter", () => {
-  it("finds WooCommerce products imported from walldob2b", () => {
+  it("finds WooCommerce products imported from walldob2b meta and source links", () => {
     // Given
     const products = [
       {
@@ -17,6 +17,13 @@ describe("walldob2b read-only adapter", () => {
           { key: "_b2b_source", value: "walldob2b" },
           { key: "_b2b_walldo_it_id", value: "JW000038" },
         ],
+      },
+      {
+        id: 1140,
+        name: "[5월말~6월초 첫출고] 홍감자",
+        description: "<p>원문 링크: https://walldob2b.com/shop/item.php?it_id=1768387832</p>",
+        short_description: "",
+        meta_data: [],
       },
     ]
 
@@ -31,6 +38,12 @@ describe("walldob2b read-only adapter", () => {
         itId: "JW000038",
         sourceUrl: "https://walldob2b.com/shop/item.php?it_id=JW000038",
       },
+      {
+        wooProductId: 1140,
+        productName: "[5월말~6월초 첫출고] 홍감자",
+        itId: "1768387832",
+        sourceUrl: "https://walldob2b.com/shop/item.php?it_id=1768387832",
+      },
     ])
   })
 
@@ -40,7 +53,9 @@ describe("walldob2b read-only adapter", () => {
     const server = createServer((request, response) => {
       requestedMethods.push(request.method ?? "")
       response.writeHead(200, { "content-type": "application/json" })
-      response.end(JSON.stringify([WALLDOB_WOO_PRODUCT, NON_WALLDOB_WOO_PRODUCT]))
+      response.end(
+        JSON.stringify([WALLDOB_WOO_PRODUCT, WALLDOB_LINKED_PRODUCT, NON_WALLDOB_WOO_PRODUCT]),
+      )
     })
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))
     const address = server.address()
@@ -54,13 +69,13 @@ describe("walldob2b read-only adapter", () => {
       baseUrl: `http://127.0.0.1:${address.port}`,
       consumerKey: "ck_test",
       consumerSecret: "cs_test",
-      limit: 1,
+      limit: 2,
       maxPages: 1,
     }).finally(() => server.close())
 
     // Then
     expect(requestedMethods).toEqual(["GET"])
-    expect(candidates).toHaveLength(1)
+    expect(candidates).toHaveLength(2)
     expect(candidates[0]?.itId).toBe("JW000038")
   })
 
@@ -103,6 +118,14 @@ const WALLDOB_WOO_PRODUCT = {
     { key: "_b2b_source", value: "walldob2b" },
     { key: "_b2b_walldo_it_id", value: "JW000038" },
   ],
+} as const
+
+const WALLDOB_LINKED_PRODUCT = {
+  id: 1140,
+  name: "[5월말~6월초 첫출고] 홍감자",
+  description: '<a href="https://walldob2b.com/shop/item.php?it_id=1768387832">원문</a>',
+  short_description: "",
+  meta_data: [],
 } as const
 
 const NON_WALLDOB_WOO_PRODUCT = {
