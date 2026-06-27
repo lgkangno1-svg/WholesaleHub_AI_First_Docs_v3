@@ -1,5 +1,7 @@
+import { createServer } from "node:http"
 import { describe, expect, it } from "vitest"
 import {
+  fetchWalldob2bCandidatesFromWooCommerce,
   findWalldob2bCandidatesFromWooProducts,
   parseWalldob2bDetailHtml,
 } from "../src/adapters/walldob2b/walldob2b-adapter.js"
@@ -30,6 +32,36 @@ describe("walldob2b read-only adapter", () => {
         sourceUrl: "https://walldob2b.com/shop/item.php?it_id=JW000038",
       },
     ])
+  })
+
+  it("fetches walldob2b candidates from WooCommerce using GET and limit", async () => {
+    // Given
+    const requestedMethods: string[] = []
+    const server = createServer((request, response) => {
+      requestedMethods.push(request.method ?? "")
+      response.writeHead(200, { "content-type": "application/json" })
+      response.end(JSON.stringify([WALLDOB_WOO_PRODUCT, NON_WALLDOB_WOO_PRODUCT]))
+    })
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))
+    const address = server.address()
+    if (address === null || typeof address === "string") {
+      server.close()
+      throw new TypeError("HTTP test server did not expose a TCP address")
+    }
+
+    // When
+    const candidates = await fetchWalldob2bCandidatesFromWooCommerce({
+      baseUrl: `http://127.0.0.1:${address.port}`,
+      consumerKey: "ck_test",
+      consumerSecret: "cs_test",
+      limit: 1,
+      maxPages: 1,
+    }).finally(() => server.close())
+
+    // Then
+    expect(requestedMethods).toEqual(["GET"])
+    expect(candidates).toHaveLength(1)
+    expect(candidates[0]?.itId).toBe("JW000038")
   })
 
   it("parses base price plus option delta as raw product supply price", () => {
@@ -63,3 +95,18 @@ describe("walldob2b read-only adapter", () => {
     })
   })
 })
+
+const WALLDOB_WOO_PRODUCT = {
+  id: 1158,
+  name: "태국 항공직송 생 망고스틴",
+  meta_data: [
+    { key: "_b2b_source", value: "walldob2b" },
+    { key: "_b2b_walldo_it_id", value: "JW000038" },
+  ],
+} as const
+
+const NON_WALLDOB_WOO_PRODUCT = {
+  id: 2000,
+  name: "일반 상품",
+  meta_data: [{ key: "_b2b_source", value: "dailyfood" }],
+} as const

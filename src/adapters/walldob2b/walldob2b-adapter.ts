@@ -20,8 +20,43 @@ export type Walldob2bLogin = {
   readonly password: string
 }
 
+export type Walldob2bWooCommerceOptions = {
+  readonly baseUrl: string
+  readonly consumerKey: string
+  readonly consumerSecret: string
+  readonly limit: number
+  readonly maxPages?: number
+}
+
 const SUPPLIER_ID = "walldob2b"
 const BASE_URL = "https://walldob2b.com"
+
+export async function fetchWalldob2bCandidatesFromWooCommerce(
+  options: Walldob2bWooCommerceOptions,
+): Promise<readonly Walldob2bCandidate[]> {
+  const baseUrl = options.baseUrl.replace(/\/$/u, "")
+  const headers = {
+    Authorization: `Basic ${Buffer.from(`${options.consumerKey}:${options.consumerSecret}`).toString("base64")}`,
+  }
+  const candidates: Walldob2bCandidate[] = []
+  const maxPages = options.maxPages ?? 10
+  for (let page = 1; page <= maxPages && candidates.length < options.limit; page += 1) {
+    const products = await ky
+      .get(`${baseUrl}/wp-json/wc/v3/products`, {
+        headers,
+        searchParams: { per_page: "100", page: String(page), status: "any" },
+        timeout: 30_000,
+        retry: { limit: 1 },
+      })
+      .json()
+    const pageCandidates = findWalldob2bCandidatesFromWooProducts(products)
+    candidates.push(...pageCandidates)
+    if (z.array(WooProductSchema).parse(products).length === 0) {
+      break
+    }
+  }
+  return candidates.slice(0, options.limit)
+}
 
 export function findWalldob2bCandidatesFromWooProducts(
   products: unknown,

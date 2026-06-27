@@ -30,6 +30,7 @@
     "report:woocommerce-dry-run": "npm run build && node dist/reports/report-cli.js woocommerce-dry-run",
     "test": "npm run build && vitest run",
     "test:gemini-live": "npm run build && node dist/normalization/gemini-live-test.js",
+    "walldob2b:import": "npm run build && node dist/adapters/walldob2b/walldob2b-import-cli.js",
     "walldob2b:sample": "npm run build && node dist/adapters/walldob2b/walldob2b-sample-cli.js",
     "typecheck": "tsc --noEmit",
     "woocommerce:search": "npm run build && node dist/woocommerce/search-cli.js"
