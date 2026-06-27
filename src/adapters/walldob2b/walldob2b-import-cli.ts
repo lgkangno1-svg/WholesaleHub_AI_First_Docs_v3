@@ -41,9 +41,17 @@ async function main(): Promise<void> {
     password: readRequiredEnv("WALLDOB2B_PASSWORD"),
   }
   const products = []
+  const failedCandidates = []
   for (const candidate of candidates) {
-    const html = await fetchWalldob2bDetailHtml(candidate.itId, login)
-    products.push(...parseWalldob2bDetailHtml(html, candidate))
+    try {
+      const html = await fetchWalldob2bDetailHtml(candidate.itId, login)
+      products.push(...parseWalldob2bDetailHtml(html, candidate))
+    } catch (error) {
+      failedCandidates.push({
+        itId: candidate.itId,
+        reason: error instanceof Error ? error.message : String(error),
+      })
+    }
   }
 
   const schema = await readFile("sql/schema.sql", "utf8")
@@ -63,6 +71,8 @@ async function main(): Promise<void> {
         {
           candidateCount: candidates.length,
           optionCount: products.length,
+          failedCandidateCount: failedCandidates.length,
+          failedCandidates,
           rawProductCount: result.rawProductCount,
           normalizedProductCount: result.normalizedProductCount,
           compareProductCount: result.compareProductCount,

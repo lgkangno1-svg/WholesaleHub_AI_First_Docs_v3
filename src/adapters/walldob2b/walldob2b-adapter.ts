@@ -85,16 +85,18 @@ export async function fetchWalldob2bDetailHtml(
   login: Walldob2bLogin,
 ): Promise<string> {
   const cookieJar = new Map<string, string>()
-  await ky.post(`${BASE_URL}/bbs/login_check.php`, {
+  const response = await ky.post(`${BASE_URL}/bbs/login_check.php`, {
     body: new URLSearchParams({
       mb_id: login.username,
       mb_password: login.password,
-      url: BASE_URL,
+      url: `%2Fshop%2Fitem.php%3Fit_id%3D${encodeURIComponent(itId)}`,
     }),
-    hooks: { afterResponse: [(_request, _options, response) => storeCookies(cookieJar, response)] },
+    redirect: "manual",
+    throwHttpErrors: false,
     timeout: 30_000,
     retry: { limit: 1 },
   })
+  storeCookies(cookieJar, response)
   return ky
     .get(`${BASE_URL}/shop/item.php`, {
       searchParams: { it_id: itId },
@@ -130,6 +132,11 @@ export function parseWalldob2bDetailHtml(
 }
 
 function parseBasePrice(html: string): number {
+  const hiddenPrice = /id=["']it_base_price["'][^>]*value=["']([0-9,]+)["']/iu.exec(html)
+  if (hiddenPrice?.[1] !== undefined) {
+    return parseMoney(hiddenPrice[1])
+  }
+
   const text = stripTags(html)
   const match = /판매가격\s*([0-9,]+)\s*원/u.exec(text)
   if (match?.[1] === undefined) {
@@ -143,16 +150,39 @@ function parseOptions(html: string): readonly {
   readonly priceDelta: number
   readonly soldOut: boolean
 }[] {
-  const matches = [...html.matchAll(/<option[^>]*>(.*?)<\/option>/gis)]
+  const matches = [...html.matchAll(/<option([^>]*)>(.*?)<\/option>/gis)]
   return matches
-    .map((match) => stripTags(match[1] ?? ""))
-    .filter((value) => value.length > 0 && value !== "선택")
-    .map((value) => {
-      const optionMatch = /(.+?)\s*\+\s*([0-9,]+)\s*원/u.exec(value)
-      const name = optionMatch?.[1]?.trim() ?? value
-      const priceDelta = optionMatch?.[2] === undefined ? 0 : parseMoney(optionMatch[2])
-      return { name, priceDelta, soldOut: /품절|sold\s*out/iu.test(value) }
-    })
+    .map((match) => parseOption(match[1] ?? "", match[2] ?? ""))
+    .filter((option) => option !== null)
+}
+
+function parseOption(
+  attributes: string,
+  labelHtml: string,
+): {
+  readonly name: string
+  readonly priceDelta: number
+  readonly soldOut: boolean
+} | null {
+  const label = stripTags(labelHtml)
+  if (label.length === 0 || label === "선택") {
+    return null
+  }
+
+  const value = /value=["']([^"']*)["']/iu.exec(attributes)?.[1] ?? ""
+  const [valueName, valueDelta] = value.split(",")
+  const optionMatch = /(.+?)\s*\+\s*([0-9,]+)\s*원/u.exec(label)
+  const name = valueName?.trim() || optionMatch?.[1]?.trim() || label
+  const priceDelta =
+    valueDelta === undefined || valueDelta === ""
+      ? parseLabelPriceDelta(label)
+      : parseMoney(valueDelta)
+  return { name, priceDelta, soldOut: /품절|sold\s*out/iu.test(label) }
+}
+
+function parseLabelPriceDelta(label: string): number {
+  const optionMatch = /\+\s*([0-9,]+)\s*원/u.exec(label)
+  return optionMatch?.[1] === undefined ? 0 : parseMoney(optionMatch[1])
 }
 
 function findMeta(
@@ -178,8 +208,9 @@ function stripTags(value: string): string {
 function storeCookies(cookieJar: Map<string, string>, response: Response): void {
   for (const cookie of response.headers.getSetCookie()) {
     const pair = cookie.split(";")[0]
-    if (pair !== undefined) {
-      cookieJar.set(pair.split("=")[0] ?? pair, pair)
+    const [name, value = ""] = pair?.split("=") ?? []
+    if (name !== undefined && name.length > 0 && value.length > 0 && pair !== undefined) {
+      cookieJar.set(name, pair)
     }
   }
 }

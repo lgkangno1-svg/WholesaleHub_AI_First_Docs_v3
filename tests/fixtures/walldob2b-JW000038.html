@@ -1,7 +1,16 @@
 
-<div>판매가격 7,500원</div>
-<select>
-  <option>선택</option>
-  <option>망고스틴500g&nbsp;&nbsp;+ 0원</option>
-  <option>망고스틴5kg(500g*10망)&nbsp;&nbsp;+ 38,500원</option>
-</select>
+<div class="sit_price">
+  <strong>판매가격</strong>
+  <span>
+    <strong>7,500원</strong>
+    <input type="hidden" id="it_price" value="7500">
+    <input type="hidden" id="it_base_price" value="7500">
+  </span>
+</div>
+<section class="sit_option_wr">
+  <select id="it_option_1" class="it_option">
+    <option value="">선택</option>
+    <option value="망고스틴500g,0,9999">망고스틴500g&nbsp;&nbsp;+ 0원</option>
+    <option value="망고스틴5kg(500g*10망),38500,9999">망고스틴5kg(500g*10망)&nbsp;&nbsp;+ 38,500원</option>
+  </select>
+</section>
