@@ -16,6 +16,34 @@ describe("DailyFood product name cleaner", () => {
     expect(cleaned.optionName).toBe("미백 찰옥수수 특품 10개입")
     expect(cleaned.removedTerms).toEqual(["7월", "🔥", "추천템", "2026", "햇"])
   })
+  it("standardizes weight options and does not let pack counts split same kg options", async () => {
+    // Given
+    const parser = new RuleBasedProductParser()
+
+    // When
+    const parsed = await parser.parse("태국 항공직송 생 망고스틴", "망고스틴5kg(500g*10망)")
+
+    // Then
+    expect(parsed).toMatchObject({
+      normalizedName: "망고스틴",
+      weightValue: 5,
+      weightUnit: "kg",
+      optionKey: "원산지미상|등급미상|5kg",
+    })
+  })
+
+  it("keeps mango and mangosteen as different product names", async () => {
+    // Given
+    const parser = new RuleBasedProductParser()
+
+    // When
+    const mango = await parser.parse("마하차녹 무지개망고 시즌오픈 특가", "4kg (14과수내외)")
+    const mangosteen = await parser.parse("태국 항공직송 생 망고스틴", "망고스틴 4kg")
+
+    // Then
+    expect(mango.normalizedName).toBe("무지개망고")
+    expect(mangosteen.normalizedName).toBe("망고스틴")
+  })
 })
 
 describe("RuleBasedProductParser", () => {
@@ -52,7 +80,7 @@ describe("RuleBasedProductParser", () => {
       quantity: null,
       weightValue: 10,
       weightUnit: "kg",
-      optionKey: "원산지미상|등급미상|10kg",
+      optionKey: "원산지미상|가정용|10kg",
     })
   })
   it("canonicalizes obvious supplier name aliases", async () => {
@@ -63,6 +91,6 @@ describe("RuleBasedProductParser", () => {
     const result = await parser.parse("성주 참외 가정용", "대과 10kg")
 
     // Then
-    expect(result.normalizedName).toBe("가정용 성주참외")
+    expect(result.normalizedName).toBe("성주 참외")
   })
 })

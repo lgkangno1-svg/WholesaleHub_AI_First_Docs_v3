@@ -41,7 +41,8 @@
     "mapping:woocommerce:approve-exact-safe": "npm run build && node dist/reports/approved-mapping-cli.js",
     "report:price-change-review": "npm run build && node dist/reports/price-change-review-cli.js",
     "woocommerce:live-update": "npm run build && node dist/woocommerce/live-update-cli.js",
-    "report:update-candidate-audit": "npm run build && node dist/reports/update-candidate-audit-cli.js"
+    "report:update-candidate-audit": "npm run build && node dist/reports/update-candidate-audit-cli.js",
+    "report:product-group-plan": "npm run build && node dist/reports/product-group-plan-cli.js"
   },
   "dependencies": {
     "csv-parse": "^6.1.0",

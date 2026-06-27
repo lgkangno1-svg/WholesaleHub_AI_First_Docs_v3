@@ -98,7 +98,7 @@ describe("runPhase1Pipeline", () => {
     expect(result.rawProductCount).toBe(1)
     expect(normalized).toMatchObject({
       normalized_name: "망고스틴",
-      option_key: "원산지미상|등급미상|10망|5kg",
+      option_key: "원산지미상|등급미상|5kg",
       price: 46_000,
     })
     expect(compare).toMatchObject({ cheapest_supplier_id: "walldob2b", cheapest_price: 46_000 })

@@ -120,8 +120,16 @@ function scoreItem(
       optionWeight(`${item.productName} ${item.optionName ?? ""}`)
   const walldoMeta =
     candidate.selected_supplier_id === "walldob2b" && item.meta["_b2b_source"] === "walldob2b"
-  if ((productHit && (optionHit || weightHit)) || (walldoMeta && productHit)) {
+  if (productHit && (optionHit || weightHit)) {
     return { item, confidence: "high", reason: "product and option/source hint match", rank: 3 }
+  }
+  if (walldoMeta && productHit) {
+    return {
+      item,
+      confidence: "medium",
+      reason: "source hint and product name match only",
+      rank: 2,
+    }
   }
   if (productHit) {
     return { item, confidence: "medium", reason: "product name match only", rank: 2 }
@@ -170,7 +178,7 @@ function compareScores(
 function textContains(left: string, right: string): boolean {
   const a = clean(left)
   const b = clean(right)
-  return a.length > 0 && b.length > 0 && (a.includes(b) || b.includes(a))
+  return a.length >= 2 && b.length >= 2 && (a.includes(b) || b.includes(a))
 }
 
 function sharedToken(left: string, right: string): boolean {
