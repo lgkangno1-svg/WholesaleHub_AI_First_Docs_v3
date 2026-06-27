@@ -1,7 +1,7 @@
 export type SupplierConfig = {
   readonly supplierId: string
   readonly supplierName: string
-  readonly sourceType: "google_sheet" | "website"
+  readonly sourceType: "google_sheet" | "website" | "excel_download"
   readonly enabled: boolean
   readonly googleSheet: {
     readonly spreadsheetId: string
@@ -30,7 +30,7 @@ export type SupplierConfig = {
 
 export type CollectedProduct = {
   readonly supplierId: string
-  readonly sourceType: "google_sheet" | "website" | "website"
+  readonly sourceType: "google_sheet" | "website" | "excel_download" | "website"
   readonly originalProductName: string
   readonly originalOptionName: string | null
   readonly price: number

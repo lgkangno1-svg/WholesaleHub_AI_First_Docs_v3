@@ -5,6 +5,7 @@ import {
   findWalldob2bCandidatesFromWooProducts,
   parseWalldob2bDetailHtml,
 } from "../src/adapters/walldob2b/walldob2b-adapter.js"
+import { parseWalldob2bProductExcelHtml } from "../src/adapters/walldob2b/walldob2b-excel-download.js"
 import { findWalldob2bCandidatesFromWordPressRows } from "../src/adapters/walldob2b/wordpress-db-candidates.js"
 
 describe("walldob2b read-only adapter", () => {
@@ -107,6 +108,33 @@ describe("walldob2b read-only adapter", () => {
       productName: "무지개망고",
       itId: "manbae_1775904375",
     })
+  })
+
+  it("parses walldob2b excel HTML table using final option prices", () => {
+    // Given
+    const html = `
+      <table>
+        <tr><th>관리코드</th><th>옵션번호</th><th>상품명</th><th>옵션명</th><th>판매가</th></tr>
+        <tr><td>JW000038</td><td>5</td><td>태국 항공직송 생 망고스틴</td><td>망고스틴5kg(500g*10망)</td><td>46,000</td></tr>
+        <tr><td></td><td></td><td></td><td></td><td></td></tr>
+      </table>
+    `
+
+    // When
+    const result = parseWalldob2bProductExcelHtml(html, 50)
+
+    // Then
+    expect(result.products).toHaveLength(1)
+    expect(result.products[0]).toMatchObject({
+      supplierId: "walldob2b",
+      sourceType: "excel_download",
+      originalProductName: "태국 항공직송 생 망고스틴",
+      originalOptionName: "망고스틴5kg(500g*10망)",
+      price: 46_000,
+      stockStatus: "in_stock",
+      productUrl: "https://walldob2b.com/shop/item.php?it_id=JW000038",
+    })
+    expect(result.skippedRows).toEqual([{ rowNumber: 3, reason: "empty_row" }])
   })
 
   it("parses base price plus option delta as raw product supply price", () => {

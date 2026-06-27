@@ -4,20 +4,18 @@ import { DatabaseSync } from "node:sqlite"
 import { z } from "zod"
 import { runCollectedProductsPipeline } from "../../application/phase1-pipeline.js"
 import { applySchema } from "../../database/apply-schema.js"
-import type { SupplierConfig } from "../../domain/product.js"
+import type { CollectedProduct, SupplierConfig } from "../../domain/product.js"
 import { RuleBasedProductParser } from "../../normalization/rule-based-parser.js"
+import type { Walldob2bLogin } from "./walldob2b-adapter.js"
+import type { Walldob2bExcelSkippedRow } from "./walldob2b-excel-download.js"
 import {
-  fetchWalldob2bCandidatesFromWooCommerce,
-  fetchWalldob2bDetailHtml,
-  parseWalldob2bDetailHtml,
-  type Walldob2bCandidate,
-} from "./walldob2b-adapter.js"
-import { fetchWalldob2bCandidatesFromWordPressDb } from "./wordpress-db-candidates.js"
+  fetchWalldob2bProductExcel,
+  parseWalldob2bProductExcelHtml,
+} from "./walldob2b-excel-download.js"
 
 const OptionsSchema = z.object({
   databasePath: z.string().min(1),
-  limit: z.number().int().min(1).max(20),
-  candidateLimit: z.number().int().min(1).max(50),
+  limit: z.number().int().min(1).max(50),
 })
 
 type Options = z.infer<typeof OptionsSchema>
@@ -33,34 +31,13 @@ class CliArgumentError extends Error {
 async function main(): Promise<void> {
   await loadDotEnv()
   const options = parseArguments(process.argv.slice(2))
-  const restCandidates = await fetchWalldob2bCandidatesFromWooCommerce({
-    baseUrl: readRequiredEnv("WOOCOMMERCE_BASE_URL"),
-    consumerKey: readRequiredEnv("WOOCOMMERCE_CONSUMER_KEY"),
-    consumerSecret: readRequiredEnv("WOOCOMMERCE_CONSUMER_SECRET"),
-    limit: options.candidateLimit,
-  })
-  const dbCandidates = await fetchWalldob2bCandidatesFromWordPressDb({
-    limit: options.candidateLimit,
-  })
-  const candidates = mergeCandidates(restCandidates, dbCandidates).slice(0, options.candidateLimit)
-  const importCandidates = candidates.slice(0, options.limit)
-  const login = {
+  const login: Walldob2bLogin = {
     username: readRequiredEnv("WALLDOB2B_USERNAME"),
     password: readRequiredEnv("WALLDOB2B_PASSWORD"),
   }
-  const products = []
-  const failedCandidates = []
-  for (const candidate of importCandidates) {
-    try {
-      const html = await fetchWalldob2bDetailHtml(candidate.itId, login)
-      products.push(...parseWalldob2bDetailHtml(html, candidate))
-    } catch (error) {
-      failedCandidates.push({
-        itId: candidate.itId,
-        reason: error instanceof Error ? error.message : String(error),
-      })
-    }
-  }
+  const excelHtml = await fetchWalldob2bProductExcel(login)
+  const parsedExcel = parseWalldob2bProductExcelHtml(excelHtml, options.limit)
+  const products: readonly CollectedProduct[] = parsedExcel.products
 
   const schema = await readFile("sql/schema.sql", "utf8")
   const databasePath = resolve(options.databasePath)
@@ -77,13 +54,16 @@ async function main(): Promise<void> {
     console.log(
       JSON.stringify(
         {
-          restCandidateCount: restCandidates.length,
-          dbCandidateCount: dbCandidates.length,
-          candidateCount: candidates.length,
-          processedCandidateCount: importCandidates.length,
+          collectionMethod: "excel_download_html_table",
+          parsedRowCount: parsedExcel.totalRows,
           optionCount: products.length,
-          failedCandidateCount: failedCandidates.length,
-          failedCandidates,
+          skippedRowCount: parsedExcel.skippedRows.length,
+          skippedRowsByReason: summarizeSkippedRows(parsedExcel.skippedRows),
+          priceExamples: products.slice(0, 3).map((product) => ({
+            productName: product.originalProductName,
+            optionName: product.originalOptionName,
+            price: product.price,
+          })),
           rawProductCount: result.rawProductCount,
           normalizedProductCount: result.normalizedProductCount,
           compareProductCount: result.compareProductCount,
@@ -99,17 +79,20 @@ async function main(): Promise<void> {
   }
 }
 
-function mergeCandidates(
-  restCandidates: readonly Walldob2bCandidate[],
-  dbCandidates: readonly Walldob2bCandidate[],
-): readonly Walldob2bCandidate[] {
-  const merged = new Map<string, Walldob2bCandidate>()
-  for (const candidate of [...restCandidates, ...dbCandidates]) {
-    if (!merged.has(candidate.itId)) {
-      merged.set(candidate.itId, candidate)
-    }
+function summarizeSkippedRows(
+  skippedRows: readonly Walldob2bExcelSkippedRow[],
+): Record<Walldob2bExcelSkippedRow["reason"], number> {
+  const summary: Record<Walldob2bExcelSkippedRow["reason"], number> = {
+    empty_row: 0,
+    missing_product_name: 0,
+    missing_option_name: 0,
+    missing_price: 0,
+    invalid_price: 0,
   }
-  return [...merged.values()]
+  for (const row of skippedRows) {
+    summary[row.reason] += 1
+  }
+  return summary
 }
 
 function countWalldob2bCompareProducts(database: DatabaseSync): number {
@@ -138,15 +121,15 @@ function countSharedCompareGroups(database: DatabaseSync): number {
 }
 
 function walldob2bSupplierConfig(): SupplierConfig {
-  const sourceUrl = "https://walldob2b.com"
+  const sourceUrl = "https://walldob2b.com/theme/jelly/shop/product_excel_download.php"
   return {
     supplierId: "walldob2b",
     supplierName: "walldob2b",
-    sourceType: "website",
+    sourceType: "excel_download",
     enabled: true,
     googleSheet: {
-      spreadsheetId: "woocommerce-meta",
-      gid: "woocommerce-meta",
+      spreadsheetId: "product_excel_download",
+      gid: "product_excel_download",
       sheetUrl: sourceUrl,
       csvExportUrl: sourceUrl,
       accessMode: "csv_export_or_google_oauth",
@@ -154,10 +137,10 @@ function walldob2bSupplierConfig(): SupplierConfig {
     schedule: { timezone: "Asia/Seoul", cron: "manual" },
     columnMapping: {
       productNameColumn: "상품명",
-      optionColumn: "옵션",
-      priceColumn: "가격",
+      optionColumn: "옵션명",
+      priceColumn: "판매가",
       stockColumn: null,
-      memoColumn: "메모",
+      memoColumn: "배송비/조건",
     },
     collection: {
       playwrightEnabled: false,
@@ -179,8 +162,7 @@ function parseArguments(args: readonly string[]): Options {
   }
   return OptionsSchema.parse({
     databasePath: values.get("--db") ?? "data/wholesalehub.sqlite",
-    limit: Number(values.get("--limit") ?? "20"),
-    candidateLimit: Number(values.get("--candidate-limit") ?? "50"),
+    limit: Number(values.get("--limit") ?? "50"),
   })
 }
 
