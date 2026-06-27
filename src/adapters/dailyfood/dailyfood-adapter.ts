@@ -6,6 +6,7 @@ import type {
   DailyFoodSkippedRowsByReason,
   SupplierConfig,
 } from "../../domain/product.js"
+import { fetchDailyFoodHtmlViewAsCsv } from "./dailyfood-htmlview.js"
 
 const CsvRowsSchema = z.array(z.array(z.string()))
 const PRODUCT_ALIASES = ["상품명"] as const
@@ -38,6 +39,9 @@ export async function fetchDailyFoodCsv(
   config: SupplierConfig,
   signal?: AbortSignal,
 ): Promise<string> {
+  if (config.googleSheet.sheetUrl.includes("/htmlview")) {
+    return (await fetchDailyFoodHtmlViewAsCsv(config.googleSheet.sheetUrl)).csv
+  }
   const signalOption = signal === undefined ? {} : { signal }
   return ky
     .get(config.googleSheet.csvExportUrl, {

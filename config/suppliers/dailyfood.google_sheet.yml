@@ -6,7 +6,7 @@ enabled: true
 google_sheet:
   spreadsheet_id: "1YvIxuhGYhA7PTxu9nH5cUNC8dkfykUSb4C8D77UKlUQ"
   gid: "860422621"
-  sheet_url: "https://docs.google.com/spreadsheets/d/1YvIxuhGYhA7PTxu9nH5cUNC8dkfykUSb4C8D77UKlUQ/edit?gid=860422621#gid=860422621"
+  sheet_url: "https://docs.google.com/spreadsheets/u/0/d/1YvIxuhGYhA7PTxu9nH5cUNC8dkfykUSb4C8D77UKlUQ/htmlview#gid=860422621"
   csv_export_url: "https://docs.google.com/spreadsheets/d/1YvIxuhGYhA7PTxu9nH5cUNC8dkfykUSb4C8D77UKlUQ/export?format=csv&gid=860422621"
   access_mode: "csv_export_or_google_oauth"
 
