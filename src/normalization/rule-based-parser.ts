@@ -52,7 +52,10 @@ export class RuleBasedProductParser implements ProductParser {
 function normalizeName(productName: string, optionName: string | null): string {
   const optionCore = stripStructuredParts(optionName ?? "")
   const productCore = stripStructuredParts(productName)
-  if (optionCore.length > 0 && productCore.includes(optionCore.replace(/\s/gu, ""))) {
+  if (
+    optionCore.length > 0 &&
+    productCore.replace(/\s/gu, "").includes(optionCore.replace(/\s/gu, ""))
+  ) {
     return optionCore
   }
   return productCore
@@ -61,6 +64,9 @@ function normalizeName(productName: string, optionName: string | null): string {
 function stripStructuredParts(value: string): string {
   return normalizeWhitespace(
     value
+      .replace(/\([^)]*\d[^)]*\)/gu, " ")
+      .replace(/\[[^\]]*\d[^\]]*\]/gu, " ")
+      .replace(/\d+(?:\.\d+)?\s*g\s*\*\s*\d+\s*망/giu, " ")
       .replace(ORIGIN_PATTERN, " ")
       .replace(GRADE_PATTERN, " ")
       .replace(QUANTITY_PATTERN, " ")

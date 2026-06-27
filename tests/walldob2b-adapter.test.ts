@@ -58,6 +58,7 @@ describe("walldob2b read-only adapter", () => {
       originalProductName: "태국 항공직송 생 망고스틴",
       originalOptionName: "망고스틴5kg(500g*10망)",
       price: 46_000,
+      stockStatus: "in_stock",
       productUrl: "https://walldob2b.com/shop/item.php?it_id=JW000038",
     })
   })

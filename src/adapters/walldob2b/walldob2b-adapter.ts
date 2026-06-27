@@ -83,7 +83,7 @@ export function parseWalldob2bDetailHtml(
     originalOptionName: option.name,
     price: basePrice + option.priceDelta,
     shippingFee: 0,
-    stockStatus: option.soldOut ? "out_of_stock" : "unknown",
+    stockStatus: option.soldOut ? "out_of_stock" : "in_stock",
     productUrl: candidate.sourceUrl,
     rawJson: JSON.stringify({
       wooProductId: candidate.wooProductId,

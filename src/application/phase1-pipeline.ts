@@ -3,6 +3,7 @@ import type { DatabaseSync } from "node:sqlite"
 import { parseDailyFoodCsv } from "../adapters/dailyfood/dailyfood-adapter.js"
 import { Phase1Repository } from "../database/phase1-repository.js"
 import type {
+  CollectedProduct,
   DailyFoodSkippedRowsByReason,
   ProductParser,
   SupplierConfig,
@@ -19,6 +20,14 @@ export type Phase1PipelineInput = {
   readonly marginAmount?: number
 }
 
+export type CollectedProductsPipelineInput = {
+  readonly database: DatabaseSync
+  readonly config: SupplierConfig
+  readonly products: readonly CollectedProduct[]
+  readonly parser: ProductParser
+  readonly marginAmount?: number
+}
+
 export type Phase1PipelineResult = {
   readonly rawProductCount: number
   readonly normalizedProductCount: number
@@ -31,10 +40,27 @@ export type Phase1PipelineResult = {
 }
 
 export async function runPhase1Pipeline(input: Phase1PipelineInput): Promise<Phase1PipelineResult> {
+  const parsedCsv = parseDailyFoodCsv(input.csv, input.config)
+  const result = await runCollectedProductsPipeline({
+    database: input.database,
+    config: input.config,
+    products: parsedCsv.products,
+    parser: input.parser,
+    ...(input.marginAmount === undefined ? {} : { marginAmount: input.marginAmount }),
+  })
+  return {
+    ...result,
+    skippedRows: parsedCsv.skippedRows,
+    skippedRowsByReason: parsedCsv.skippedRowsByReason,
+  }
+}
+
+export async function runCollectedProductsPipeline(
+  input: CollectedProductsPipelineInput,
+): Promise<Phase1PipelineResult> {
   const repository = new Phase1Repository(input.database)
   repository.upsertSupplier(input.config)
-  const parsedCsv = parseDailyFoodCsv(input.csv, input.config)
-  const rawProducts = repository.replaceRawProducts(input.config, parsedCsv.products)
+  const rawProducts = repository.replaceRawProducts(input.config, input.products)
   let mappingCacheHits = 0
   let parserCalls = 0
 
@@ -61,8 +87,14 @@ export async function runPhase1Pipeline(input: Phase1PipelineInput): Promise<Pha
     compareProductCount: compareProducts.length,
     mappingCacheHits,
     parserCalls,
-    skippedRows: parsedCsv.skippedRows,
-    skippedRowsByReason: parsedCsv.skippedRowsByReason,
+    skippedRows: 0,
+    skippedRowsByReason: {
+      empty_product_name_without_context: 0,
+      missing_price: 0,
+      invalid_price: 0,
+      empty_row: 0,
+      etc: 0,
+    },
     dryRunPayloads,
   }
 }
