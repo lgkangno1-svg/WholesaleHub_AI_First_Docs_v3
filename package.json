@@ -34,7 +34,8 @@
     "walldob2b:sample": "npm run build && node dist/adapters/walldob2b/walldob2b-sample-cli.js",
     "typecheck": "tsc --noEmit",
     "woocommerce:search": "npm run build && node dist/woocommerce/search-cli.js",
-    "report:overlap-audit": "npm run build && node dist/reports/overlap-audit-cli.js"
+    "report:overlap-audit": "npm run build && node dist/reports/overlap-audit-cli.js",
+    "report:overlap-review": "npm run build && node dist/reports/overlap-review-cli.js"
   },
   "dependencies": {
     "csv-parse": "^6.1.0",
