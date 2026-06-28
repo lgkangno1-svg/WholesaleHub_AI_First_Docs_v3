@@ -15,7 +15,7 @@
 - 상품 상세/프론트 상단에 도매허브 브랜드 홈 링크와 장바구니 링크 추가.
 
 3. 최신 commit hash
-- 최신 커밋: COMMIT_AFTER_THIS_TASK
+- 최신 커밋: 68c51a3
 
 4. 현재 branch
 - main
