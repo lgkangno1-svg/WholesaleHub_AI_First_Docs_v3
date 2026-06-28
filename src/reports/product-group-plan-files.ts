@@ -14,6 +14,17 @@ const GROUP_HEADER = [
   "reason",
 ] as const
 
+const EXCLUDED_HEADER = [
+  "exclude_reason",
+  "supplier_id",
+  "original_product_name",
+  "original_option_name",
+  "selected_price",
+  "matched_keyword",
+  "product_group_key",
+  "recommended_action",
+] as const
+
 const OPTION_HEADER = [
   "product_group_key",
   "display_product_name",
@@ -46,6 +57,14 @@ export async function writeProductGroupPlanFiles(report: ProductGroupPlanReport)
   await writeOutput(
     "reports/woocommerce-product-update-plan.json",
     JSON.stringify(report.wooUpdatePlans, null, 2),
+  )
+  await writeOutput(
+    "reports/excluded-products.csv",
+    toCsv(EXCLUDED_HEADER, report.excludedProducts),
+  )
+  await writeOutput(
+    "reports/existing-livestock-products-review.csv",
+    toCsv(EXCLUDED_HEADER, report.existingLivestockProducts),
   )
 }
 

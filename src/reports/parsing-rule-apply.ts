@@ -82,6 +82,8 @@ export function applyParsingRulesToPlans(
       wooUpdatePlans: wooPlans.filter((row) => row.action === "update"),
       exactComparedOptionCount: changedOptions.filter((row) => row.compared_exact_same_option)
         .length,
+      excludedProducts: [],
+      existingLivestockProducts: [],
     },
     summary: {
       answeredRuleCount: rules.filter((rule) => rule.answered).length,

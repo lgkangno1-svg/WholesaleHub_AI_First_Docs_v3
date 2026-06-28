@@ -1,6 +1,7 @@
 ﻿import { createHash } from "node:crypto"
 import type { DatabaseSync } from "node:sqlite"
 import { z } from "zod"
+import { matchExcludedProduct } from "../exclusions/livestock.js"
 import type { WooCatalogItem } from "../woocommerce/catalog.js"
 
 const SourceRowSchema = z.object({
@@ -15,6 +16,17 @@ const SourceRowSchema = z.object({
   quantity: z.number().nullable(),
 })
 type SourceRow = z.infer<typeof SourceRowSchema>
+
+export type ExcludedProductRow = {
+  readonly exclude_reason: "livestock"
+  readonly supplier_id: string
+  readonly original_product_name: string
+  readonly original_option_name: string | null
+  readonly selected_price: number
+  readonly matched_keyword: string
+  readonly product_group_key: string
+  readonly recommended_action: "exclude_from_sync" | "existing_product_review_needed"
+}
 
 export type ProductGroupPlanRow = {
   readonly product_group_key: string
@@ -67,6 +79,8 @@ export type ProductGroupPlanReport = {
   readonly wooCreatePlans: readonly WooProductPlan[]
   readonly wooUpdatePlans: readonly WooProductPlan[]
   readonly exactComparedOptionCount: number
+  readonly excludedProducts: readonly ExcludedProductRow[]
+  readonly existingLivestockProducts: readonly ExcludedProductRow[]
 }
 
 export function buildProductGroupPlanReport(
@@ -74,18 +88,71 @@ export function buildProductGroupPlanReport(
   catalog: readonly WooCatalogItem[],
 ): ProductGroupPlanReport {
   const sourceRows = readSourceRows(database)
-  const selectedOptions = selectCheapestOptions(sourceRows)
+  const excludedProducts = buildExcludedProducts(sourceRows)
+  const eligibleRows = sourceRows.filter((row) => excludedMatch(row) === null)
+  const selectedOptions = selectCheapestOptions(eligibleRows)
   const productGroups = buildProductGroups(selectedOptions, catalog)
   const wooPlans = buildWooPlans(productGroups, selectedOptions)
   return {
-    supplierOptionCount: sourceRows.length,
+    supplierOptionCount: eligibleRows.length,
     productGroups,
     productOptions: selectedOptions,
     wooCreatePlans: wooPlans.filter((row) => row.action === "create"),
     wooUpdatePlans: wooPlans.filter((row) => row.action === "update"),
     exactComparedOptionCount: selectedOptions.filter((row) => row.compared_exact_same_option)
       .length,
+    excludedProducts,
+    existingLivestockProducts: buildExistingLivestockProducts(catalog),
   }
+}
+
+function buildExcludedProducts(rows: readonly SourceRow[]): readonly ExcludedProductRow[] {
+  return rows.flatMap((row) => {
+    const match = excludedMatch(row)
+    if (match === null) return []
+    return [
+      {
+        exclude_reason: match.excludeReason,
+        supplier_id: row.supplier_id,
+        original_product_name: row.original_product_name,
+        original_option_name: row.original_option_name,
+        selected_price: row.price,
+        matched_keyword: match.matchedKeyword,
+        product_group_key: productGroup(row).key,
+        recommended_action: "exclude_from_sync",
+      },
+    ]
+  })
+}
+
+function buildExistingLivestockProducts(
+  catalog: readonly WooCatalogItem[],
+): readonly ExcludedProductRow[] {
+  const seen = new Set<number>()
+  return catalog.flatMap((item) => {
+    if (seen.has(item.productId)) return []
+    const match = matchExcludedProduct(`${item.productName} ${item.optionName ?? ""}`)
+    if (match === null) return []
+    seen.add(item.productId)
+    return [
+      {
+        exclude_reason: match.excludeReason,
+        supplier_id: "woocommerce",
+        original_product_name: item.productName,
+        original_option_name: item.optionName,
+        selected_price: Number(item.price) || 0,
+        matched_keyword: match.matchedKeyword,
+        product_group_key: "",
+        recommended_action: "existing_product_review_needed",
+      },
+    ]
+  })
+}
+
+function excludedMatch(row: SourceRow) {
+  return matchExcludedProduct(
+    `${row.original_product_name} ${row.original_option_name ?? ""} ${row.normalized_name}`,
+  )
 }
 
 function readSourceRows(database: DatabaseSync): readonly SourceRow[] {

@@ -65,16 +65,18 @@ export async function buildProductFilterTaxonomyReport(
 ): Promise<ProductFilterTaxonomyReport> {
   const groups = JSON.parse(await readFile(groupPath, "utf8")) as readonly ProductGroupRow[]
   const options = JSON.parse(await readFile(optionPath, "utf8")) as readonly ProductOptionRow[]
-  const rows = sortRows([
-    ...aggregate(groups, options, "main_category", mainCategoryOf),
-    ...aggregate(groups, options, "product_family", familyOf),
-    ...aggregate(groups, options, "product_item", (group) => group.display_product_name),
-    ...aggregateAttribute(groups, options, "quality_grade", qualityLabels),
-    ...aggregateAttribute(groups, options, "size", sizeLabels),
-    ...aggregateAttribute(groups, options, "weight", weightLabels),
-    ...aggregateAttribute(groups, options, "quantity", quantityLabels),
-    ...saleStatusRows(groups, options),
-  ])
+  const rows = applyTopFilterVisibility(
+    sortRows([
+      ...aggregate(groups, options, "main_category", mainCategoryOf),
+      ...aggregate(groups, options, "product_family", familyOf),
+      ...aggregate(groups, options, "product_item", (group) => group.display_product_name),
+      ...aggregateAttribute(groups, options, "quality_grade", qualityLabels),
+      ...aggregateAttribute(groups, options, "size", sizeLabels),
+      ...aggregateAttribute(groups, options, "weight", weightLabels),
+      ...aggregateAttribute(groups, options, "quantity", quantityLabels),
+      ...saleStatusRows(groups, options),
+    ]),
+  )
   return { rows, summary: summarize(rows, groups.length, options.length) }
 }
 
@@ -214,6 +216,18 @@ function uniqueWords(text: string, words: readonly string[]): readonly string[] 
 
 function textOf(option: ProductOptionRow): string {
   return `${option.display_product_name} ${option.option_display_name} ${option.normalized_option_key}`
+}
+
+function applyTopFilterVisibility(
+  rows: readonly ProductFilterTaxonomyRow[],
+): readonly ProductFilterTaxonomyRow[] {
+  let productItemIndex = 0
+  return rows.map((row) => {
+    if (row.filter_type !== "product_item") return row
+    const shouldShow = productItemIndex < 20
+    productItemIndex += 1
+    return { ...row, should_show_in_top_filter: shouldShow }
+  })
 }
 
 function sortRows(rows: readonly ProductFilterTaxonomyRow[]): readonly ProductFilterTaxonomyRow[] {

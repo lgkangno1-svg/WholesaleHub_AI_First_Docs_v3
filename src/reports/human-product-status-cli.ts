@@ -418,6 +418,7 @@ async function writeSummary(
 ): Promise<void> {
   const latest = log.updatedCount
   const cumulative = 196
+  const livestockExcludedCount = await countCsvRows("reports/excluded-products.csv")
   const md = [
     `# 품목별 실행 현황 요약`,
     ``,
@@ -433,6 +434,7 @@ async function writeSummary(
     `- review_needed 수: ${sync.filter((row) => row.safety_status === "review_needed").length}`,
     `- blocked 수: ${sync.filter((row) => row.safety_status === "blocked").length}`,
     `- 중복/상충 제외 수: ${excluded.filter((row) => row["exclude_reason"] === "conflicting_expected_price").length}`,
+    `- 축산물 제외 옵션 수: ${livestockExcludedCount}`,
     `- 이번 실행 업데이트 수: ${latest}`,
     `- 누적 업데이트 수: ${cumulative}`,
     `- GET 검증 불일치 수: ${verify.mismatchCount}`,
@@ -486,6 +488,15 @@ function optionValue(value: string): number {
   const count = /(\d+)\s*(?:개|입|과|망|팩|박스)/u.exec(value)?.[1]
   return count ? Number(count) : Number.MAX_SAFE_INTEGER
 }
+async function countCsvRows(path: string): Promise<number> {
+  try {
+    const content = await readFile(path, "utf8")
+    return Math.max(0, content.trim().split(/\r?\n/u).length - 1)
+  } catch {
+    return 0
+  }
+}
+
 async function writeCsv(
   path: string,
   header: readonly string[],
