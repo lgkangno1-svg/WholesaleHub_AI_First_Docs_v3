@@ -14,7 +14,7 @@
 - 상품 필터 taxonomy 리포트 생성 CLI 추가.
 
 3. 최신 commit hash
-- 최신 커밋: COMMIT_AFTER_THIS_TASK
+- 최신 커밋: af2c939
 
 4. 현재 branch
 - main
