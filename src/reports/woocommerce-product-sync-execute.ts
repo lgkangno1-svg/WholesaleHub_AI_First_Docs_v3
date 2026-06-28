@@ -1,4 +1,4 @@
-﻿import { mkdir, writeFile } from "node:fs/promises"
+import { mkdir, writeFile } from "node:fs/promises"
 import { dirname, resolve } from "node:path"
 import ky from "ky"
 import { z } from "zod"
@@ -39,17 +39,17 @@ export function selectExecutableSyncRows(
   rows: readonly WooProductSyncPlanRow[],
   limit: number,
 ): readonly WooProductSyncPlanRow[] {
-  const selected: WooProductSyncPlanRow[] = []
-  const seenVariationKeys = new Set<string>()
-  for (const row of rows) {
-    if (!isExecutablePriceUpdate(row)) continue
-    const key = `${row.matched_woocommerce_product_id}:${row.current_woocommerce_variation_id}`
-    if (seenVariationKeys.has(key)) continue
-    selected.push(row)
-    seenVariationKeys.add(key)
-    if (selected.length >= limit) break
+  const executableRows = rows.filter(isExecutablePriceUpdate)
+  const keyCounts = new Map<string, number>()
+  for (const row of executableRows) {
+    const key = variationKey(row)
+    keyCounts.set(key, (keyCounts.get(key) ?? 0) + 1)
   }
-  return selected
+  return executableRows.filter((row) => keyCounts.get(variationKey(row)) === 1).slice(0, limit)
+}
+
+function variationKey(row: WooProductSyncPlanRow): string {
+  return `${row.matched_woocommerce_product_id}:${row.current_woocommerce_variation_id}`
 }
 
 function isExecutablePriceUpdate(row: WooProductSyncPlanRow): boolean {

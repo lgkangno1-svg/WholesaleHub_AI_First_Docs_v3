@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from "vitest"
+import { describe, expect, it } from "vitest"
 import { selectExecutableSyncRows } from "../src/reports/woocommerce-product-sync-execute.js"
 import {
   buildWooProductSyncPlan,
@@ -55,11 +55,12 @@ describe("buildWooProductSyncPlan", () => {
       reviewNeededCount: 1,
     })
   })
-  it("selects only safe update_variation_price rows for execution", () => {
+  it("selects only unique safe update_variation_price rows for execution", () => {
     // Given
     const rows = [
       syncRow("update_variation_price", "safe", 1),
       syncRow("update_variation_price", "safe", 1),
+      syncRow("update_variation_price", "safe", 4),
       syncRow("add_variation", "safe", null),
       syncRow("update_variation_price", "review_needed", 2),
       syncRow("blocked", "blocked", 3),
@@ -69,7 +70,12 @@ describe("buildWooProductSyncPlan", () => {
     const selected = selectExecutableSyncRows(rows, 10)
 
     // Then
-    expect(selected).toEqual([expect.objectContaining({ action: "update_variation_price" })])
+    expect(selected).toEqual([
+      expect.objectContaining({
+        action: "update_variation_price",
+        current_woocommerce_variation_id: 4,
+      }),
+    ])
   })
 })
 
