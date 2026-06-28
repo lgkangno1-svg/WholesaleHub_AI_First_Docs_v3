@@ -11,18 +11,17 @@
 - 확정 장사 기준 23개를 자동 user_answer로 반영.
 - 고객 로그인 redirect 개선 적용.
 - human 상품/옵션/제외/가격변경 리포트 5종 생성 CLI 추가.
-- variable product 상세에 다중 옵션 장바구니 UI 추가.
+- variable product 상세 다중 옵션 장바구니 UI를 드롭다운 선택 → 선택 목록 방식으로 변경.
+- 로그인 사용자 상단 메뉴에 장바구니 링크/개수 표시 추가.
 
 3. 최신 commit hash
-- 최신 커밋: d53cb5a
+- 최신 커밋: c0c8dbc
 - 이번 handoff 포함 커밋 후 final 보고 참조.
 
 4. 현재 branch
 - main
 
 5. 수정된 주요 파일
-- package.json
-- src/reports/human-product-status-cli.ts
 - /home/tnfwod/avocadoss-wordpress/wp_data/wp-content/plugins/avocadoss-performance/avocadoss-performance.php
 - /home/tnfwod/avocadoss-wordpress/wp_data/wp-content/plugins/avocadoss-performance/avocadoss-multi-variation-cart.php
 - AI_HANDOFF.md
@@ -41,15 +40,14 @@
 
 7. 최근 실행한 명령어
 - npm run check
-- npm run woocommerce:sync-plan -- --mode all
-- npm run report:human-product-status
 - docker exec avocadoss-wp php -l /var/www/html/wp-content/plugins/avocadoss-performance/avocadoss-performance.php
 - docker exec avocadoss-wp php -l /var/www/html/wp-content/plugins/avocadoss-performance/avocadoss-multi-variation-cart.php
+- curl product_id 1158 page smoke check
 
 8. 최근 통과한 check 결과
 - npm run check 통과: 29 test files / 72 tests passed.
 - PHP syntax check 통과.
-- product page smoke: avocadoss-multi-cart markup 확인.
+- product_id 1158 page smoke: avocadoss-multi-cart markup 확인.
 
 9. 최신 리포트 파일 위치
 - reports/human-product-status-summary.md
@@ -64,8 +62,7 @@
 10. 실제 WooCommerce에 반영된 작업
 - 기존 WooCommerce variation 가격 업데이트 누적 196건 실행.
 - 이번 작업에서는 상품/가격/재고 데이터 변경 없음.
-- 고객 로그인 redirect 플러그인 코드 적용.
-- variable product 다중 옵션 장바구니 UI 플러그인 코드 적용.
+- variable product 다중 옵션 장바구니 UI 플러그인 코드 변경.
 - 신규 상품 생성 없음, 신규 variation 생성 없음, 재고 변경 없음.
 
 11. 아직 절대 하면 안 되는 작업
@@ -78,10 +75,9 @@
 - 고객 화면에 supplier/source/raw cost/original URL 노출 금지.
 
 12. 다음 AI가 바로 해야 할 작업
-- human 리포트 CSV로 품목별 남은 후보 검토.
+- 실제 로그인 고객 브라우저에서 다중 옵션 선택/삭제/수량 +/-/장바구니 담기 QA.
 - 남은 update_variation_price 23건은 중복/상충 후보이므로 자동 실행 금지.
 - add_variation 36건, createNew 238건은 별도 승인 전까지 dry-run 유지.
-- 다중 옵션 장바구니 UI는 실제 브라우저에서 옵션 여러 개 담기 수동 QA 권장.
 
 13. 주의사항
 - .env/API key/로그인 정보 출력 금지.
