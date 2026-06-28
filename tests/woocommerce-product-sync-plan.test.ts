@@ -52,7 +52,7 @@ describe("buildWooProductSyncPlan", () => {
       addVariationCount: 1,
       updateVariationPriceCount: 1,
       blockedCount: 1,
-      reviewNeededCount: 1,
+      reviewNeededCount: 0,
     })
   })
   it("selects only unique safe update_variation_price rows for execution", () => {
@@ -113,6 +113,7 @@ function syncRow(
     matched_woocommerce_product_id: 10,
     action,
     option_display_name: "망고스틴 5kg",
+    normalized_option_key: "원산지미상|등급미상|5kg",
     selected_supplier_id: "dailyfood",
     selected_supplier_original_product_name: "망고스틴",
     selected_supplier_original_option_name: "망고스틴 5kg",

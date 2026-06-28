@@ -8,10 +8,10 @@
 - DailyFood htmlview 전체 파싱, walldob2b 엑셀 다운로드 파싱.
 - product_group/option plan, WooCommerce sync dry-run/execute CLI 구현.
 - 기존 WooCommerce variation 가격 업데이트 누적 196건 실행 및 GET 검증 완료.
-- 고객 로그인 redirect, 다중 옵션 장바구니 UI 적용.
-- 상품 필터 taxonomy 리포트 생성 CLI 추가.
 - 축산물 제외 룰 적용.
-- 헤더 raw 출력 제거, 기존 흰색 커스텀 헤더 안에 도매허브 로고/장바구니 링크 DOM 삽입 적용.
+- safe 신규 variable product를 draft 상태로 73개 생성, 신규 variation 193개 생성.
+- 공개 상태 신규 상품 생성 0개 검증.
+- 신규 add_variation 대상은 현재 0건.
 
 3. 최신 commit hash
 - 최신 커밋: COMMIT_AFTER_THIS_TASK
@@ -20,60 +20,70 @@
 - main
 
 5. 수정된 주요 파일
+- /home/tnfwod/projects/wholesalehub/src/reports/woocommerce-product-sync-execute.ts
+- /home/tnfwod/projects/wholesalehub/src/reports/woocommerce-product-sync-plan.ts
+- /home/tnfwod/projects/wholesalehub/src/reports/woocommerce-product-sync-plan-cli.ts
+- /home/tnfwod/projects/wholesalehub/src/reports/woocommerce-product-sync-plan-files.ts
+- /home/tnfwod/projects/wholesalehub/tests/woocommerce-product-sync-plan.test.ts
 - /home/tnfwod/projects/wholesalehub/AI_HANDOFF.md
-- /home/tnfwod/avocadoss-wordpress/wp_data/wp-content/plugins/avocadoss-performance/avocadoss-multi-variation-cart.php
 
 6. 최신 데이터 수치
 - DailyFood 옵션 수: 448
 - walldob2b 옵션 수: 195
 - 축산물 제외 옵션 수: 14
-- 축산물 제외 product_group 수: 11
 - product_group 수: 135
 - option 후보 수: 446
-- WooCommerce update 후보 수: 252
-- WooCommerce create 후보 수: 194
-- add_variation 후보 수: 45
-- update_variation_price 후보 수: 41
-- no_op 수: 166
-- sync review_needed 수: 193
+- safe add_variation 실행 가능 수: 0
+- safe 신규 draft/private 생성 row 수: 193
+- safe 신규 draft product 생성 수: 73
+- 신규 variation 생성 수: 193
+- 공개 상태 신규 상품 수: 0
+- 실패 수: 0
 
 7. 최근 실행한 명령어
+- npm run check
+- node dist/reports/product-group-plan-cli.js --db data/wholesalehub.sqlite
+- node dist/reports/woocommerce-product-sync-plan-cli.js --mode all
+- node dist/reports/woocommerce-product-sync-plan-cli.js --mode all --execute --limit 193 --confirm SYNC_WOOCOMMERCE_PRODUCTS
 - docker exec avocadoss-wp php -l /var/www/html/wp-content/plugins/avocadoss-performance/avocadoss-multi-variation-cart.php
-- curl home/product header smoke check
-- curl -I https://hub.avocadoss.co.kr/
-- curl -I https://hub.avocadoss.co.kr/cart/
+- node /tmp/verify_created.js
 
 8. 최근 통과한 check 결과
+- npm run check 통과: 29 test files / 72 tests passed.
 - PHP syntax check 통과.
-- 직전 npm run check 통과: 29 test files / 72 tests passed.
 
 9. 최신 리포트 파일 위치
+- reports/woocommerce-sync-plan.json
+- reports/woocommerce-sync-summary.json
+- reports/woocommerce-sync-execute-log.json
+- reports/woocommerce-draft-create-verification.json
 - reports/excluded-products.csv
 - reports/existing-livestock-products-review.csv
-- reports/product-filter-summary.md
-- reports/product-filter-taxonomy.json
-- reports/human-product-status-summary.md
 
 10. 실제 WooCommerce에 반영된 작업
-- 이번 작업에서는 WooCommerce 상품/가격/재고 데이터 변경 없음.
-- 프론트 헤더 UI 플러그인 코드만 변경.
+- 신규 draft variable product 73개 생성.
+- 신규 draft product의 variation 193개 생성.
+- 공개 상품 생성 없음.
+- 이번 작업에서 가격 업데이트 없음, 기존 상품명/설명/이미지/재고 변경 없음.
 
 11. 아직 절대 하면 안 되는 작업
+- 공개 상태 신규 상품 생성 금지.
 - WooCommerce 상품 삭제/숨김 처리 금지.
-- 신규 상품 생성 금지.
-- 신규 variation 생성 금지.
-- 상품명/옵션명/설명/이미지 수정 금지.
-- 가격/재고 변경 금지.
+- 기존 상품명/옵션명/설명/이미지 수정 금지.
+- 기존 재고 변경 금지.
+- review_needed/blocked 실행 금지.
+- 축산물 제외 대상 실행 금지.
 - 주문/결제/예치금/자동주문 금지.
 - AdminPlus 자동주문 금지.
 - 고객 화면에 supplier/source/raw cost/original URL 노출 금지.
 
 12. 다음 AI가 바로 해야 할 작업
-- 실제 로그인 브라우저에서 헤더 로고/장바구니 위치 QA.
-- 모바일 헤더 시각 QA.
-- reports/existing-livestock-products-review.csv 운영자 검토.
+- draft 신규 상품 73개를 관리자에서 검수할 수 있는 human report 생성.
+- draft 상품 공개 전 카테고리/이미지/설명/옵션명 검수 절차 설계.
+- 생성된 draft 상품 중 노출 제외/병합 필요 항목 검토.
 
 13. 주의사항
 - .env/API key/로그인 정보 출력 금지.
 - reports/는 gitignore 유지.
+- 신규 상품은 draft 상태로만 생성됨.
 - Windows 경로가 아니라 Mini PC /home/tnfwod/projects/wholesalehub 기준으로 작업.

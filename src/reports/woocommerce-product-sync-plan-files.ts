@@ -12,6 +12,7 @@ const HEADER = [
   "matched_woocommerce_product_id",
   "action",
   "option_display_name",
+  "normalized_option_key",
   "selected_supplier_id",
   "selected_supplier_original_product_name",
   "selected_supplier_original_option_name",

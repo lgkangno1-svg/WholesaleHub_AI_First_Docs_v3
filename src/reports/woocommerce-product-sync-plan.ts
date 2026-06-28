@@ -37,6 +37,7 @@ export type WooProductSyncPlanRow = {
   readonly matched_woocommerce_product_id: number | null
   readonly action: Action
   readonly option_display_name: string
+  readonly normalized_option_key: string
   readonly selected_supplier_id: string
   readonly selected_supplier_original_product_name: string
   readonly selected_supplier_original_option_name: string | null
@@ -113,7 +114,8 @@ function toRows(
   const syncMode = group?.matched_woocommerce_product_id === null ? "create-new" : "update-existing"
   if (mode !== "all" && mode !== syncMode) return []
   const variation = findVariation(group?.matched_woocommerce_product_id ?? null, option, catalog)
-  return [toRow(option, group, syncMode, variation)]
+  const matchedProduct = findMatchedProduct(group?.matched_woocommerce_product_id ?? null, catalog)
+  return [toRow(option, group, syncMode, variation, matchedProduct)]
 }
 
 function toRow(
@@ -121,8 +123,9 @@ function toRow(
   group: GroupPlan | null,
   mode: "update-existing" | "create-new",
   variation: WooCatalogItem | null,
+  matchedProduct: WooCatalogItem | null,
 ): WooProductSyncPlanRow {
-  const safety = safetyOf(option, group, mode, variation)
+  const safety = safetyOf(option, group, mode, variation, matchedProduct)
   return {
     mode,
     product_group_key: option.product_group_key,
@@ -130,6 +133,7 @@ function toRow(
     matched_woocommerce_product_id: group?.matched_woocommerce_product_id ?? null,
     action: actionOf(mode, variation, option, safety.status),
     option_display_name: option.option_display_name,
+    normalized_option_key: option.normalized_option_key,
     selected_supplier_id: option.selected_supplier_id,
     selected_supplier_original_product_name: option.selected_supplier_original_product_name,
     selected_supplier_original_option_name: option.selected_supplier_original_option_name,
@@ -165,6 +169,7 @@ function safetyOf(
   group: GroupPlan | null,
   mode: "update-existing" | "create-new",
   variation: WooCatalogItem | null,
+  matchedProduct: WooCatalogItem | null,
 ): { readonly status: Safety; readonly reason: string } {
   if (option.product_group_key.length === 0)
     return { status: "blocked", reason: "missing product_group_key" }
@@ -175,14 +180,28 @@ function safetyOf(
   if (option.selected_supplier_id.length === 0)
     return { status: "blocked", reason: "missing supplier tracking" }
   if (mode === "create-new")
-    return { status: "review_needed", reason: "new product candidate; dry-run only" }
+    return { status: "safe", reason: "new draft/private variable product candidate" }
   if (group?.matched_woocommerce_product_id === null)
     return { status: "blocked", reason: "missing matched WooCommerce product" }
+  if (variation === null && matchedProduct !== null && matchedProduct.type !== "variable") {
+    return {
+      status: "review_needed",
+      reason: "matched WooCommerce product is not variable; cannot add variation automatically",
+    }
+  }
   if (variation === null)
     return { status: "safe", reason: "existing product; new variation candidate" }
   return optionLooksSame(option, variation)
     ? { status: "safe", reason: "existing variation option matched" }
     : { status: "review_needed", reason: "existing variation option is ambiguous" }
+}
+
+function findMatchedProduct(
+  productId: number | null,
+  catalog: readonly WooCatalogItem[],
+): WooCatalogItem | null {
+  if (productId === null) return null
+  return catalog.find((item) => item.productId === productId && item.variationId === null) ?? null
 }
 
 function findVariation(

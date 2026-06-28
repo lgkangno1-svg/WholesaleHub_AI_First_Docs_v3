@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises"
 import { z } from "zod"
 import { fetchWooCommerceCatalog } from "../woocommerce/catalog.js"
-import { executeWooProductSyncPriceUpdates } from "./woocommerce-product-sync-execute.js"
+import { executeWooProductSyncSafeCatalogChanges } from "./woocommerce-product-sync-execute.js"
 import {
   buildWooProductSyncPlan,
   readProductPlans,
@@ -34,7 +34,7 @@ async function main(): Promise<void> {
   const summary = summarizeWooProductSyncPlan(rows)
   await writeWooProductSyncPlanFiles(rows, summary)
   const executeLog = options.execute
-    ? await executeWooProductSyncPriceUpdates(rows, {
+    ? await executeWooProductSyncSafeCatalogChanges(rows, {
         ...credentials,
         limit: options.limit ?? 0,
         outputPath: "reports/woocommerce-sync-execute-log.json",
@@ -52,6 +52,8 @@ async function main(): Promise<void> {
             : {
                 attemptedCount: executeLog.attemptedCount,
                 updatedCount: executeLog.updatedCount,
+                createdCount: executeLog.createdCount,
+                productCreatedCount: executeLog.productCreatedCount,
                 noOpCount: executeLog.noOpCount,
                 failedCount: executeLog.failedCount,
                 outputPath: "reports/woocommerce-sync-execute-log.json",
@@ -65,8 +67,8 @@ async function main(): Promise<void> {
 
 function enforceExecutionGuards(options: Options): void {
   if (!options.execute) return
-  if (options.mode !== "update-existing")
-    throw new Error("--execute requires --mode update-existing")
+  if (options.mode !== "update-existing" && options.mode !== "all")
+    throw new Error("--execute requires --mode update-existing or --mode all")
   if (options.limit === null) throw new Error("--execute requires --limit")
   if (options.confirm !== "SYNC_WOOCOMMERCE_PRODUCTS") {
     throw new Error('--execute requires --confirm "SYNC_WOOCOMMERCE_PRODUCTS"')
