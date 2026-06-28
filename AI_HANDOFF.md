@@ -14,7 +14,7 @@
 - 축산물 제외 룰 적용, 제외 리포트/기존 Woo 축산물 검토 리포트 생성.
 
 3. 최신 commit hash
-- 최신 커밋: COMMIT_AFTER_THIS_TASK
+- 최신 커밋: e74097e
 
 4. 현재 branch
 - main
