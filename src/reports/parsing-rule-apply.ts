@@ -1,4 +1,4 @@
-﻿import { createHash } from "node:crypto"
+import { createHash } from "node:crypto"
 import { readFile } from "node:fs/promises"
 import { z } from "zod"
 import type { ParsingRule } from "./parsing-rule-types.js"
@@ -113,7 +113,12 @@ function applyRulesToOption(
       }
     }
     if (rule.answered && rule.effective_action === "block") {
-      next = { ...next, recommended_action: "review_needed" }
+      const display = appendTerm(next.display_product_name, rule.term)
+      next = {
+        ...next,
+        product_group_key: groupKey(display),
+        display_product_name: display,
+      }
     }
   }
   return next

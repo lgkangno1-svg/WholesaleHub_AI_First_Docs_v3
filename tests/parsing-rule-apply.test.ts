@@ -1,5 +1,6 @@
 ﻿import { describe, expect, it } from "vitest"
 import { applyParsingRulesToPlans } from "../src/reports/parsing-rule-apply.js"
+import { autoAnswer } from "../src/reports/parsing-rule-auto-answer-cli.js"
 import { toRules } from "../src/reports/parsing-rule-files.js"
 import type { ParsingRuleQuestion } from "../src/reports/parsing-rule-types.js"
 import type {
@@ -33,6 +34,25 @@ describe("parsing rule application", () => {
         recommended_action: "review_needed",
       }),
     )
+  })
+
+  it("fills confirmed business rule answers and leaves ambiguous terms blank", () => {
+    // Given
+    const confirmed = question("가정용", "")
+    const ambiguous = question("하우스수박", "")
+
+    // When
+    const answered = autoAnswer(confirmed)
+    const needsUser = autoAnswer(ambiguous)
+
+    // Then
+    expect(answered).toEqual(
+      expect.objectContaining({
+        user_answer: "separate_product_group",
+        user_memo: expect.stringContaining("product_group"),
+      }),
+    )
+    expect(needsUser.user_answer).toBe("")
   })
 })
 

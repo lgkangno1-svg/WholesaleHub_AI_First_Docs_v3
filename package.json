@@ -45,7 +45,8 @@
     "report:product-group-plan": "npm run build && node dist/reports/product-group-plan-cli.js",
     "woocommerce:sync-plan": "npm run build && node dist/reports/woocommerce-product-sync-plan-cli.js",
     "report:parsing-rule-questions": "npm run build && node dist/reports/parsing-rule-questions-cli.js",
-    "parsing-rules:apply": "npm run build && node dist/reports/parsing-rule-apply-cli.js"
+    "parsing-rules:apply": "npm run build && node dist/reports/parsing-rule-apply-cli.js",
+    "parsing-rules:auto-answer": "npm run build && node dist/reports/parsing-rule-auto-answer-cli.js"
   },
   "dependencies": {
     "csv-parse": "^6.1.0",

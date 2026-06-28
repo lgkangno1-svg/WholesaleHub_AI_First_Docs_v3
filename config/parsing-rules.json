@@ -9,10 +9,10 @@
     "question": "대과는 옵션 속성으로 표시할까요?",
     "suggested_rule_type": "size",
     "suggested_action": "option_attribute",
-    "user_answer": "",
-    "user_memo": "",
+    "user_answer": "option_attribute",
+    "user_memo": "크기 차이는 옵션 속성",
     "effective_action": "option_attribute",
-    "answered": false
+    "answered": true
   },
   {
     "term": "감자",
@@ -24,10 +24,10 @@
     "question": "감자 계열을 같은 품목 후보로 볼까요?",
     "suggested_rule_type": "product_family",
     "suggested_action": "same_product",
-    "user_answer": "",
-    "user_memo": "",
+    "user_answer": "same_product",
+    "user_memo": "감자 큰 품목 후보",
     "effective_action": "same_product",
-    "answered": false
+    "answered": true
   },
   {
     "term": "복숭아",
@@ -39,10 +39,10 @@
     "question": "복숭아 계열을 같은 품목 후보로 볼까요?",
     "suggested_rule_type": "product_family",
     "suggested_action": "same_product",
-    "user_answer": "",
-    "user_memo": "",
+    "user_answer": "same_product",
+    "user_memo": "복숭아 큰 품목 후보. 품종은 별도 분리",
     "effective_action": "same_product",
-    "answered": false
+    "answered": true
   },
   {
     "term": "가정용",
@@ -54,10 +54,10 @@
     "question": "가정용은 별도 product_group으로 분리할까요?",
     "suggested_rule_type": "usage",
     "suggested_action": "separate_product_group",
-    "user_answer": "",
-    "user_memo": "",
+    "user_answer": "separate_product_group",
+    "user_memo": "품질/용도 차이로 product_group 분리",
     "effective_action": "separate_product_group",
-    "answered": false
+    "answered": true
   },
   {
     "term": "수박",
@@ -69,10 +69,10 @@
     "question": "수박은 수박끼리만 묶을까요?",
     "suggested_rule_type": "product_family",
     "suggested_action": "same_product",
-    "user_answer": "",
-    "user_memo": "",
+    "user_answer": "same_product",
+    "user_memo": "수박 계열 후보. 하우스 여부는 별도 검토",
     "effective_action": "same_product",
-    "answered": false
+    "answered": true
   },
   {
     "term": "소과",
@@ -84,10 +84,10 @@
     "question": "소과는 옵션 속성으로 표시할까요?",
     "suggested_rule_type": "size",
     "suggested_action": "option_attribute",
-    "user_answer": "",
-    "user_memo": "",
+    "user_answer": "option_attribute",
+    "user_memo": "크기 차이는 옵션 속성",
     "effective_action": "option_attribute",
-    "answered": false
+    "answered": true
   },
   {
     "term": "홍감자",
@@ -99,10 +99,10 @@
     "question": "홍감자는 일반 감자와 분리할까요?",
     "suggested_rule_type": "variety",
     "suggested_action": "separate_product_group",
-    "user_answer": "",
-    "user_memo": "",
+    "user_answer": "separate_product_group",
+    "user_memo": "홍감자는 품종/상품군으로 유지",
     "effective_action": "separate_product_group",
-    "answered": false
+    "answered": true
   },
   {
     "term": "중과",
@@ -114,10 +114,10 @@
     "question": "중과는 옵션 속성으로 표시할까요?",
     "suggested_rule_type": "size",
     "suggested_action": "option_attribute",
-    "user_answer": "",
-    "user_memo": "",
+    "user_answer": "option_attribute",
+    "user_memo": "크기 차이는 옵션 속성",
     "effective_action": "option_attribute",
-    "answered": false
+    "answered": true
   },
   {
     "term": "참외",
@@ -129,10 +129,10 @@
     "question": "참외 계열을 같은 상품군 후보로 묶을까요?",
     "suggested_rule_type": "product_family",
     "suggested_action": "same_product",
-    "user_answer": "",
-    "user_memo": "",
+    "user_answer": "same_product",
+    "user_memo": "참외/성주참외는 같은 품목 후보",
     "effective_action": "same_product",
-    "answered": false
+    "answered": true
   },
   {
     "term": "망고",
@@ -144,10 +144,10 @@
     "question": "망고 품종끼리 자동 병합하지 않고 품목 후보로만 볼까요?",
     "suggested_rule_type": "product_family",
     "suggested_action": "same_product",
-    "user_answer": "",
-    "user_memo": "",
+    "user_answer": "same_product",
+    "user_memo": "망고 큰 품목 후보. 품종은 별도 분리",
     "effective_action": "same_product",
-    "answered": false
+    "answered": true
   },
   {
     "term": "망",
@@ -159,10 +159,10 @@
     "question": "망 구성은 옵션명과 option_key에 반영할까요?",
     "suggested_rule_type": "packaging",
     "suggested_action": "option_attribute",
-    "user_answer": "",
-    "user_memo": "",
+    "user_answer": "option_attribute",
+    "user_memo": "포장/구성은 옵션 속성",
     "effective_action": "option_attribute",
-    "answered": false
+    "answered": true
   },
   {
     "term": "박스",
@@ -174,10 +174,10 @@
     "question": "박스 표기는 옵션명에 유지할까요?",
     "suggested_rule_type": "packaging",
     "suggested_action": "option_attribute",
-    "user_answer": "",
-    "user_memo": "",
+    "user_answer": "option_attribute",
+    "user_memo": "포장/구성은 옵션 속성",
     "effective_action": "option_attribute",
-    "answered": false
+    "answered": true
   },
   {
     "term": "특품",
@@ -189,10 +189,10 @@
     "question": "특품은 별도 product_group으로 분리할까요?",
     "suggested_rule_type": "quality_grade",
     "suggested_action": "separate_product_group",
-    "user_answer": "",
-    "user_memo": "",
+    "user_answer": "separate_product_group",
+    "user_memo": "품질/등급 차이로 product_group 분리",
     "effective_action": "separate_product_group",
-    "answered": false
+    "answered": true
   },
   {
     "term": "신비복숭아",
@@ -204,10 +204,10 @@
     "question": "신비복숭아는 일반 복숭아와 분리할까요?",
     "suggested_rule_type": "variety",
     "suggested_action": "separate_product_group",
-    "user_answer": "",
-    "user_memo": "",
+    "user_answer": "separate_product_group",
+    "user_memo": "신비복숭아는 별도 품종",
     "effective_action": "separate_product_group",
-    "answered": false
+    "answered": true
   },
   {
     "term": "옥수수",
@@ -219,10 +219,10 @@
     "question": "옥수수 계열을 같은 품목 후보로 볼까요?",
     "suggested_rule_type": "product_family",
     "suggested_action": "same_product",
-    "user_answer": "",
-    "user_memo": "",
+    "user_answer": "same_product",
+    "user_memo": "옥수수 큰 품목 후보",
     "effective_action": "same_product",
-    "answered": false
+    "answered": true
   },
   {
     "term": "찰옥수수",
@@ -234,10 +234,10 @@
     "question": "찰옥수수는 초당옥수수와 분리할까요?",
     "suggested_rule_type": "variety",
     "suggested_action": "separate_product_group",
-    "user_answer": "",
-    "user_memo": "",
+    "user_answer": "separate_product_group",
+    "user_memo": "찰옥수수는 별도 product_group",
     "effective_action": "separate_product_group",
-    "answered": false
+    "answered": true
   },
   {
     "term": "햇감자",
@@ -249,10 +249,10 @@
     "question": "햇감자의 햇 표현은 그룹핑에서 무시할까요?",
     "suggested_rule_type": "exclude_word",
     "suggested_action": "ignore_for_grouping",
-    "user_answer": "",
-    "user_memo": "",
+    "user_answer": "ignore_for_grouping",
+    "user_memo": "햇감자는 시즌/수식어",
     "effective_action": "ignore_for_grouping",
-    "answered": false
+    "answered": true
   },
   {
     "term": "팩",
@@ -264,10 +264,10 @@
     "question": "팩 구성은 옵션명과 option_key에 반영할까요?",
     "suggested_rule_type": "packaging",
     "suggested_action": "option_attribute",
-    "user_answer": "",
-    "user_memo": "",
+    "user_answer": "option_attribute",
+    "user_memo": "포장/구성은 옵션 속성",
     "effective_action": "option_attribute",
-    "answered": false
+    "answered": true
   },
   {
     "term": "망고스틴",
@@ -279,10 +279,10 @@
     "question": "망고스틴은 망고와 절대 분리할까요?",
     "suggested_rule_type": "must_separate",
     "suggested_action": "block",
-    "user_answer": "",
-    "user_memo": "",
+    "user_answer": "block",
+    "user_memo": "망고와 망고스틴은 절대 병합 금지",
     "effective_action": "block",
-    "answered": false
+    "answered": true
   },
   {
     "term": "체리",
@@ -294,10 +294,10 @@
     "question": "체리는 체리끼리만 묶을까요?",
     "suggested_rule_type": "product_family",
     "suggested_action": "same_product",
-    "user_answer": "",
-    "user_memo": "",
+    "user_answer": "same_product",
+    "user_memo": "체리는 체리끼리",
     "effective_action": "same_product",
-    "answered": false
+    "answered": true
   },
   {
     "term": "천도",
@@ -309,10 +309,10 @@
     "question": "천도는 별도 품종 product_group으로 둘까요?",
     "suggested_rule_type": "variety",
     "suggested_action": "separate_product_group",
-    "user_answer": "",
-    "user_memo": "",
+    "user_answer": "separate_product_group",
+    "user_memo": "천도복숭아는 별도 품종",
     "effective_action": "separate_product_group",
-    "answered": false
+    "answered": true
   },
   {
     "term": "무지개망고",
@@ -324,10 +324,10 @@
     "question": "무지개망고는 망고 안에서 별도 품종으로 분리할까요?",
     "suggested_rule_type": "variety",
     "suggested_action": "separate_product_group",
-    "user_answer": "",
-    "user_memo": "",
+    "user_answer": "separate_product_group",
+    "user_memo": "망고 품종 차이로 product_group 분리",
     "effective_action": "separate_product_group",
-    "answered": false
+    "answered": true
   },
   {
     "term": "못난이",
@@ -339,9 +339,9 @@
     "question": "못난이는 별도 product_group으로 분리할까요?",
     "suggested_rule_type": "quality_grade",
     "suggested_action": "separate_product_group",
-    "user_answer": "",
-    "user_memo": "",
+    "user_answer": "separate_product_group",
+    "user_memo": "품질 차이로 product_group 분리",
     "effective_action": "separate_product_group",
-    "answered": false
+    "answered": true
   }
 ]
