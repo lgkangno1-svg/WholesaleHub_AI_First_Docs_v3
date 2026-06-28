@@ -50,7 +50,8 @@
     "report:human-product-status": "npm run build && node dist/reports/human-product-status-cli.js",
     "report:product-filter-taxonomy": "npm run build && node dist/reports/product-filter-taxonomy-cli.js",
     "report:draft-products-review": "npm run build && node dist/reports/draft-products-review-cli.js",
-    "draft-products:publish-plan": "npm run build && node dist/reports/draft-products-publish-cli.js"
+    "draft-products:publish-plan": "npm run build && node dist/reports/draft-products-publish-cli.js",
+    "report:draft-vs-existing-merge": "npm run build && node dist/reports/draft-vs-existing-merge-cli.js"
   },
   "dependencies": {
     "csv-parse": "^6.1.0",
