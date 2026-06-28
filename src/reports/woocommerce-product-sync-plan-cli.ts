@@ -1,4 +1,4 @@
-﻿import { readFile } from "node:fs/promises"
+import { readFile } from "node:fs/promises"
 import { z } from "zod"
 import { fetchWooCommerceCatalog } from "../woocommerce/catalog.js"
 import { executeWooProductSyncPriceUpdates } from "./woocommerce-product-sync-execute.js"
@@ -68,7 +68,6 @@ function enforceExecutionGuards(options: Options): void {
   if (options.mode !== "update-existing")
     throw new Error("--execute requires --mode update-existing")
   if (options.limit === null) throw new Error("--execute requires --limit")
-  if (options.limit > 10) throw new Error("first product sync execute is limited to 10 rows")
   if (options.confirm !== "SYNC_WOOCOMMERCE_PRODUCTS") {
     throw new Error('--execute requires --confirm "SYNC_WOOCOMMERCE_PRODUCTS"')
   }
