@@ -9,9 +9,9 @@ async function main(): Promise<void> {
   const recent = safeGit(["log", "--oneline", "-8"]).split("\n").filter(Boolean)
   await mkdir(resolve("reports"), { recursive: true })
   await Promise.all([
-    writeFile("AI_HANDOFF.md", aiHandoff(cwd, branch, head, recent), "utf8"),
+    writeFile("AI_HANDOFF.md", aiHandoff(cwd, branch, recent), "utf8"),
     writeFile("reports/mvp-handoff-summary.md", handoffSummary(cwd, branch, head, recent), "utf8"),
-    writeFile("reports/mvp-final-summary.md", finalSummary(cwd, branch, head), "utf8"),
+    writeFile("reports/mvp-final-summary.md", finalSummary(cwd, branch), "utf8"),
   ])
   console.log(JSON.stringify({ cwd, branch, head }, null, 2))
 }
@@ -28,13 +28,13 @@ function commitList(commits: readonly string[]): string {
   return commits.map((commit) => `- ${commit}`).join("\n")
 }
 
-function aiHandoff(cwd: string, branch: string, head: string, recent: readonly string[]): string {
+function aiHandoff(cwd: string, branch: string, recent: readonly string[]): string {
   return `# AI_HANDOFF
 
 ## Current Project
 - Path: ${cwd}
 - Branch: ${branch}
-- Latest commit: run git rev-parse HEAD${head}
+- Latest commit: run git rev-parse HEAD
 - Purpose: synchronize existing WooCommerce DailyFood/walldob2b products with latest supplier price and availability while preventing duplicate customer-facing options.
 
 ## Current MVP State
@@ -155,13 +155,13 @@ ${commitList(recent)}
 `
 }
 
-function finalSummary(cwd: string, branch: string, head: string): string {
+function finalSummary(cwd: string, branch: string): string {
   return `# MVP Final Summary
 
 ## Project
 - Path: ${cwd}
 - Branch: ${branch}
-- Commit: run git rev-parse HEAD${head}
+- Commit: run git rev-parse HEAD
 
 ## MVP 1
 - Sync plan generated from DailyFood, walldob2b, and WooCommerce.
