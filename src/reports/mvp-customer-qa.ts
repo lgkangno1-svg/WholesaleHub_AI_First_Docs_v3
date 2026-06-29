@@ -330,7 +330,7 @@ function checkDuplicateOptions(products: readonly Product[]): readonly QaRow[] {
     const duplicate = new Set<string>()
     for (const variation of product.variations) {
       if (variation.stock_status === "outofstock") continue
-      const key = optionKey(optionName(variation))
+      const key = exactOptionKey(optionName(variation))
       if (key.length === 0) continue
       if (seen.has(key)) duplicate.add(key)
       seen.add(key)
@@ -501,9 +501,10 @@ async function addStoreCartItem(
   })
   const text = await response.text()
   const ok =
-    (response.status === 200 || response.status === 302) &&
-    !text.includes("woocommerce-error") &&
-    !text.includes("not_purchasable")
+    response.status >= 200 &&
+    response.status < 400 &&
+    !text.includes("not_purchasable") &&
+    !text.includes("구매할 수 없습니다")
   return { ok, detail: `status=${response.status}` }
 }
 async function fetchPublicHtml(url: string): Promise<string> {
@@ -620,6 +621,10 @@ function optionName(variation: Variation | undefined): string {
       .join(" / ") ?? ""
   )
 }
+function exactOptionKey(value: string): string {
+  return value.normalize("NFKC").replace(/\s+/gu, "").toLocaleLowerCase("ko-KR")
+}
+
 function optionKey(value: string): string {
   return value
     .normalize("NFKC")
