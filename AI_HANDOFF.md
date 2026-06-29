@@ -1,78 +1,60 @@
 # AI_HANDOFF
 
-1. 현재 프로젝트 목표
-- DailyFood + walldob2b 기준으로 기존 WooCommerce 상품 우선, 신규 draft는 공개하지 않고 중복/흡수 가능성 검수.
+## Current Project
+- Path: /home/tnfwod/projects/wholesalehub
+- Branch: main
+- Latest commit: run git rev-parse HEADf132cd291f2d64e76d4e00fdd9a71605b8c22927
+- Purpose: synchronize existing WooCommerce DailyFood/walldob2b products with latest supplier price and availability while preventing duplicate customer-facing options.
 
-2. 현재까지 완료된 핵심 작업
-- DailyFood htmlview 448 옵션, walldob2b 엑셀 195 옵션 수집 파이프라인 구축.
-- 축산물 제외 룰 적용.
-- 기존 variation 가격 업데이트는 검증 완료.
-- 신규 draft variable product 73개 / variation 193개 생성 완료, 공개 0개 유지.
-- draft vs existing merge 리포트 생성 완료.
+## Current MVP State
+- MVP 1 sync plan complete: DailyFood 448 options, walldob2b 225 options, WooCommerce 218 products / 789 variations at plan time, no WooCommerce changes.
+- MVP 2 existing variation sync complete: 87 existing variations updated across two executions, failures 0, no new products or variations.
+- MVP 3 add/create complete: 61 variations added to existing products, 11 draft/private products created, 125 new variations created, public new products 0, livestock applied 0.
+- MVP 4 customer QA complete: duplicate option suspects 0 after QA refinement, cart QA failures 0, supplier/cost/source URL exposure 0, public new product exposure 0, draft/private customer exposure 0.
 
-3. 최신 commit hash
-- 최신 커밋: final response 참조
+## Operational Commands
+- npm run mvp:plan
+- npm run mvp:sync-existing -- --execute --confirm "EXECUTE_MVP_SYNC_EXISTING_VARIATIONS_ONLY"
+- npm run mvp:add-create -- --execute --confirm "EXECUTE_MVP_ADD_VARIATIONS_AND_CREATE_DRAFTS"
+- npm run mvp:qa
+- npm run mvp:handoff
 
-4. 현재 branch
-- main
+## Key Reports
+- reports/mvp-sync-plan.json
+- reports/mvp-sync-plan.csv
+- reports/mvp-sync-summary.md
+- reports/mvp-sync-execute-log.json
+- reports/mvp-sync-execute-summary.md
+- reports/mvp-sync-execute-verification.json
+- reports/mvp-add-create-execute-log.json
+- reports/mvp-add-create-execute-summary.md
+- reports/mvp-add-create-verification.json
+- reports/mvp-customer-qa-summary.md
+- reports/mvp-customer-qa-results.csv
+- reports/mvp-final-summary.md
+- reports/mvp-handoff-summary.md
 
-5. 수정된 주요 파일
-- /home/tnfwod/projects/wholesalehub/package.json
-- /home/tnfwod/projects/wholesalehub/src/reports/draft-vs-existing-merge-cli.ts
-- /home/tnfwod/projects/wholesalehub/AI_HANDOFF.md
+## Remaining Work
+- Review existing 60 held/review items manually.
+- Review 11 draft/private products before any approval to publish.
+- Decide whether daily runs use cron on the mini PC or GitHub Actions.
+- Verify real order and CS flow during production monitoring.
 
-6. 최신 데이터 수치
-- DailyFood 옵션 수: 448
-- walldob2b 옵션 수: 195
-- product_group 수: 축산물 제외 후 135
-- option 후보 수: 축산물 제외 후 446
-- WooCommerce 기존 상품 수: 145
-- WooCommerce 기존 variation 수: 596
-- draft 상품 수: 73
-- draft variation 수: 193
-- duplicate_existing_product: 0
-- partial_missing_options: 10
-- unique_new_product: 63
-- review_needed: 0
-- add_variation 후보 수: 193
+## Absolute Prohibitions
+- Do not print .env, API keys, login information, or credentials.
+- Do not delete WooCommerce products or variations.
+- Do not modify product names, option names, descriptions, images, prices, stock_status, or stock quantity unless explicitly authorized.
+- Do not create products or variations unless explicitly authorized.
+- Do not publish draft/private products automatically.
+- Do not run orders, payments, deposits, auto-order, or AdminPlus auto-order flows.
+- Do not expose supplier_id, supplier cost, source URL, or original supplier URL to customers.
 
-7. 최근 실행한 명령어
-- npm run check
-- docker exec avocadoss-wp php -l /var/www/html/wp-content/plugins/avocadoss-performance/avocadoss-performance.php
-- docker exec avocadoss-wp php -l /var/www/html/wp-content/plugins/avocadoss-performance/avocadoss-multi-variation-cart.php
-- npm run report:draft-vs-existing-merge
-
-8. 최근 통과한 check 결과
-- npm run check 통과: 29 test files / 72 tests passed.
-- PHP syntax check 통과.
-
-9. 최신 리포트 파일 위치
-- reports/draft-vs-existing-merge-plan.csv
-- reports/draft-vs-existing-merge-summary.md
-- reports/draft-products-review.csv
-- reports/draft-products-review-summary.md
-
-10. 실제 WooCommerce에 반영된 작업
-- 이번 작업에서는 WooCommerce 상품/가격/재고/공개 상태 변경 없음.
-- draft 상품 publish/delete/trash 없음.
-
-11. 아직 절대 하면 안 되는 작업
-- draft 상품 공개 금지.
-- 기존/draft 상품 삭제 금지.
-- 상품명/옵션명/설명/이미지 수정 금지.
-- 가격/재고 변경 금지.
-- variation 생성 금지.
-- 신규 상품 생성 금지.
-- 주문/결제/예치금/자동주문 금지.
-- 고객 화면에 supplier/source/raw cost/original URL 노출 금지.
-
-12. 다음 AI가 바로 해야 할 작업
-- draft-vs-existing-merge-plan.csv에서 partial_missing_options 10개를 사람이 검수.
-- 기존 상품에 흡수할 옵션만 별도 승인 후 add_variation 실행 계획으로 넘김.
-- unique_new_product 63개는 publish하지 말고 계속 보류/검수.
-
-13. 주의사항
-- .env/API key/로그인 정보 출력 금지.
-- reports/는 gitignore 유지.
-- Windows 경로가 아니라 Mini PC /home/tnfwod/projects/wholesalehub 기준으로 작업.
-- 가격 업데이트 허용 범위: 사용자가 명시 승인한 기존 variation 가격만.
+## Recent Commits
+- f132cd2 Refine MVP customer QA checks
+- 27063d7 Add MVP customer QA report
+- 3d8877d Add MVP add-create executor
+- 9eaebbd Consolidate duplicate MVP sync targets
+- a1c366f Promote strict safe MVP sync rows
+- 952daa9 Add MVP existing variation sync executor
+- 624b623 Add MVP sync plan report
+- 69eaa0a Add draft vs existing merge report
