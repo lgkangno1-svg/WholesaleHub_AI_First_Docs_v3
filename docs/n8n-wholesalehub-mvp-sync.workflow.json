@@ -1,57 +1,131 @@
-{
-  "name": "WholesaleHub MVP Sync",
-  "active": false,
-  "nodes": [
-    {
-      "parameters": {
-        "triggerTimes": {
-          "item": [
-            { "mode": "everyDay", "hour": 9, "minute": 0 },
-            { "mode": "everyDay", "hour": 15, "minute": 0 },
-            { "mode": "everyDay", "hour": 21, "minute": 0 }
-          ],
-          "timezone": "Asia/Seoul"
-        }
+[
+  {
+    "updatedAt": "2026-06-29T12:22:20.276Z",
+    "createdAt": "2026-06-29T12:22:20.276Z",
+    "id": "jVFfCJtfEax1GeDQ",
+    "name": "WholesaleHub MVP Sync",
+    "description": null,
+    "active": false,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {},
+        "id": "manual-test-trigger",
+        "name": "Manual Test Trigger",
+        "type": "n8n-nodes-base.manualTrigger",
+        "typeVersion": 1,
+        "position": [-460, 120]
       },
-      "id": "schedule-trigger",
-      "name": "Daily 09 15 21 KST",
-      "type": "n8n-nodes-base.cron",
-      "typeVersion": 1,
-      "position": [260, 300]
-    },
-    {
-      "parameters": {
-        "command": "cd /home/tnfwod/projects/wholesalehub && bash scripts/n8n-mvp-sync.sh"
+      {
+        "parameters": {
+          "triggerTimes": {
+            "item": [
+              {
+                "mode": "everyDay",
+                "hour": 9,
+                "minute": 0
+              },
+              {
+                "mode": "everyDay",
+                "hour": 15,
+                "minute": 0
+              },
+              {
+                "mode": "everyDay",
+                "hour": 21,
+                "minute": 0
+              }
+            ],
+            "timezone": "Asia/Seoul"
+          }
+        },
+        "id": "schedule-trigger",
+        "name": "Daily 09 15 21 KST",
+        "type": "n8n-nodes-base.cron",
+        "typeVersion": 1,
+        "position": [260, 300]
       },
-      "id": "ssh-run-wholesalehub",
-      "name": "Run WholesaleHub MVP Sync",
-      "type": "n8n-nodes-base.ssh",
-      "typeVersion": 1,
-      "position": [520, 300],
-      "credentials": {
-        "sshPassword": {
-          "id": "REPLACE_WITH_N8N_SSH_CREDENTIAL_ID",
-          "name": "REPLACE_WITH_MINI_PC_SSH_CREDENTIAL"
+      {
+        "parameters": {
+          "command": "cd /home/tnfwod/projects/wholesalehub && bash scripts/n8n-mvp-sync.sh",
+          "authentication": "privateKey",
+          "resource": "command",
+          "operation": "execute"
+        },
+        "id": "ssh-run-wholesalehub",
+        "name": "Run WholesaleHub MVP Sync",
+        "type": "n8n-nodes-base.ssh",
+        "typeVersion": 1,
+        "position": [520, 300],
+        "credentials": {
+          "sshPrivateKey": {
+            "id": "QYVqJGt04jJ45Kc3",
+            "name": "minipc-ssh"
+          }
         }
       }
-    }
-  ],
-  "connections": {
-    "Daily 09 15 21 KST": {
-      "main": [
-        [
-          {
-            "node": "Run WholesaleHub MVP Sync",
-            "type": "main",
-            "index": 0
-          }
+    ],
+    "connections": {
+      "Daily 09 15 21 KST": {
+        "main": [
+          [
+            {
+              "node": "Run WholesaleHub MVP Sync",
+              "type": "main",
+              "index": 0
+            }
+          ]
         ]
-      ]
+      },
+      "Manual Test Trigger": {
+        "main": [
+          [
+            {
+              "node": "Run WholesaleHub MVP Sync",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "timezone": "Asia/Seoul",
+      "executionTimeout": 7200
+    },
+    "staticData": null,
+    "meta": null,
+    "nodeGroups": [],
+    "pinData": null,
+    "versionId": "2b5fec14-9711-487b-8482-9f1abb185225",
+    "activeVersionId": null,
+    "versionCounter": 2,
+    "triggerCount": 0,
+    "sourceWorkflowId": null,
+    "tags": [],
+    "shared": [
+      {
+        "updatedAt": "2026-06-29T12:22:20.276Z",
+        "createdAt": "2026-06-29T12:22:20.276Z",
+        "role": "workflow:owner",
+        "workflowId": "jVFfCJtfEax1GeDQ",
+        "projectId": "SWFCXRjZ470rlBc8",
+        "project": {
+          "updatedAt": "2026-04-22T13:27:24.300Z",
+          "createdAt": "2026-04-22T05:19:17.773Z",
+          "id": "SWFCXRjZ470rlBc8",
+          "name": "kang hosung <lg.kangno1@gmail.com>",
+          "type": "personal",
+          "icon": null,
+          "description": null,
+          "customTelemetryTags": [],
+          "creatorId": "e231d4ec-c3c8-4cb1-a432-0f1a8fc84ad4"
+        }
+      }
+    ],
+    "versionMetadata": {
+      "name": null,
+      "description": null
     }
-  },
-  "settings": {
-    "timezone": "Asia/Seoul",
-    "executionTimeout": 7200
-  },
-  "tags": []
-}
+  }
+]

@@ -67,10 +67,14 @@ New options are automatically added when the safety gate marks them safe. True n
 - Do not print `.env` contents in n8n logs.
 
 ## Latest Test Result
-- Test time: 2026-06-29T22:01:43+0900
+- Test time: 2026-06-29T23:16:45+0900
 - Workflow ID: jVFfCJtfEax1GeDQ
-- Workflow active: false
-- SSH smoke test: success
-- Manual workflow execution: failed before SSH node execution with `Missing node to start execution` from n8n CLI.
-- Activation: not attempted; keep inactive until a successful UI/API manual execution reaches the SSH node and exits 0.
+- Workflow active: true
+- Manual Test Trigger: present
+- Manual Test Trigger to SSH node: connected
+- Schedule Trigger to SSH node: connected
+- Manual workflow execution: success
+- SSH node reached: yes
+- `scripts/n8n-mvp-sync.sh`: exit code 0
+- Activation: enabled after successful manual test.
 - Secret scan across docs/reports: no credential-like values found.

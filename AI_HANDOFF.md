@@ -60,20 +60,22 @@
 - Do not expose supplier_id, supplier cost, source URL, or original supplier URL to customers.
 
 ## Recent Commits
+- 1bfce07 Record n8n workflow test status
+- 1d00a66 Update n8n workflow automation for add-create
 - 19be147 Add n8n MVP review export automation
 - 4226cde Fix MVP handoff current commit guidance
 - 00086db Fix MVP handoff commit text
 - bfcebe2 Add MVP operations handoff
 - f132cd2 Refine MVP customer QA checks
 - 27063d7 Add MVP customer QA report
-- 3d8877d Add MVP add-create executor
-- 9eaebbd Consolidate duplicate MVP sync targets
 
 ## n8n Test Status
 - Workflow ID: jVFfCJtfEax1GeDQ
-- Workflow active: false
-- Last test time: 2026-06-29T22:01:43+0900
-- SSH smoke test: success
-- Manual workflow execution: failed before the SSH node with `Missing node to start execution` in n8n CLI.
-- Do not activate the workflow until a successful manual run from n8n UI/API reaches `scripts/n8n-mvp-sync.sh` and returns exit code 0.
+- Workflow active: true
+- Last test time: 2026-06-29T23:16:45+0900
+- Manual Test Trigger: present and connected to `Run WholesaleHub MVP Sync`.
+- Schedule Trigger: still connected to `Run WholesaleHub MVP Sync`.
+- Manual workflow execution: success from `Manual Test Trigger`.
+- SSH node reached and `scripts/n8n-mvp-sync.sh` exited 0.
+- QA after the run: public exposure 0, draft/private exposure 0, supplier/cost/source leak 0, duplicate option exposure 0, cart failures 0.
 - Secret scan of docs/reports found 0 credential-like hits.

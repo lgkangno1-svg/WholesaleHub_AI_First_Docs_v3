@@ -98,8 +98,10 @@ The automation runs supplier collection, existing variation sync, safe new optio
 ## n8n Test Status
 - Workflow: `WholesaleHub MVP Sync` (`jVFfCJtfEax1GeDQ`)
 - Schedule: 09:00, 15:00, 21:00 Asia/Seoul
-- Last test: 2026-06-29T22:01:43+0900
-- SSH smoke test succeeded.
-- n8n CLI manual workflow execution failed before the SSH node because the imported cron workflow has no Execute Workflow Trigger start node.
-- Workflow remains inactive. Activate only after a successful manual run from n8n UI/API.
+- Last test: 2026-06-29T23:16:45+0900
+- Manual Test Trigger exists and is connected to `Run WholesaleHub MVP Sync`.
+- Schedule Trigger remains connected to `Run WholesaleHub MVP Sync`.
+- Manual Trigger workflow execution succeeded and reached the SSH node.
+- `scripts/n8n-mvp-sync.sh` returned exit code 0 and refreshed `reports/n8n-run-latest.log`.
+- Workflow is active.
 - Test report: `reports/n8n-test-summary.md`
