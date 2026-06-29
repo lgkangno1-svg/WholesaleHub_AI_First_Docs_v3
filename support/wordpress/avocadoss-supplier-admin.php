@@ -26,12 +26,12 @@ function avocadoss_hub_supplier_id_from_value( $value ) {
 function avocadoss_hub_supplier_label( $supplier_id ) {
     $supplier = avocadoss_hub_supplier_id_from_value( $supplier_id );
     if ( 'dailyfood' === $supplier ) {
-        return '???';
+        return '데일리';
     }
     if ( 'walldob2b' === $supplier ) {
-        return '??';
+        return '월억';
     }
-    return '???';
+    return '미확인';
 }
 
 function avocadoss_hub_first_meta_value( $post_id, $keys ) {
@@ -87,11 +87,11 @@ function avocadoss_hub_add_supplier_product_column( $columns ) {
     foreach ( $columns as $key => $label ) {
         $next[ $key ] = $label;
         if ( 'name' === $key ) {
-            $next['avocadoss_supplier'] = '???';
+            $next['avocadoss_supplier'] = '공급처';
         }
     }
     if ( ! isset( $next['avocadoss_supplier'] ) ) {
-        $next['avocadoss_supplier'] = '???';
+        $next['avocadoss_supplier'] = '공급처';
     }
     return $next;
 }
@@ -124,9 +124,9 @@ function avocadoss_hub_render_supplier_product_column( $column, $post_id ) {
     } elseif ( $counts['walldob2b'] > 0 && 0 === $counts['dailyfood'] ) {
         echo '<span class="avocadoss-supplier-badge">' . esc_html( avocadoss_hub_supplier_label( 'walldob2b' ) ) . '</span>';
     } else {
-        echo '<span class="avocadoss-supplier-badge">??</span>';
+        echo '<span class="avocadoss-supplier-badge">혼합</span>';
     }
-    echo '<br><small>' . esc_html( sprintf( '??? %d / ?? %d', $counts['dailyfood'], $counts['walldob2b'] ) ) . '</small>';
+    echo '<br><small>' . esc_html( sprintf( '데일리 %d / 월억 %d', $counts['dailyfood'], $counts['walldob2b'] ) ) . '</small>';
 }
 
 add_action( 'admin_head-edit.php', 'avocadoss_hub_supplier_admin_css' );
@@ -146,13 +146,13 @@ function avocadoss_hub_render_variation_supplier_box( $loop, $variation_data, $v
     $product_id = wp_get_post_parent_id( $variation->ID );
     $meta       = avocadoss_hub_supplier_meta( $variation->ID, $product_id );
     echo '<div class="avocadoss-supplier-box form-row form-row-full">';
-    echo '<p><strong>???:</strong> ' . esc_html( $meta['supplier_label'] ) . '</p>';
-    echo '<p><strong>??? ??ID:</strong> ' . esc_html( $meta['source_product_id'] ?: '???' ) . '</p>';
-    echo '<p><strong>??? ??ID:</strong> ' . esc_html( $meta['source_option_id'] ?: '???' ) . '</p>';
-    echo '<p><strong>??? ?? ???:</strong> ' . esc_html( $meta['original_product_name'] ?: '???' ) . '</p>';
-    echo '<p><strong>??? ?? ???:</strong> ' . esc_html( $meta['original_option_name'] ?: '???' ) . '</p>';
+    echo '<p><strong>공급처:</strong> ' . esc_html( $meta['supplier_label'] ) . '</p>';
+    echo '<p><strong>공급처 상품ID:</strong> ' . esc_html( $meta['source_product_id'] ?: '미확인' ) . '</p>';
+    echo '<p><strong>공급처 옵션ID:</strong> ' . esc_html( $meta['source_option_id'] ?: '미확인' ) . '</p>';
+    echo '<p><strong>공급처 원본 상품명:</strong> ' . esc_html( $meta['original_product_name'] ?: '미확인' ) . '</p>';
+    echo '<p><strong>공급처 원본 옵션명:</strong> ' . esc_html( $meta['original_option_name'] ?: '미확인' ) . '</p>';
     if ( '' !== $meta['last_synced_at'] ) {
-        echo '<p><strong>??? ???:</strong> ' . esc_html( $meta['last_synced_at'] ) . '</p>';
+        echo '<p><strong>마지막 동기화:</strong> ' . esc_html( $meta['last_synced_at'] ) . '</p>';
     }
     echo '</div>';
 }
@@ -217,10 +217,10 @@ function avocadoss_hub_render_admin_order_supplier_meta( $item_id, $item, $produ
     }
 
     echo '<div class="avocadoss-admin-order-supplier">';
-    echo '<p><strong>???:</strong> ' . esc_html( $label ?: avocadoss_hub_supplier_label( $supplier_id ) ) . '</p>';
-    echo '<p><strong>??? ???:</strong> ' . esc_html( $origin_p ?: '???' ) . '</p>';
-    echo '<p><strong>??? ???:</strong> ' . esc_html( $origin_o ?: '???' ) . '</p>';
-    echo '<p><strong>??? ??ID:</strong> ' . esc_html( $source_pid ?: '???' ) . '</p>';
-    echo '<p><strong>??? ??ID:</strong> ' . esc_html( $source_oid ?: '???' ) . '</p>';
+    echo '<p><strong>공급처:</strong> ' . esc_html( $label ?: avocadoss_hub_supplier_label( $supplier_id ) ) . '</p>';
+    echo '<p><strong>공급처 상품명:</strong> ' . esc_html( $origin_p ?: '미확인' ) . '</p>';
+    echo '<p><strong>공급처 옵션명:</strong> ' . esc_html( $origin_o ?: '미확인' ) . '</p>';
+    echo '<p><strong>공급처 상품ID:</strong> ' . esc_html( $source_pid ?: '미확인' ) . '</p>';
+    echo '<p><strong>공급처 옵션ID:</strong> ' . esc_html( $source_oid ?: '미확인' ) . '</p>';
     echo '</div>';
 }

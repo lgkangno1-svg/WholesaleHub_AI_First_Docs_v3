@@ -145,7 +145,7 @@ async function buildOrderSupplierFulfillmentReport(
         source_option_id: supplier.sourceOptionId,
         original_product_name: supplier.originalProductName,
         original_option_name: supplier.originalOptionName,
-        memo_korean: hasSnapshot ? "" : "???? ??? ??, ?? variation meta ??",
+        memo_korean: hasSnapshot ? "" : "주문시점 스냅샷 없음, 현재 variation meta 기준",
       })
     }
   }
@@ -308,9 +308,9 @@ function supplierIdFrom(value: string): string {
   return "unknown"
 }
 function supplierLabel(supplierId: string): string {
-  if (supplierId === "dailyfood") return "???"
-  if (supplierId === "walldob2b") return "??"
-  return "???"
+  if (supplierId === "dailyfood") return "데일리"
+  if (supplierId === "walldob2b") return "월억"
+  return "미확인"
 }
 function optionName(item: LineItem): string {
   const candidates = item.meta_data
@@ -369,9 +369,9 @@ async function writeReport(
       `- generated_at: ${new Date().toISOString()}`,
       `- range: ${options.from ?? `last_${options.days}_days`} ~ ${options.to ?? "now"}`,
       `- row_count: ${rows.length}`,
-      `- ???: ${counts["???"] ?? 0}`,
-      `- ??: ${counts["??"] ?? 0}`,
-      `- ???: ${counts["???"] ?? 0}`,
+      `- 데일리: ${counts["데일리"] ?? 0}`,
+      `- 월억: ${counts["월억"] ?? 0}`,
+      `- 미확인: ${counts["미확인"] ?? 0}`,
       "- wooCommerceChanged: false",
       "",
     ].join("\n"),
