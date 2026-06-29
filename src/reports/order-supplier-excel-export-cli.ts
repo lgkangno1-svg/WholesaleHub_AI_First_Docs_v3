@@ -47,7 +47,12 @@ type Credentials = {
 type Order = z.infer<typeof OrderSchema>
 type LineItem = Order["line_items"][number]
 type Meta = z.infer<typeof MetaSchema>
-type Options = { readonly days: number; readonly from: string | null; readonly to: string | null }
+type Options = {
+  readonly days: number
+  readonly from: string | null
+  readonly to: string | null
+  readonly fixture: boolean
+}
 type SupplierMeta = {
   readonly supplierId: string
   readonly sourceProductId: string
@@ -85,18 +90,7 @@ export async function exportSupplierOrderExcels(
   credentials: Credentials,
   options: Options,
 ): Promise<ExportSummary> {
-  const client = wooClient(credentials)
-  const orders = await fetchOrders(client, dateRange(options))
-  const fallbackCache = new Map<string, SupplierMeta>()
-  const rows: ExportRow[] = []
-  for (const order of orders) {
-    for (const item of order.line_items) {
-      const supplier = await supplierForItem(client, fallbackCache, item)
-      if (supplier.supplierId === "dailyfood" || supplier.supplierId === "walldob2b") {
-        rows.push({ order, item, supplier })
-      }
-    }
-  }
+  const rows = options.fixture ? fixtureRows() : await fetchSupplierRows(credentials, options)
   const walldoRows = rows.filter((row) => row.supplier.supplierId === "walldob2b")
   const dailyRows = rows.filter((row) => row.supplier.supplierId === "dailyfood")
   await mkdir("reports/orders", { recursive: true })
@@ -110,6 +104,108 @@ export async function exportSupplierOrderExcels(
     walldoPath,
     dailyfoodPath,
   }
+}
+
+async function fetchSupplierRows(
+  credentials: Credentials,
+  options: Options,
+): Promise<readonly ExportRow[]> {
+  const client = wooClient(credentials)
+  const orders = await fetchOrders(client, dateRange(options))
+  const fallbackCache = new Map<string, SupplierMeta>()
+  const rows: ExportRow[] = []
+  for (const order of orders) {
+    for (const item of order.line_items) {
+      const supplier = await supplierForItem(client, fallbackCache, item)
+      if (supplier.supplierId === "dailyfood" || supplier.supplierId === "walldob2b") {
+        rows.push({ order, item, supplier })
+      }
+    }
+  }
+  return rows
+}
+
+function fixtureRows(): readonly ExportRow[] {
+  const baseOrder = (id: number, item: LineItem, supplier: SupplierMeta): ExportRow => ({
+    order: OrderSchema.parse({
+      id,
+      date_created: new Date().toISOString(),
+      status: "fixture",
+      customer_note: "테스트 fixture 주문",
+      billing: {
+        first_name: "길동",
+        last_name: "홍",
+        phone: "01012345678",
+        postcode: "01234",
+        address_1: "서울 중구 세종대로 110",
+        address_2: "서울특별시청",
+      },
+      shipping: {
+        first_name: "길동",
+        last_name: "홍",
+        phone: "01012345678",
+        postcode: "01234",
+        address_1: "서울 중구 세종대로 110",
+        address_2: "서울특별시청",
+      },
+      line_items: [item],
+    }),
+    item,
+    supplier,
+  })
+  return [
+    baseOrder(
+      900001,
+      {
+        product_id: 1,
+        variation_id: 11,
+        name: "부사 사과 중소과",
+        quantity: 1,
+        meta_data: [],
+      },
+      {
+        supplierId: "walldob2b",
+        sourceProductId: "W-1001",
+        sourceOptionId: "WO-1001",
+        originalProductName: "부사 사과",
+        originalOptionName: "중소과 2kg",
+      },
+    ),
+    baseOrder(
+      900002,
+      {
+        product_id: 2,
+        variation_id: 22,
+        name: "신고 배 3kg",
+        quantity: 2,
+        meta_data: [],
+      },
+      {
+        supplierId: "walldob2b",
+        sourceProductId: "W-1002",
+        sourceOptionId: "WO-1002",
+        originalProductName: "신고 배",
+        originalOptionName: "3kg",
+      },
+    ),
+    baseOrder(
+      900003,
+      {
+        product_id: 3,
+        variation_id: 33,
+        name: "백다다기오이 1kg",
+        quantity: 1,
+        meta_data: [],
+      },
+      {
+        supplierId: "dailyfood",
+        sourceProductId: "D-1001",
+        sourceOptionId: "DO-1001",
+        originalProductName: "백다다기오이",
+        originalOptionName: "1kg",
+      },
+    ),
+  ]
 }
 
 function wooClient(credentials: Credentials): WooClient {
@@ -381,6 +477,10 @@ function parseArgs(args: readonly string[]): Options {
   const values = new Map<string, string>()
   for (let index = 0; index < args.length; index += 1) {
     const key = args[index]
+    if (key === "--fixture") {
+      values.set(key, "true")
+      continue
+    }
     const value = args[index + 1]
     if (key === undefined || value === undefined || !key.startsWith("--"))
       throw new Error(`invalid argument: ${key ?? "unknown"}`)
@@ -391,6 +491,7 @@ function parseArgs(args: readonly string[]): Options {
     days: Number.parseInt(values.get("--days") ?? "7", 10),
     from: values.get("--from") ?? null,
     to: values.get("--to") ?? null,
+    fixture: values.get("--fixture") === "true",
   }
 }
 function dateRange(options: Options): { readonly after: string; readonly before: string } {

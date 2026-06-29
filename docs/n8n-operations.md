@@ -78,3 +78,12 @@ New options are automatically added when the safety gate marks them safe. True n
 - `scripts/n8n-mvp-sync.sh`: exit code 0
 - Activation: enabled after successful manual test.
 - Secret scan across docs/reports: no credential-like values found.
+
+## 09:00 Order Excel Email
+
+- At 09:00 Asia/Seoul, the workflow sends the generated order Excel files to `tnfwod@naver.com`.
+- Subject format: `[도매허브] 오늘 발주 엑셀 YYYY-MM-DD`.
+- Attachments: `reports/orders/walldo-order.xlsx`, `reports/orders/dailyfood-order.xlsx`.
+- The 15:00 and 21:00 scheduled runs skip email sending.
+- Fixture test command: `npm run orders:export-supplier-excels -- --fixture`; this creates temporary Excel rows only and does not create WooCommerce orders.
+- If the Gmail node reports `Unable to sign without access token`, reconnect/authorize the Gmail OAuth credential in n8n. Never store OAuth tokens, API keys, SSH keys, or passwords in git/docs/logs.

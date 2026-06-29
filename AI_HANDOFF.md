@@ -86,3 +86,12 @@
 - SSH node reached and `scripts/n8n-mvp-sync.sh` exited 0.
 - QA after the run: public exposure 0, draft/private exposure 0, supplier/cost/source leak 0, duplicate option exposure 0, cart failures 0.
 - Secret scan of docs/reports found 0 credential-like hits.
+
+## Order Excel Email Status
+
+- n8n workflow: `WholesaleHub MVP Sync` (`jVFfCJtfEax1GeDQ`).
+- Email subject: `[도매허브] 오늘 발주 엑셀 YYYY-MM-DD`.
+- Recipient: `tnfwod@naver.com`.
+- Email gate: 09:00 Asia/Seoul only; 15:00/21:00 do not send.
+- Fixture export option: `npm run orders:export-supplier-excels -- --fixture` creates 2 walldob2b rows and 1 dailyfood row without creating WooCommerce orders.
+- Latest email test generated the fixture Excel files but Gmail sending failed because the n8n Gmail OAuth credential has no OAuth token data. Authorize the Gmail credential in n8n before relying on email delivery.

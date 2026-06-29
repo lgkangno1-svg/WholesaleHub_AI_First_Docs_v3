@@ -115,3 +115,12 @@ The automation runs supplier collection, existing variation sync, safe new optio
 - `scripts/n8n-mvp-sync.sh` returned exit code 0 and refreshed `reports/n8n-run-latest.log`.
 - Workflow is active.
 - Test report: `reports/n8n-test-summary.md`
+
+## Order Excel Email
+
+- The n8n workflow `WholesaleHub MVP Sync` prepares order Excel attachments after `orders:export-supplier-excels`.
+- Email subject format: `[도매허브] 오늘 발주 엑셀 YYYY-MM-DD`.
+- Recipient: `tnfwod@naver.com`.
+- Automated email sending is gated to 09:00 Asia/Seoul only; 15:00 and 21:00 runs do not send email.
+- Test fixture mode uses 3 temporary in-memory orders: walldob2b 2 rows, dailyfood 1 row. It does not create WooCommerce orders.
+- Gmail OAuth must be authorized in n8n before the email node can send. Do not write OAuth tokens or passwords into docs, logs, or git.

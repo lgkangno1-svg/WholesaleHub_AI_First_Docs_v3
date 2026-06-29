@@ -1,11 +1,11 @@
 [
   {
-    "updatedAt": "2026-06-29T12:22:20.276Z",
+    "updatedAt": "2026-06-29T22:56:54.145Z",
     "createdAt": "2026-06-29T12:22:20.276Z",
     "id": "jVFfCJtfEax1GeDQ",
     "name": "WholesaleHub MVP Sync",
     "description": null,
-    "active": false,
+    "active": true,
     "isArchived": false,
     "nodes": [
       {
@@ -14,7 +14,7 @@
         "name": "Manual Test Trigger",
         "type": "n8n-nodes-base.manualTrigger",
         "typeVersion": 1,
-        "position": [-460, 120]
+        "position": [-760, 120]
       },
       {
         "parameters": {
@@ -43,7 +43,7 @@
         "name": "Daily 09 15 21 KST",
         "type": "n8n-nodes-base.cron",
         "typeVersion": 1,
-        "position": [260, 300]
+        "position": [-760, -80]
       },
       {
         "parameters": {
@@ -56,13 +56,84 @@
         "name": "Run WholesaleHub MVP Sync",
         "type": "n8n-nodes-base.ssh",
         "typeVersion": 1,
-        "position": [520, 300],
+        "position": [-500, 20],
         "credentials": {
           "sshPrivateKey": {
             "id": "QYVqJGt04jJ45Kc3",
             "name": "minipc-ssh"
           }
         }
+      },
+      {
+        "parameters": {
+          "jsCode": "const parts = new Intl.DateTimeFormat(\"en-CA\", {\n  timeZone: \"Asia/Seoul\",\n  year: \"numeric\",\n  month: \"2-digit\",\n  day: \"2-digit\",\n  hour: \"2-digit\",\n  hourCycle: \"h23\",\n}).formatToParts(new Date()).reduce((acc, part) => {\n  if (part.type !== \"literal\") acc[part.type] = part.value;\n  return acc;\n}, {});\nif (parts.hour !== \"09\") return [];\nreturn [{\n  json: {\n    subjectDate: `${parts.year}-${parts.month}-${parts.day}`,\n    recipient: \"tnfwod@naver.com\",\n    emailWindow: \"09:00 Asia/Seoul\",\n  },\n}];"
+        },
+        "id": "email-window-gate",
+        "name": "09 KST Email Gate",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [-240, 20]
+      },
+      {
+        "parameters": {
+          "command": "cd /home/tnfwod/projects/wholesalehub && node -e 'const fs=require(\"fs\"); const files={walldo:\"reports/orders/walldo-order.xlsx\",dailyfood:\"reports/orders/dailyfood-order.xlsx\"}; const out={}; for (const [k,p] of Object.entries(files)) out[k]=fs.readFileSync(p).toString(\"base64\"); console.log(JSON.stringify(out));'",
+          "authentication": "privateKey",
+          "resource": "command",
+          "operation": "execute"
+        },
+        "id": "ssh-read-order-excels",
+        "name": "Read Order Excel Attachments",
+        "type": "n8n-nodes-base.ssh",
+        "typeVersion": 1,
+        "position": [20, 20],
+        "credentials": {
+          "sshPrivateKey": {
+            "id": "QYVqJGt04jJ45Kc3",
+            "name": "minipc-ssh"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "const stdout = $json.stdout || \"\";\nconst jsonLine = stdout.trim().split(\"\\n\").map((line) => line.replace(/\\r$/u, \"\")).reverse().find((line) => line.trim().startsWith(\"{\"));\nif (!jsonLine) throw new Error(\"missing order excel attachment payload\");\nconst payload = JSON.parse(jsonLine);\nconst dateParts = new Intl.DateTimeFormat(\"en-CA\", {\n  timeZone: \"Asia/Seoul\",\n  year: \"numeric\",\n  month: \"2-digit\",\n  day: \"2-digit\",\n}).formatToParts(new Date()).reduce((acc, part) => {\n  if (part.type !== \"literal\") acc[part.type] = part.value;\n  return acc;\n}, {});\nconst subjectDate = `${dateParts.year}-${dateParts.month}-${dateParts.day}`;\nconst mimeType = \"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\";\nreturn [{\n  json: {\n    recipient: \"tnfwod@naver.com\",\n    subject: `[도매허브] 오늘 발주 엑셀 ${subjectDate}`,\n    attachmentCount: 2,\n  },\n  binary: {\n    walldo: { data: payload.walldo, fileName: \"walldo-order.xlsx\", mimeType },\n    dailyfood: { data: payload.dailyfood, fileName: \"dailyfood-order.xlsx\", mimeType },\n  },\n}];"
+        },
+        "id": "build-order-email",
+        "name": "Build Order Excel Email",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [280, 20]
+      },
+      {
+        "parameters": {
+          "resource": "message",
+          "operation": "send",
+          "sendTo": "={{ $json.recipient }}",
+          "subject": "={{ $json.subject }}",
+          "emailType": "text",
+          "message": "도매허브 발주 엑셀 2개를 첨부합니다.\n\n- walldo-order.xlsx\n- dailyfood-order.xlsx",
+          "options": {
+            "attachmentsUi": {
+              "attachmentsBinary": [
+                {
+                  "property": "walldo,dailyfood"
+                }
+              ]
+            },
+            "appendAttribution": false
+          }
+        },
+        "id": "send-order-email",
+        "name": "Send Order Excel Email",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2.2,
+        "position": [540, 20],
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "jV49DC7JwFkwfifv",
+            "name": "Gmail account"
+          }
+        },
+        "continueOnFail": true
       }
     ],
     "connections": {
@@ -87,6 +158,50 @@
             }
           ]
         ]
+      },
+      "Run WholesaleHub MVP Sync": {
+        "main": [
+          [
+            {
+              "node": "09 KST Email Gate",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "09 KST Email Gate": {
+        "main": [
+          [
+            {
+              "node": "Read Order Excel Attachments",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Read Order Excel Attachments": {
+        "main": [
+          [
+            {
+              "node": "Build Order Excel Email",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Order Excel Email": {
+        "main": [
+          [
+            {
+              "node": "Send Order Excel Email",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
       }
     },
     "settings": {
@@ -97,9 +212,9 @@
     "meta": null,
     "nodeGroups": [],
     "pinData": null,
-    "versionId": "2b5fec14-9711-487b-8482-9f1abb185225",
+    "versionId": "b8655dcf-562b-4f22-97b3-95a7636b6b9c",
     "activeVersionId": null,
-    "versionCounter": 2,
+    "versionCounter": 4,
     "triggerCount": 0,
     "sourceWorkflowId": null,
     "tags": [],
