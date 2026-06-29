@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+PROJECT_DIR="/home/tnfwod/projects/wholesalehub"
+REPORT_DIR="$PROJECT_DIR/reports"
+LOCK_FILE="$REPORT_DIR/n8n-mvp-sync.lock"
+STAMP="$(TZ=Asia/Seoul date +%Y%m%d-%H%M)"
+LATEST_LOG="$REPORT_DIR/n8n-run-latest.log"
+RUN_LOG="$REPORT_DIR/n8n-run-$STAMP.log"
+
+mkdir -p "$REPORT_DIR"
+exec 9>"$LOCK_FILE"
+if ! flock -n 9; then
+  echo "[$(date -Is)] another n8n MVP sync run is already active" | tee "$LATEST_LOG" "$RUN_LOG"
+  exit 1
+fi
+
+run() {
+  echo "[$(date -Is)] $*"
+  "$@"
+}
+
+{
+  echo "[$(date -Is)] n8n MVP sync started"
+  cd "$PROJECT_DIR"
+  run npm run mvp:plan
+  run npm run mvp:sync-existing -- --execute --confirm "EXECUTE_MVP_SYNC_EXISTING_VARIATIONS_ONLY"
+  run npm run mvp:qa
+  run npm run mvp:export-review
+  echo "[$(date -Is)] n8n MVP sync completed"
+} > >(tee "$RUN_LOG" "$LATEST_LOG") 2>&1

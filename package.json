@@ -60,7 +60,9 @@
     "mvp:sync-existing": "npm run mvp-sync:execute --",
     "mvp:add-create": "npm run mvp-add-create:execute --",
     "mvp:qa": "npm run mvp-customer-qa",
-    "mvp:handoff": "npm run build && node dist/reports/mvp-handoff-cli.js"
+    "mvp:handoff": "npm run build && node dist/reports/mvp-handoff-cli.js",
+    "mvp:export-review": "npm run build && node dist/reports/mvp-export-review-cli.js",
+    "mvp:n8n-run": "bash scripts/n8n-mvp-sync.sh"
   },
   "dependencies": {
     "csv-parse": "^6.1.0",
