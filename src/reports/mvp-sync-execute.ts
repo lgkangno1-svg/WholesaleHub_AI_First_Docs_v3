@@ -10,7 +10,8 @@ type AllowedAction =
   | "switch_supplier_and_update_price"
   | "mark_instock"
   | "mark_outofstock"
-type ExecuteStatus = "updated" | "verified" | "failed" | "skipped"
+type ExecuteStatus = "verified" | "failed"
+type SafetyDecision = "safe_to_execute" | "hold"
 
 const ALLOWED_ACTIONS = new Set<string>([
   "update_price",
@@ -31,6 +32,7 @@ const PlanRowSchema = z.object({
   selected_supplier_id: z.string(),
   action: z.string(),
   safety_status: z.string(),
+  match_type: z.string().optional(),
 })
 const PlanSchema = z.object({ rows: z.array(PlanRowSchema) })
 const VariationSchema = z.object({
@@ -39,15 +41,34 @@ const VariationSchema = z.object({
   regular_price: z.string().nullable().optional(),
   stock_status: z.string().nullable().optional(),
   name: z.string().optional(),
+  stock_quantity: z.number().nullable().optional(),
+  image: z.unknown().optional(),
   attributes: z.array(z.object({ name: z.string(), option: z.string().optional() })).default([]),
 })
 
 type PlanRow = z.infer<typeof PlanRowSchema>
+type LiveCatalog = Awaited<ReturnType<typeof fetchMvpWooCatalog>>
+type LiveProduct = LiveCatalog[number]
+type LiveVariation = LiveProduct["variations"][number]
 
 type Credentials = {
   readonly baseUrl: string
   readonly consumerKey: string
   readonly consumerSecret: string
+}
+
+export type MvpSafetyReviewRow = {
+  readonly product_id: number | null
+  readonly variation_id: number | null
+  readonly action: string
+  readonly original_safety_status: string
+  readonly decision: SafetyDecision
+  readonly reasons: readonly string[]
+  readonly current_price: string
+  readonly live_price: string
+  readonly new_price: string
+  readonly price_direction: "increase" | "decrease" | "same" | "unknown"
+  readonly selected_supplier_id: string
 }
 
 export type MvpExecuteEntry = {
@@ -69,8 +90,9 @@ export type MvpExecuteLog = {
   readonly mode: "execute"
   readonly requestedAt: string
   readonly planPath: string
+  readonly reviewNeededTotal: number
   readonly selectedCount: number
-  readonly skippedUnsafeOrDisallowedCount: number
+  readonly heldCount: number
   readonly actionCounts: Record<AllowedAction, number>
   readonly failedCount: number
   readonly entries: readonly MvpExecuteEntry[]
@@ -90,23 +112,23 @@ export type MvpExecuteVerification = {
   readonly newProductCreated: false
   readonly newVariationCreated: false
   readonly draftPublished: false
-  readonly forbiddenFieldChanged: false
-  readonly stockQuantityChanged: false
+  readonly forbiddenFieldChanged: boolean
+  readonly stockQuantityChanged: boolean
 }
 
 export async function readMvpPlanRows(path: string): Promise<readonly PlanRow[]> {
   return PlanSchema.parse(JSON.parse(await readFile(path, "utf8"))).rows
 }
 
-export function selectMvpExecutableRows(rows: readonly PlanRow[]): readonly PlanRow[] {
-  const keyCounts = new Map<string, number>()
-  for (const row of rows.filter(isExecutableRow)) {
-    const key = `${row.product_id}:${row.variation_id}`
-    keyCounts.set(key, (keyCounts.get(key) ?? 0) + 1)
-  }
-  return rows
-    .filter(isExecutableRow)
-    .filter((row) => keyCounts.get(`${row.product_id}:${row.variation_id}`) === 1)
+export function buildMvpSafetyReview(
+  rows: readonly PlanRow[],
+  catalog: LiveCatalog,
+): readonly MvpSafetyReviewRow[] {
+  const allowedRows = rows.filter((row) => ALLOWED_ACTIONS.has(row.action))
+  const targetCounts = new Map<string, number>()
+  for (const row of allowedRows)
+    targetCounts.set(rowKey(row), (targetCounts.get(rowKey(row)) ?? 0) + 1)
+  return allowedRows.map((row) => reviewRow(row, catalog, targetCounts))
 }
 
 export async function executeMvpSyncPlan(options: {
@@ -115,45 +137,46 @@ export async function executeMvpSyncPlan(options: {
   readonly credentials: Credentials
   readonly execute: boolean
   readonly confirm: string
-}): Promise<{ readonly log: MvpExecuteLog; readonly verification: MvpExecuteVerification }> {
+}): Promise<{
+  readonly log: MvpExecuteLog
+  readonly verification: MvpExecuteVerification
+  readonly safetyReview: readonly MvpSafetyReviewRow[]
+}> {
   if (!options.execute || options.confirm !== "EXECUTE_MVP_SYNC_EXISTING_VARIATIONS_ONLY") {
     throw new Error('--execute --confirm "EXECUTE_MVP_SYNC_EXISTING_VARIATIONS_ONLY" is required')
   }
   const rows = await readMvpPlanRows(options.planPath)
-  const selected = selectMvpExecutableRows(rows)
   const beforeCatalog = await fetchMvpWooCatalog(options.credentials)
+  const safetyReview = buildMvpSafetyReview(rows, beforeCatalog)
+  const selected = rows.filter(
+    (row) => safetyReview.find((review) => sameRow(row, review))?.decision === "safe_to_execute",
+  )
   const entries = await executeRows(selected, options.credentials)
   const afterCatalog = await fetchMvpWooCatalog(options.credentials)
   const verification = verifyExecution(entries, beforeCatalog, afterCatalog)
+  const actionCounts = countActions(selected)
   const log: MvpExecuteLog = {
     mode: "execute",
     requestedAt: new Date().toISOString(),
     planPath: options.planPath,
+    reviewNeededTotal: rows.filter(
+      (row) => ALLOWED_ACTIONS.has(row.action) && row.safety_status === "review_needed",
+    ).length,
     selectedCount: selected.length,
-    skippedUnsafeOrDisallowedCount: rows.length - selected.length,
-    actionCounts: {
-      update_price: selected.filter((row) => row.action === "update_price").length,
-      switch_supplier_and_update_price: selected.filter(
-        (row) => row.action === "switch_supplier_and_update_price",
-      ).length,
-      mark_instock: selected.filter((row) => row.action === "mark_instock").length,
-      mark_outofstock: selected.filter((row) => row.action === "mark_outofstock").length,
-    },
+    heldCount: safetyReview.filter((row) => row.decision === "hold").length,
+    actionCounts,
     failedCount: entries.filter((entry) => entry.status === "failed").length,
     entries,
-    wooCommerceChanged: entries.some(
-      (entry) => entry.status === "updated" || entry.status === "verified",
-    ),
+    wooCommerceChanged: entries.some((entry) => entry.status === "verified"),
   }
-  await writeReports(options.outputDir, log, verification)
-  return { log, verification }
+  await writeReports(options.outputDir, log, verification, safetyReview)
+  return { log, verification, safetyReview }
 }
 
 async function executeRows(
   rows: readonly PlanRow[],
   credentials: Credentials,
 ): Promise<readonly MvpExecuteEntry[]> {
-  if (rows.length === 0) return []
   const client = wooClient(credentials)
   const entries: MvpExecuteEntry[] = []
   const groups = new Map<number, PlanRow[]>()
@@ -218,22 +241,72 @@ async function executeRows(
   return entries
 }
 
-function isExecutableRow(row: PlanRow): boolean {
+function reviewRow(
+  row: PlanRow,
+  catalog: LiveCatalog,
+  targetCounts: ReadonlyMap<string, number>,
+): MvpSafetyReviewRow {
+  const product = catalog.find((item) => item.id === row.product_id)
+  const variation = product?.variations.find((item) => item.id === row.variation_id)
+  const reasons: string[] = []
+  const newPrice = Number(row.new_price)
+  const livePriceText = String(variation?.price ?? "")
+  const livePrice = Number(livePriceText)
+  if (row.product_id === null) reasons.push("missing_product_id")
+  if (row.variation_id === null) reasons.push("missing_variation_id")
+  if (product === undefined) reasons.push("product_get_failed")
+  if (variation === undefined) reasons.push("variation_get_failed")
+  if (product?.status === "draft") reasons.push("draft_product")
+  if (!ALLOWED_ACTIONS.has(row.action)) reasons.push("disallowed_action")
+  if (!Number.isFinite(newPrice) || newPrice < 1000) reasons.push("invalid_new_price")
+  if (variation !== undefined && livePriceText !== row.current_price)
+    reasons.push("current_price_mismatch")
+  if (targetCounts.get(rowKey(row)) !== 1) reasons.push("duplicate_target_variation")
+  if (
+    matchExcludedProduct(`${row.woocommerce_product_name} ${row.woocommerce_option_name}`) !== null
+  )
+    reasons.push("livestock_excluded")
+  if (variation !== undefined && !namesCompatible(row, product, variation))
+    reasons.push("name_option_unclear")
+  if (
+    Number.isFinite(newPrice) &&
+    Number.isFinite(livePrice) &&
+    livePrice > 0 &&
+    Math.abs(newPrice - livePrice) / livePrice >= 0.5
+  ) {
+    reasons.push("price_change_over_50_percent")
+  }
+  return {
+    product_id: row.product_id,
+    variation_id: row.variation_id,
+    action: row.action,
+    original_safety_status: row.safety_status,
+    decision: reasons.length === 0 ? "safe_to_execute" : "hold",
+    reasons,
+    current_price: row.current_price,
+    live_price: livePriceText,
+    new_price: row.new_price,
+    price_direction: priceDirection(livePrice, newPrice),
+    selected_supplier_id: row.selected_supplier_id,
+  }
+}
+
+function namesCompatible(
+  row: PlanRow,
+  product: LiveProduct | undefined,
+  variation: LiveVariation,
+): boolean {
+  const liveOption = optionName(variation)
   return (
-    ALLOWED_ACTIONS.has(row.action) &&
-    row.safety_status === "safe" &&
-    row.product_id !== null &&
-    row.variation_id !== null &&
-    row.new_stock_status !== "review" &&
-    /^\d+(?:\.\d+)?$/u.test(row.new_price) &&
-    matchExcludedProduct(`${row.woocommerce_product_name} ${row.woocommerce_option_name}`) === null
+    clean(row.woocommerce_product_name) === clean(product?.name ?? "") &&
+    clean(row.woocommerce_option_name) === clean(liveOption)
   )
 }
 
 function verifyExecution(
   entries: readonly MvpExecuteEntry[],
-  beforeCatalog: Awaited<ReturnType<typeof fetchMvpWooCatalog>>,
-  afterCatalog: Awaited<ReturnType<typeof fetchMvpWooCatalog>>,
+  beforeCatalog: LiveCatalog,
+  afterCatalog: LiveCatalog,
 ): MvpExecuteVerification {
   const beforeVariationCount = beforeCatalog.reduce(
     (sum, product) => sum + product.variations.length,
@@ -277,9 +350,8 @@ function toEntry(
   status: ExecuteStatus,
   errorMessage: string | null,
 ): MvpExecuteEntry {
-  if (row.product_id === null || row.variation_id === null || !ALLOWED_ACTIONS.has(row.action)) {
+  if (row.product_id === null || row.variation_id === null || !ALLOWED_ACTIONS.has(row.action))
     throw new Error("invalid executable row")
-  }
   return {
     product_id: row.product_id,
     variation_id: row.variation_id,
@@ -328,10 +400,17 @@ async function writeReports(
   outputDir: string,
   log: MvpExecuteLog,
   verification: MvpExecuteVerification,
+  safetyReview: readonly MvpSafetyReviewRow[],
 ): Promise<void> {
   const dir = resolve(outputDir)
   await mkdir(dir, { recursive: true })
   await Promise.all([
+    writeFile(resolve(dir, "mvp-sync-safety-review.csv"), safetyCsv(safetyReview), "utf8"),
+    writeFile(
+      resolve(dir, "mvp-sync-safety-review-summary.md"),
+      safetyMarkdown(safetyReview, log),
+      "utf8",
+    ),
     writeFile(
       resolve(dir, "mvp-sync-execute-log.json"),
       `${JSON.stringify(log, null, 2)}\n`,
@@ -350,6 +429,87 @@ async function writeReports(
   ])
 }
 
+function safetyCsv(rows: readonly MvpSafetyReviewRow[]): string {
+  const columns = [
+    "product_id",
+    "variation_id",
+    "action",
+    "original_safety_status",
+    "decision",
+    "reasons",
+    "current_price",
+    "live_price",
+    "new_price",
+    "price_direction",
+    "selected_supplier_id",
+  ] as const
+  return `${columns.join(",")}\n${rows.map((row) => columns.map((column) => csvCell(String(column === "reasons" ? row.reasons.join(";") : (row[column] ?? "")))).join(",")).join("\n")}\n`
+}
+
+function safetyMarkdown(rows: readonly MvpSafetyReviewRow[], log: MvpExecuteLog): string {
+  const reasonCounts = reasonCountsOf(rows)
+  const top = Object.entries(reasonCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+  return `# MVP Sync Safety Review\n\n- existing_review_needed_total: ${log.reviewNeededTotal}\n- safe_to_execute: ${log.selectedCount}\n- hold: ${log.heldCount}\n- price_increase_targets: ${rows.filter((row) => row.decision === "safe_to_execute" && row.price_direction === "increase").length}\n- price_decrease_targets: ${rows.filter((row) => row.decision === "safe_to_execute" && row.price_direction === "decrease").length}\n- supplier_switch_targets: ${rows.filter((row) => row.decision === "safe_to_execute" && row.action === "switch_supplier_and_update_price").length}\n- stock_status_targets: ${rows.filter((row) => row.decision === "safe_to_execute" && (row.action === "mark_instock" || row.action === "mark_outofstock")).length}\n- executed: ${log.selectedCount}\n\n## Hold Reasons TOP 5\n\n${top.map(([reason, count]) => `- ${reason}: ${count}`).join("\n") || "- none"}\n`
+}
+
 function summaryMarkdown(log: MvpExecuteLog, verification: MvpExecuteVerification): string {
-  return `# MVP Sync Execute Summary\n\n- selected_count: ${log.selectedCount}\n- update_price: ${log.actionCounts.update_price}\n- switch_supplier_and_update_price: ${log.actionCounts.switch_supplier_and_update_price}\n- mark_instock: ${log.actionCounts.mark_instock}\n- mark_outofstock: ${log.actionCounts.mark_outofstock}\n- failed_count: ${log.failedCount}\n- verification_success_count: ${verification.successCount}\n- new_product_created: false\n- new_variation_created: false\n- draft_published: false\n- forbidden_field_changed: false\n- stock_quantity_changed: false\n`
+  return `# MVP Sync Execute Summary\n\n- selected_count: ${log.selectedCount}\n- update_price: ${log.actionCounts.update_price}\n- switch_supplier_and_update_price: ${log.actionCounts.switch_supplier_and_update_price}\n- mark_instock: ${log.actionCounts.mark_instock}\n- mark_outofstock: ${log.actionCounts.mark_outofstock}\n- failed_count: ${log.failedCount}\n- verification_success_count: ${verification.successCount}\n- new_product_created: false\n- new_variation_created: false\n- draft_published: false\n- forbidden_field_changed: ${verification.forbiddenFieldChanged}\n- stock_quantity_changed: ${verification.stockQuantityChanged}\n`
+}
+
+function countActions(rows: readonly PlanRow[]): Record<AllowedAction, number> {
+  return {
+    update_price: rows.filter((row) => row.action === "update_price").length,
+    switch_supplier_and_update_price: rows.filter(
+      (row) => row.action === "switch_supplier_and_update_price",
+    ).length,
+    mark_instock: rows.filter((row) => row.action === "mark_instock").length,
+    mark_outofstock: rows.filter((row) => row.action === "mark_outofstock").length,
+  }
+}
+
+function reasonCountsOf(rows: readonly MvpSafetyReviewRow[]): Record<string, number> {
+  const result: Record<string, number> = {}
+  for (const row of rows)
+    for (const reason of row.reasons) result[reason] = (result[reason] ?? 0) + 1
+  return result
+}
+
+function sameRow(row: PlanRow, review: MvpSafetyReviewRow): boolean {
+  return (
+    row.product_id === review.product_id &&
+    row.variation_id === review.variation_id &&
+    row.action === review.action &&
+    row.new_price === review.new_price
+  )
+}
+
+function rowKey(row: PlanRow): string {
+  return `${row.product_id}:${row.variation_id}`
+}
+
+function optionName(variation: LiveVariation): string {
+  return variation.attributes
+    .map((attribute) => attribute.option ?? "")
+    .filter(Boolean)
+    .join(" / ")
+}
+
+function priceDirection(current: number, next: number): MvpSafetyReviewRow["price_direction"] {
+  if (!Number.isFinite(current) || !Number.isFinite(next)) return "unknown"
+  if (next > current) return "increase"
+  if (next < current) return "decrease"
+  return "same"
+}
+
+function clean(value: string): string {
+  return value
+    .normalize("NFKC")
+    .replace(/[^가-힣a-zA-Z0-9.]/gu, "")
+    .toLocaleLowerCase("ko-KR")
+}
+
+function csvCell(value: string): string {
+  return /[",\n\r]/u.test(value) ? `"${value.replace(/"/gu, '""')}"` : value
 }
