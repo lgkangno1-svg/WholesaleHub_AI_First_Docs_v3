@@ -20,6 +20,7 @@
 - npm run mvp:handoff
 - npm run mvp:export-review
 - npm run mvp:n8n-run
+- npm run orders:supplier-report -- --days 7
 
 ## Key Reports
 - reports/mvp-sync-plan.json
@@ -43,6 +44,12 @@
 - Automation includes latest supplier collection, existing variation sync, safe add_variation, draft/private product creation, customer QA, review export, and handoff refresh.
 - New products must stay draft/private until a human reviews and publishes them in WordPress.
 - Import JSON fallback: docs/n8n-wholesalehub-mvp-sync.workflow.json.
+
+## Admin Supplier Visibility
+- Admin product list, variation edit rows, and admin order detail now show supplier info with labels `데일리`, `월억`, `미확인`.
+- Order item `_hub_*` supplier snapshot meta is saved at checkout time and hidden from customer views/emails.
+- Source file: support/wordpress/avocadoss-supplier-admin.php; deployed into avocadoss-performance plugin on the WordPress volume.
+- Fulfillment report command: npm run orders:supplier-report -- --days 7.
 
 ## Remaining Work
 - Review existing 60 held/review items manually.

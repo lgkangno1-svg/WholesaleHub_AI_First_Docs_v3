@@ -39,6 +39,7 @@ The automation runs supplier collection, existing variation sync, safe new optio
 - `npm run mvp:export-review`
 - `npm run mvp:handoff`
 - `npm run mvp:n8n-run`
+- `npm run orders:supplier-report -- --days 7`
 
 ## Absolute Prohibitions
 - Do not print `.env`, API keys, login information, or credentials.
@@ -48,6 +49,13 @@ The automation runs supplier collection, existing variation sync, safe new optio
 - Do not publish draft/private products automatically.
 - Do not run orders, payments, deposits, auto-order, or AdminPlus auto-order flows.
 - Do not expose supplier_id, supplier cost, source URL, or original supplier URL on customer pages.
+
+## Admin Supplier Tools
+- WooCommerce admin product list shows a supplier-only `공급처` column.
+- Variation edit rows show read-only supplier/source metadata for admins.
+- New order line items store `_hub_*` supplier snapshot meta at checkout time; hidden from customer views and emails.
+- Supplier labels are fixed as `데일리`, `월억`, and `미확인`.
+- `npm run orders:supplier-report -- --days 7` creates recent order fulfillment CSV/summary without WooCommerce writes.
 
 ## Key Report Locations
 - `reports/mvp-sync-plan.json`
@@ -68,6 +76,8 @@ The automation runs supplier collection, existing variation sync, safe new optio
 - `reports/mvp-customer-qa-cart-check.json`
 - `reports/mvp-final-summary.md`
 - `reports/mvp-handoff-summary.md`
+- `reports/order-supplier-fulfillment-report.csv`
+- `reports/order-supplier-fulfillment-summary.md`
 
 ## Incident Files to Check
 - `reports/n8n-run-latest.log`

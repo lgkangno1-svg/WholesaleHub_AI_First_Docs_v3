@@ -62,7 +62,8 @@
     "mvp:qa": "npm run mvp-customer-qa",
     "mvp:handoff": "npm run build && node dist/reports/mvp-handoff-cli.js",
     "mvp:export-review": "npm run build && node dist/reports/mvp-export-review-cli.js",
-    "mvp:n8n-run": "bash scripts/n8n-mvp-sync.sh"
+    "mvp:n8n-run": "bash scripts/n8n-mvp-sync.sh",
+    "orders:supplier-report": "npm run build && node dist/reports/order-supplier-fulfillment-cli.js"
   },
   "dependencies": {
     "csv-parse": "^6.1.0",
