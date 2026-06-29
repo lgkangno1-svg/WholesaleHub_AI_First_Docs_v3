@@ -52,7 +52,8 @@
     "report:draft-products-review": "npm run build && node dist/reports/draft-products-review-cli.js",
     "draft-products:publish-plan": "npm run build && node dist/reports/draft-products-publish-cli.js",
     "report:draft-vs-existing-merge": "npm run build && node dist/reports/draft-vs-existing-merge-cli.js",
-    "report:mvp-sync-plan": "npm run build && node dist/reports/mvp-sync-plan-cli.js"
+    "report:mvp-sync-plan": "npm run build && node dist/reports/mvp-sync-plan-cli.js",
+    "mvp-sync:execute": "npm run build && node dist/reports/mvp-sync-execute-cli.js"
   },
   "dependencies": {
     "csv-parse": "^6.1.0",
