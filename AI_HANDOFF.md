@@ -68,3 +68,12 @@
 - 27063d7 Add MVP customer QA report
 - 3d8877d Add MVP add-create executor
 - 9eaebbd Consolidate duplicate MVP sync targets
+
+## n8n Test Status
+- Workflow ID: jVFfCJtfEax1GeDQ
+- Workflow active: false
+- Last test time: 2026-06-29T22:01:43+0900
+- SSH smoke test: success
+- Manual workflow execution: failed before the SSH node with `Missing node to start execution` in n8n CLI.
+- Do not activate the workflow until a successful manual run from n8n UI/API reaches `scripts/n8n-mvp-sync.sh` and returns exit code 0.
+- Secret scan of docs/reports found 0 credential-like hits.
