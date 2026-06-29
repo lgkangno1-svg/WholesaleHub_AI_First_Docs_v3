@@ -63,10 +63,12 @@
     "mvp:handoff": "npm run build && node dist/reports/mvp-handoff-cli.js",
     "mvp:export-review": "npm run build && node dist/reports/mvp-export-review-cli.js",
     "mvp:n8n-run": "bash scripts/n8n-mvp-sync.sh",
-    "orders:supplier-report": "npm run build && node dist/reports/order-supplier-fulfillment-cli.js"
+    "orders:supplier-report": "npm run build && node dist/reports/order-supplier-fulfillment-cli.js",
+    "orders:export-supplier-excels": "npm run build && node dist/reports/order-supplier-excel-export-cli.js"
   },
   "dependencies": {
     "csv-parse": "^6.1.0",
+    "exceljs": "^4.4.0",
     "ky": "^1.14.0",
     "yaml": "^2.8.2",
     "zod": "^4.3.6"
