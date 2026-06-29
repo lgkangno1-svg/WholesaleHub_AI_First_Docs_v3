@@ -54,7 +54,8 @@
     "report:draft-vs-existing-merge": "npm run build && node dist/reports/draft-vs-existing-merge-cli.js",
     "report:mvp-sync-plan": "npm run build && node dist/reports/mvp-sync-plan-cli.js",
     "mvp-sync:execute": "npm run build && node dist/reports/mvp-sync-execute-cli.js",
-    "mvp-add-create:execute": "npm run build && node dist/reports/mvp-add-create-cli.js"
+    "mvp-add-create:execute": "npm run build && node dist/reports/mvp-add-create-cli.js",
+    "mvp-customer-qa": "npm run build && node dist/reports/mvp-customer-qa-cli.js"
   },
   "dependencies": {
     "csv-parse": "^6.1.0",
