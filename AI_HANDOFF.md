@@ -3,7 +3,7 @@
 ## Current Project
 - Path: /home/tnfwod/projects/wholesalehub
 - Branch: main
-- Latest commit: run git rev-parse HEADf132cd291f2d64e76d4e00fdd9a71605b8c22927
+- Latest commit: run git rev-parse HEADbfcebe273f3751e117af96ac7f4e7a57aeb57fa3
 - Purpose: synchronize existing WooCommerce DailyFood/walldob2b products with latest supplier price and availability while preventing duplicate customer-facing options.
 
 ## Current MVP State
@@ -50,6 +50,7 @@
 - Do not expose supplier_id, supplier cost, source URL, or original supplier URL to customers.
 
 ## Recent Commits
+- bfcebe2 Add MVP operations handoff
 - f132cd2 Refine MVP customer QA checks
 - 27063d7 Add MVP customer QA report
 - 3d8877d Add MVP add-create executor
@@ -57,4 +58,3 @@
 - a1c366f Promote strict safe MVP sync rows
 - 952daa9 Add MVP existing variation sync executor
 - 624b623 Add MVP sync plan report
-- 69eaa0a Add draft vs existing merge report
