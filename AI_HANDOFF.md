@@ -18,6 +18,8 @@
 - npm run mvp:add-create -- --execute --confirm "EXECUTE_MVP_ADD_VARIATIONS_AND_CREATE_DRAFTS"
 - npm run mvp:qa
 - npm run mvp:handoff
+- npm run mvp:export-review
+- npm run mvp:n8n-run
 
 ## Key Reports
 - reports/mvp-sync-plan.json
@@ -33,6 +35,14 @@
 - reports/mvp-customer-qa-results.csv
 - reports/mvp-final-summary.md
 - reports/mvp-handoff-summary.md
+
+## n8n Automation
+- Workflow name: WholesaleHub MVP Sync.
+- Schedule: 09:00, 15:00, 21:00 Asia/Seoul.
+- SSH command: cd /home/tnfwod/projects/wholesalehub && bash scripts/n8n-mvp-sync.sh.
+- Automation includes latest supplier collection, existing variation sync, safe add_variation, draft/private product creation, customer QA, review export, and handoff refresh.
+- New products must stay draft/private until a human reviews and publishes them in WordPress.
+- Import JSON fallback: docs/n8n-wholesalehub-mvp-sync.workflow.json.
 
 ## Remaining Work
 - Review existing 60 held/review items manually.
@@ -50,11 +60,11 @@
 - Do not expose supplier_id, supplier cost, source URL, or original supplier URL to customers.
 
 ## Recent Commits
+- 19be147 Add n8n MVP review export automation
+- 4226cde Fix MVP handoff current commit guidance
 - 00086db Fix MVP handoff commit text
 - bfcebe2 Add MVP operations handoff
 - f132cd2 Refine MVP customer QA checks
 - 27063d7 Add MVP customer QA report
 - 3d8877d Add MVP add-create executor
 - 9eaebbd Consolidate duplicate MVP sync targets
-- a1c366f Promote strict safe MVP sync rows
-- 952daa9 Add MVP existing variation sync executor

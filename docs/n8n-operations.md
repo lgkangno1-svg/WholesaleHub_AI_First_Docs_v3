@@ -1,13 +1,13 @@
 # n8n MVP Operations
 
 ## Purpose
-Run the WholesaleHub MVP operating flow automatically so supplier data, existing WooCommerce variations, customer QA, and Windows review exports stay current.
+Run the WholesaleHub MVP operating flow automatically from n8n. The workflow keeps supplier data current, synchronizes existing WooCommerce variations, automatically adds safe new options, creates true new products only as draft/private, runs customer QA, and exports review reports.
 
-## Schedule
-- 09:00 every day
-- 15:00 every day
-- 21:00 every day
-- Timezone: Asia/Seoul
+## Workflow
+- Workflow name: `WholesaleHub MVP Sync`
+- Initial status: import as inactive, test manually, then activate when SSH credential is set.
+- Schedule timezone: Asia/Seoul
+- Run times: 09:00, 15:00, 21:00 every day
 
 ## n8n Setup
 Use a Schedule Trigger connected to an SSH node.
@@ -18,23 +18,42 @@ SSH node command:
 cd /home/tnfwod/projects/wholesalehub && bash scripts/n8n-mvp-sync.sh
 ```
 
+If API creation is unavailable, import this file manually:
+
+```text
+docs/n8n-wholesalehub-mvp-sync.workflow.json
+```
+
+After import, open the SSH node and select the n8n SSH credential for the mini PC. Keep the workflow inactive until the first manual execution passes.
+
 ## Included In Automation
 - Collect latest DailyFood and walldob2b data.
 - Build the MVP sync plan.
 - Synchronize existing WooCommerce variation price, selected supplier, and stock status through the existing safety gate.
+- Add safe new options as WooCommerce variations under existing products.
+- Create true new products only as draft/private variable products.
+- Create variations for those draft/private products.
 - Run customer-facing QA.
 - Copy review reports to the Windows desktop review folder when available.
+- Refresh handoff and final summary docs.
 
 ## Excluded From Automation
-- New variation creation.
-- New draft/private product creation.
-- Draft publish.
+- Public product creation.
+- Draft/private product publish.
 - Product deletion.
+- Existing product name, option name, description, image, or stock quantity edits.
+- review_needed / blocked rows.
+- Livestock/meat excluded rows.
 - Order, payment, deposit, auto-order, or AdminPlus auto-order flows.
+
+## New Product Rule
+New options are automatically added when the safety gate marks them safe. True new products are created only as draft/private. They are not customer-visible until a human reviews them in WordPress and manually changes the product status to publish.
 
 ## Failure Files
 - `reports/n8n-run-latest.log`
+- `reports/n8n-run-YYYYMMDD-HHMM.log`
 - `reports/mvp-sync-summary.md`
+- `reports/mvp-add-create-execute-summary.md`
 - `reports/mvp-customer-qa-summary.md`
 - `reports/windows-export-unavailable.md` when the Windows desktop path is not mounted.
 

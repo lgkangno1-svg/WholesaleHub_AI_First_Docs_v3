@@ -49,6 +49,8 @@ function aiHandoff(cwd: string, branch: string, recent: readonly string[]): stri
 - npm run mvp:add-create -- --execute --confirm "EXECUTE_MVP_ADD_VARIATIONS_AND_CREATE_DRAFTS"
 - npm run mvp:qa
 - npm run mvp:handoff
+- npm run mvp:export-review
+- npm run mvp:n8n-run
 
 ## Key Reports
 - reports/mvp-sync-plan.json
@@ -64,6 +66,14 @@ function aiHandoff(cwd: string, branch: string, recent: readonly string[]): stri
 - reports/mvp-customer-qa-results.csv
 - reports/mvp-final-summary.md
 - reports/mvp-handoff-summary.md
+
+## n8n Automation
+- Workflow name: WholesaleHub MVP Sync.
+- Schedule: 09:00, 15:00, 21:00 Asia/Seoul.
+- SSH command: cd /home/tnfwod/projects/wholesalehub && bash scripts/n8n-mvp-sync.sh.
+- Automation includes latest supplier collection, existing variation sync, safe add_variation, draft/private product creation, customer QA, review export, and handoff refresh.
+- New products must stay draft/private until a human reviews and publishes them in WordPress.
+- Import JSON fallback: docs/n8n-wholesalehub-mvp-sync.workflow.json.
 
 ## Remaining Work
 - Review existing 60 held/review items manually.

@@ -25,7 +25,9 @@ run() {
   cd "$PROJECT_DIR"
   run npm run mvp:plan
   run npm run mvp:sync-existing -- --execute --confirm "EXECUTE_MVP_SYNC_EXISTING_VARIATIONS_ONLY"
+  run npm run mvp:add-create -- --execute --confirm "EXECUTE_MVP_ADD_VARIATIONS_AND_CREATE_DRAFTS"
   run npm run mvp:qa
   run npm run mvp:export-review
+  run npm run mvp:handoff
   echo "[$(date -Is)] n8n MVP sync completed"
 } > >(tee "$RUN_LOG" "$LATEST_LOG") 2>&1

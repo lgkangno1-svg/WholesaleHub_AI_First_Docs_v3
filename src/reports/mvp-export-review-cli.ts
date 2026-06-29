@@ -6,14 +6,12 @@ const WINDOWS_REVIEW_DIR = `${WINDOWS_DESKTOP}/hub검수`
 const REQUIRED_FILES = [
   "reports/mvp-sync-safety-review.csv",
   "reports/mvp-sync-safety-review-summary.md",
-] as const
-const OPTIONAL_FILES = [
-  "reports/mvp-final-summary.md",
-  "reports/mvp-handoff-summary.md",
-  "reports/mvp-customer-qa-summary.md",
-  "reports/mvp-customer-qa-results.csv",
   "reports/mvp-add-create-safety-review.csv",
   "reports/mvp-add-create-execute-summary.md",
+  "reports/mvp-customer-qa-summary.md",
+  "reports/mvp-customer-qa-results.csv",
+  "reports/mvp-final-summary.md",
+  "reports/mvp-handoff-summary.md",
 ] as const
 
 async function main(): Promise<void> {
@@ -31,7 +29,7 @@ async function main(): Promise<void> {
 
   await mkdir(WINDOWS_REVIEW_DIR, { recursive: true })
   const copied: string[] = []
-  for (const file of [...REQUIRED_FILES, ...OPTIONAL_FILES]) {
+  for (const file of REQUIRED_FILES) {
     if (!(await exists(file))) continue
     const target = join(WINDOWS_REVIEW_DIR, basename(file))
     await copyReport(file, target)
