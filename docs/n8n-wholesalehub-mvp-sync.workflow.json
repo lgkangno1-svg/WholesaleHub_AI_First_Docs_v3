@@ -95,7 +95,7 @@
       },
       {
         "parameters": {
-          "jsCode": "const stdout = $json.stdout || \"\";\nconst jsonLine = stdout.trim().split(\"\\n\").map((line) => line.replace(/\\r$/u, \"\")).reverse().find((line) => line.trim().startsWith(\"{\"));\nif (!jsonLine) throw new Error(\"missing order excel attachment payload\");\nconst payload = JSON.parse(jsonLine);\nconst dateParts = new Intl.DateTimeFormat(\"en-CA\", {\n  timeZone: \"Asia/Seoul\",\n  year: \"numeric\",\n  month: \"2-digit\",\n  day: \"2-digit\",\n}).formatToParts(new Date()).reduce((acc, part) => {\n  if (part.type !== \"literal\") acc[part.type] = part.value;\n  return acc;\n}, {});\nconst subjectDate = `${dateParts.year}-${dateParts.month}-${dateParts.day}`;\nconst mimeType = \"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\";\nreturn [{\n  json: {\n    recipient: \"tnfwod@naver.com\",\n    subject: `[도매허브] 오늘 발주 엑셀 ${subjectDate}`,\n    attachmentCount: 2,\n  },\n  binary: {\n    walldo: { data: payload.walldo, fileName: \"walldo-order.xlsx\", mimeType },\n    dailyfood: { data: payload.dailyfood, fileName: \"dailyfood-order.xlsx\", mimeType },\n  },\n}];"
+          "jsCode": "const stdout = $json.stdout || \"\";\nconst jsonLine = stdout.trim().split(\"\\n\").map((line) => line.replace(/\\r$/u, \"\")).reverse().find((line) => line.trim().startsWith(\"{\"));\nif (!jsonLine) throw new Error(\"missing order excel attachment payload\");\nconst payload = JSON.parse(jsonLine);\nconst dateParts = new Intl.DateTimeFormat(\"en-CA\", {\n  timeZone: \"Asia/Seoul\",\n  year: \"numeric\",\n  month: \"2-digit\",\n  day: \"2-digit\",\n}).formatToParts(new Date()).reduce((acc, part) => {\n  if (part.type !== \"literal\") acc[part.type] = part.value;\n  return acc;\n}, {});\nconst subjectDate = `${dateParts.year}-${dateParts.month}-${dateParts.day}`;\nconst mimeType = \"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\";\nreturn [{\n  json: {\n    recipient: \"tnfwod@naver.com\",\n    subject: `[도매허브] 오늘 발주 엑셀 ${subjectDate}`,\n    attachmentCount: 2,\n  },\n  binary: {\n    walldo: { data: payload.walldo, fileName: \"walldo-order.xlsx\", mimeType, fileExtension: \"xlsx\" },\n    dailyfood: { data: payload.dailyfood, fileName: \"dailyfood-order.xlsx\", mimeType, fileExtension: \"xlsx\" },\n  },\n}];"
         },
         "id": "build-order-email",
         "name": "Build Order Excel Email",
@@ -211,9 +211,9 @@
     "meta": null,
     "nodeGroups": [],
     "pinData": null,
-    "versionId": "06458490-dc00-4e4b-a565-0f4651bfe171",
+    "versionId": "4cc56b44-ece0-408e-abbc-e71d863eb9c6",
     "activeVersionId": null,
-    "versionCounter": 5,
+    "versionCounter": 6,
     "triggerCount": 0,
     "sourceWorkflowId": null,
     "tags": [],

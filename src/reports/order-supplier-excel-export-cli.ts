@@ -374,15 +374,15 @@ async function writeWalldoWorkbook(rows: readonly ExportRow[], outputPath: strin
     const shipping = preferredShipping(row.order)
     const billing = row.order.billing
     setText(target.getCell(1), String(row.order.id))
-    target.getCell(2).value = row.supplier.originalProductName || row.item.name
-    target.getCell(3).value = row.supplier.originalOptionName || optionName(row.item)
-    target.getCell(4).value = row.item.quantity
-    target.getCell(5).value = personName(shipping)
+    setCellValue(target.getCell(2), row.supplier.originalProductName || row.item.name)
+    setCellValue(target.getCell(3), row.supplier.originalOptionName || optionName(row.item))
+    setNumber(target.getCell(4), row.item.quantity)
+    setCellValue(target.getCell(5), personName(shipping))
     setText(target.getCell(6), shipping.phone || billing.phone)
     setText(target.getCell(7), shipping.postcode || billing.postcode)
-    target.getCell(8).value = fullAddress(shipping) || fullAddress(billing)
-    target.getCell(9).value = row.order.customer_note
-    target.getCell(10).value = personName(billing) || personName(shipping)
+    setCellValue(target.getCell(8), fullAddress(shipping) || fullAddress(billing))
+    setCellValue(target.getCell(9), row.order.customer_note)
+    setCellValue(target.getCell(10), personName(billing) || personName(shipping))
     setText(target.getCell(11), billing.phone || shipping.phone)
     target.commit()
   })
@@ -397,26 +397,31 @@ async function writeDailyFoodWorkbook(
   await workbook.xlsx.readFile("templates/orders/dailyfood.sample.xlsx")
   const sheet = workbook.worksheets[0]
   if (!sheet) throw new Error("dailyfood template has no worksheet")
-  if (sheet.rowCount > 1) sheet.spliceRows(2, sheet.rowCount - 1)
+  const styleRow = cloneRowStyle(sheet.getRow(2), Math.max(11, sheet.columnCount || 11))
+  clearDataRows(sheet, 2)
   rows.forEach((row, index) => {
     const target = sheet.getRow(index + 2)
+    applyRowStyle(target, styleRow)
     const shipping = preferredShipping(row.order)
     const billing = row.order.billing
-    target.getCell(1).value = "??? ??? ??? ??? ???? 577, 104?"
-    target.getCell(2).value = "????"
+    setCellValue(target.getCell(1), "서울 중구 세종대로 110")
+    setCellValue(target.getCell(2), "도매허브")
     setText(target.getCell(3), "01039998933")
-    target.getCell(4).value = fullAddress(shipping) || fullAddress(billing)
-    target.getCell(5).value = personName(shipping)
+    setCellValue(target.getCell(4), fullAddress(shipping) || fullAddress(billing))
+    setCellValue(target.getCell(5), personName(shipping))
     setText(target.getCell(6), shipping.phone || billing.phone)
     setText(target.getCell(7), billing.phone || shipping.phone)
-    target.getCell(8).value = row.item.quantity
-    target.getCell(9).value = [
-      row.supplier.originalProductName || row.item.name,
-      row.supplier.originalOptionName || optionName(row.item),
-    ]
-      .filter(Boolean)
-      .join(" / ")
-    target.getCell(10).value = row.order.customer_note
+    setNumber(target.getCell(8), row.item.quantity)
+    setCellValue(
+      target.getCell(9),
+      [
+        row.supplier.originalProductName || row.item.name,
+        row.supplier.originalOptionName || optionName(row.item),
+      ]
+        .filter(Boolean)
+        .join(" / "),
+    )
+    setCellValue(target.getCell(10), row.order.customer_note)
     setText(target.getCell(11), String(row.order.id))
     target.commit()
   })
@@ -449,9 +454,27 @@ function applyRowStyle(row: ExcelJS.Row, styles: readonly Partial<ExcelJS.Style>
     row.getCell(index + 1).style = { ...style }
   })
 }
+function clearDataRows(sheet: ExcelJS.Worksheet, startRow: number): void {
+  if (sheet.rowCount < startRow) return
+  sheet.spliceRows(startRow, sheet.rowCount - startRow + 1)
+}
+function setCellValue(cell: ExcelJS.Cell, value: string): void {
+  cell.value = sanitizeExcelText(value)
+}
+function setNumber(cell: ExcelJS.Cell, value: number): void {
+  cell.value = Number.isFinite(value) ? value : 0
+}
 function setText(cell: ExcelJS.Cell, value: string): void {
-  cell.value = value
+  cell.value = sanitizeExcelText(value)
   cell.numFmt = "@"
+}
+function sanitizeExcelText(value: string): string {
+  return [...value]
+    .filter((char) => {
+      const code = char.charCodeAt(0)
+      return code === 9 || code === 10 || code === 13 || (code >= 32 && code <= 126) || code >= 160
+    })
+    .join("")
 }
 function preferredShipping(order: Order): Order["shipping"] {
   return fullAddress(order.shipping).length > 0 || personName(order.shipping).length > 0
