@@ -66,6 +66,7 @@ type Result = {
     publicCreated: number
     skipped: number
     failed: number
+    seafoodExcluded: number
     generatedAt: string
   }
   entries: Entry[]
@@ -87,7 +88,9 @@ async function main() {
   const walldo = await collectWalldo()
   if (daily.length < 300 || walldo.length < 180)
     throw new Error(`supplier crawl failed: daily=${daily.length}, walldo=${walldo.length}`)
-  const groups = buildGroups([...daily, ...walldo])
+  const allGroups = buildGroups([...daily, ...walldo])
+  const seafoodGroups = allGroups.filter((g) => isSeafood(g.productName)).length
+  const groups = allGroups.filter((g) => !isSeafood(g.productName))
   const created = await createPublicCatalog(credentials, groups)
   const publicCreated = await countPublic(credentials)
   const result: Result = {
@@ -101,6 +104,7 @@ async function main() {
       publicCreated,
       skipped: created.skipped,
       failed: created.failed,
+      seafoodExcluded: seafoodGroups,
       generatedAt: new Date().toISOString(),
     },
     entries: created.entries,
@@ -370,7 +374,12 @@ function optionDisplay(product: string, opt: string | null) {
   return m?.[0]?.trim() || "기본"
 }
 function salePrice(cost: number) {
-  return cost + (cost <= 10000 ? 1500 : cost <= 20000 ? 2000 : cost <= 30000 ? 3000 : 4000)
+  return cost + (cost < 10000 ? 1500 : cost < 20000 ? 2000 : cost < 30000 ? 3000 : 4000)
+}
+function isSeafood(name: string) {
+  return /새조개|통멍게|멍게|쭈꾸미|주꾸미|오징어|문어|낙지|갈치|고등어|장어|바지락|전복|새우|꽃게|게|홍합|굴|조개|꼬막|미역|다시마|김\b|해물|수산|생선|명태|동태|황태|코다리|가자미|연어|참치|삼치|꽁치|아귀|대구|우럭|광어|도미|멸치|건어물|어묵|젓갈/u.test(
+    name,
+  )
 }
 async function deleteAllProducts(c: Credentials) {
   const client = woo(c)
@@ -564,7 +573,7 @@ async function writeReports(r: Result) {
   await writeFile("reports/rebuild-v2-log.json", `${JSON.stringify(r, null, 2)}\n`)
   await writeFile(
     "reports/rebuild-v2-summary.md",
-    `# Rebuild V2 Summary\n\n- deleted_products: ${r.summary.deletedProducts}\n- deleted_variations: ${r.summary.deletedVariations}\n- dailyfood_actual_site_products: ${r.summary.dailyFoodCount}\n- walldo_products: ${r.summary.walldoCount}\n- public_products_created: ${r.summary.productCreated}\n- variations_created: ${r.summary.variationCreated}\n- public_created: ${r.summary.publicCreated}\n- skipped: ${r.summary.skipped}\n- failed: ${r.summary.failed}\n`,
+    `# Rebuild V2 Summary\n\n- deleted_products: ${r.summary.deletedProducts}\n- deleted_variations: ${r.summary.deletedVariations}\n- dailyfood_actual_site_products: ${r.summary.dailyFoodCount}\n- walldo_products: ${r.summary.walldoCount}\n- public_products_created: ${r.summary.productCreated}\n- variations_created: ${r.summary.variationCreated}\n- public_created: ${r.summary.publicCreated}\n- skipped: ${r.summary.skipped}\n- failed: ${r.summary.failed}\n- seafood_excluded: ${r.summary.seafoodExcluded}\n`,
   )
 }
 function clean(v: string) {
