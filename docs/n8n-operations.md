@@ -87,3 +87,13 @@ New options are automatically added when the safety gate marks them safe. True n
 - The 15:00 and 21:00 scheduled runs skip email sending.
 - Fixture test command: `npm run orders:export-supplier-excels -- --fixture`; this creates temporary Excel rows only and does not create WooCommerce orders.
 - If the Gmail node reports `Unable to sign without access token`, reconnect/authorize the Gmail OAuth credential in n8n. Never store OAuth tokens, API keys, SSH keys, or passwords in git/docs/logs.
+
+## Latest Order Excel Email Test
+
+- Result: success.
+- Gmail OAuth credential confirmed: true (`Gmail account 2`).
+- Fixture orders used: 3 total, walldob2b 2 and dailyfood 1.
+- Test email recipient: `tnfwod@naver.com`.
+- Subject format: `[도매허브] 오늘 발주 엑셀 YYYY-MM-DD`.
+- Attachments: `reports/orders/walldo-order.xlsx`, `reports/orders/dailyfood-order.xlsx`.
+- WooCommerce orders/products/prices/stock/order status changed: none.

@@ -95,3 +95,13 @@
 - Email gate: 09:00 Asia/Seoul only; 15:00/21:00 do not send.
 - Fixture export option: `npm run orders:export-supplier-excels -- --fixture` creates 2 walldob2b rows and 1 dailyfood row without creating WooCommerce orders.
 - Latest email test generated the fixture Excel files but Gmail sending failed because the n8n Gmail OAuth credential has no OAuth token data. Authorize the Gmail credential in n8n before relying on email delivery.
+
+## Latest Order Excel Email Test
+
+- Result: success.
+- Gmail OAuth credential confirmed: true (`Gmail account 2`).
+- Fixture orders used: 3 total, walldob2b 2 and dailyfood 1.
+- Test email recipient: `tnfwod@naver.com`.
+- Subject format: `[도매허브] 오늘 발주 엑셀 YYYY-MM-DD`.
+- Attachments: `reports/orders/walldo-order.xlsx`, `reports/orders/dailyfood-order.xlsx`.
+- WooCommerce orders/products/prices/stock/order status changed: none.

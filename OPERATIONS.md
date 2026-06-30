@@ -124,3 +124,13 @@ The automation runs supplier collection, existing variation sync, safe new optio
 - Automated email sending is gated to 09:00 Asia/Seoul only; 15:00 and 21:00 runs do not send email.
 - Test fixture mode uses 3 temporary in-memory orders: walldob2b 2 rows, dailyfood 1 row. It does not create WooCommerce orders.
 - Gmail OAuth must be authorized in n8n before the email node can send. Do not write OAuth tokens or passwords into docs, logs, or git.
+
+## Latest Order Excel Email Test
+
+- Result: success.
+- Gmail OAuth credential confirmed: true (`Gmail account 2`).
+- Fixture orders used: 3 total, walldob2b 2 and dailyfood 1.
+- Test email recipient: `tnfwod@naver.com`.
+- Subject format: `[도매허브] 오늘 발주 엑셀 YYYY-MM-DD`.
+- Attachments: `reports/orders/walldo-order.xlsx`, `reports/orders/dailyfood-order.xlsx`.
+- WooCommerce orders/products/prices/stock/order status changed: none.

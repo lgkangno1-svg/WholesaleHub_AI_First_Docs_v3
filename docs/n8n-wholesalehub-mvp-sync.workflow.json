@@ -129,11 +129,10 @@
         "position": [540, 20],
         "credentials": {
           "gmailOAuth2": {
-            "id": "jV49DC7JwFkwfifv",
-            "name": "Gmail account"
+            "id": "JRDuPOqI0I25qSp1",
+            "name": "Gmail account 2"
           }
-        },
-        "continueOnFail": true
+        }
       }
     ],
     "connections": {
@@ -212,9 +211,9 @@
     "meta": null,
     "nodeGroups": [],
     "pinData": null,
-    "versionId": "b8655dcf-562b-4f22-97b3-95a7636b6b9c",
+    "versionId": "06458490-dc00-4e4b-a565-0f4651bfe171",
     "activeVersionId": null,
-    "versionCounter": 4,
+    "versionCounter": 5,
     "triggerCount": 0,
     "sourceWorkflowId": null,
     "tags": [],
