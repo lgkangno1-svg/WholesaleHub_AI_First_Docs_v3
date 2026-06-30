@@ -134,3 +134,7 @@ The automation runs supplier collection, existing variation sync, safe new optio
 - Subject format: `[도매허브] 오늘 발주 엑셀 YYYY-MM-DD`.
 - Attachments: `reports/orders/walldo-order.xlsx`, `reports/orders/dailyfood-order.xlsx`.
 - WooCommerce orders/products/prices/stock/order status changed: none.
+
+## Unsold Deletion Policy
+
+The MVP automation now treats options that are not sold by either walldob2b or DailyFood as delete candidates, not draft/private candidates. Safe deletion is permanent and only runs after supplier collection succeeds. DailyFood is crawled directly at 09:00 and the last successful DailyFood snapshot is reused at 15:00/21:00. If supplier collection fails or an order link exists, deletion is blocked/held.

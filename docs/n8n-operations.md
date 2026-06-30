@@ -97,3 +97,10 @@ New options are automatically added when the safety gate marks them safe. True n
 - Subject format: `[도매허브] 오늘 발주 엑셀 YYYY-MM-DD`.
 - Attachments: `reports/orders/walldo-order.xlsx`, `reports/orders/dailyfood-order.xlsx`.
 - WooCommerce orders/products/prices/stock/order status changed: none.
+
+## Unsold Deletion Policy
+
+- 09:00 Asia/Seoul: crawl DailyFood directly from the htmlview page, crawl walldob2b, sync existing variations, permanently delete hub variations/products that neither supplier sells, run add/create, QA, exports, and email flow.
+- 15:00 and 21:00 Asia/Seoul: crawl walldob2b, reuse the latest successful DailyFood snapshot, sync existing variations, permanently delete unsold hub variations/products, QA, and exports. New add/create is not run at these times.
+- Deletion requires a successful walldob2b crawl and an existing successful DailyFood snapshot. Crawl failure must block deletion.
+- Products or variations with order links are held for review instead of being deleted.

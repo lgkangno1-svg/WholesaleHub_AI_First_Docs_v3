@@ -56,7 +56,7 @@
     "mvp-sync:execute": "npm run build && node dist/reports/mvp-sync-execute-cli.js",
     "mvp-add-create:execute": "npm run build && node dist/reports/mvp-add-create-cli.js",
     "mvp-customer-qa": "npm run build && node dist/reports/mvp-customer-qa-cli.js",
-    "mvp:plan": "npm run report:mvp-sync-plan",
+    "mvp:plan": "npm run report:mvp-sync-plan --",
     "mvp:sync-existing": "npm run mvp-sync:execute --",
     "mvp:add-create": "npm run mvp-add-create:execute --",
     "mvp:qa": "npm run mvp-customer-qa",
@@ -65,7 +65,8 @@
     "mvp:n8n-run": "bash scripts/n8n-mvp-sync.sh",
     "orders:supplier-report": "npm run build && node dist/reports/order-supplier-fulfillment-cli.js",
     "orders:export-supplier-excels": "npm run build && node dist/reports/order-supplier-excel-export-cli.js",
-    "woocommerce:cleanup-duplicate-drafts": "npm run build && node dist/reports/draft-private-duplicate-cleanup-cli.js"
+    "woocommerce:cleanup-duplicate-drafts": "npm run build && node dist/reports/draft-private-duplicate-cleanup-cli.js",
+    "mvp:delete-unsold": "npm run build && node dist/reports/mvp-delete-unsold-cli.js"
   },
   "dependencies": {
     "csv-parse": "^6.1.0",

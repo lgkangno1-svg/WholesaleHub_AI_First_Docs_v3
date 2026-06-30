@@ -378,20 +378,21 @@ async function checkPriceSamples(
   addEntries: readonly z.infer<typeof AddEntrySchema>[],
 ): Promise<readonly QaRow[]> {
   const sample = [
-    ...syncEntries.slice(0, 10).map((entry) => ({
+    ...syncEntries.map((entry) => ({
       productId: entry.product_id,
       variationId: entry.variation_id,
       price: entry.expected_price,
     })),
     ...addEntries
       .filter((entry) => entry.product_id !== null && entry.variation_id !== null)
-      .slice(0, 10)
       .map((entry) => ({
         productId: entry.product_id as number,
         variationId: entry.variation_id as number,
         price: entry.price,
       })),
   ]
+    .filter((item) => variationExists(catalog, item.productId, item.variationId))
+    .slice(0, 10)
   const rows: QaRow[] = []
   for (const item of sample) {
     const product = catalog.find((entry) => entry.id === item.productId)
@@ -448,7 +449,8 @@ async function checkCart(
         entry.product_id !== null &&
         entry.product_id !== undefined &&
         entry.variation_id !== null &&
-        entry.variation_id !== undefined,
+        entry.variation_id !== undefined &&
+        variationExists(catalog, entry.product_id, entry.variation_id),
     )
     .slice(0, 5)
   for (const entry of sample) {
@@ -536,6 +538,17 @@ function sampleIds(
       ...addEntries.map((entry) => entry.product_id).filter((id): id is number => id !== null),
     ]),
   ].slice(0, count)
+}
+function variationExists(
+  catalog: readonly Product[],
+  productId: number,
+  variationId: number,
+): boolean {
+  return (
+    catalog
+      .find((product) => product.id === productId)
+      ?.variations.some((variation) => variation.id === variationId) ?? false
+  )
 }
 function catalogSignature(catalog: readonly Product[]): string {
   return JSON.stringify(
