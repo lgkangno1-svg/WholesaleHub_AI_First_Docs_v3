@@ -66,7 +66,8 @@
     "orders:supplier-report": "npm run build && node dist/reports/order-supplier-fulfillment-cli.js",
     "orders:export-supplier-excels": "npm run build && node dist/reports/order-supplier-excel-export-cli.js",
     "woocommerce:cleanup-duplicate-drafts": "npm run build && node dist/reports/draft-private-duplicate-cleanup-cli.js",
-    "mvp:delete-unsold": "npm run build && node dist/reports/mvp-delete-unsold-cli.js"
+    "mvp:delete-unsold": "npm run build && node dist/reports/mvp-delete-unsold-cli.js",
+    "rebuild:draft-catalog": "npm run build && node dist/reports/rebuild-draft-catalog-cli.js"
   },
   "dependencies": {
     "csv-parse": "^6.1.0",
