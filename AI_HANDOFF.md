@@ -105,3 +105,8 @@
 - Subject format: `[도매허브] 오늘 발주 엑셀 YYYY-MM-DD`.
 - Attachments: `reports/orders/walldo-order.xlsx`, `reports/orders/dailyfood-order.xlsx`.
 - WooCommerce orders/products/prices/stock/order status changed: none.
+## AI Context Handoff
+- New ChatGPT/Codex conversations must start by reading `docs/ai-context/README.md`.
+- Read order: `02-rules.md`, `03-site-purpose.md`, `04-next-fixes.md`, `01-history.md`, `05-reporting.md`.
+- The folder records the current operating rules, site purpose, unresolved fixes, and reporting format.
+

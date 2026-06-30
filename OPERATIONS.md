@@ -138,3 +138,8 @@ The automation runs supplier collection, existing variation sync, safe new optio
 ## Unsold Deletion Policy
 
 The MVP automation now treats options that are not sold by either walldob2b or DailyFood as delete candidates, not draft/private candidates. Safe deletion is permanent and only runs after supplier collection succeeds. DailyFood is crawled directly at 09:00 and the last successful DailyFood snapshot is reused at 15:00/21:00. If supplier collection fails or an order link exists, deletion is blocked/held.
+## AI Context Handoff
+- New ChatGPT/Codex conversations must start by reading `docs/ai-context/README.md`.
+- Read order: `02-rules.md`, `03-site-purpose.md`, `04-next-fixes.md`, `01-history.md`, `05-reporting.md`.
+- The folder records the current operating rules, site purpose, unresolved fixes, and reporting format.
+
