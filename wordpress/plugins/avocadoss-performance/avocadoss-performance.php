@@ -5,7 +5,6 @@
  * Version: 1.4
  */
 require_once __DIR__ . '/avocadoss-multi-variation-cart.php';
-require_once __DIR__ . '/avocadoss-supplier-admin.php';
 remove_action("wp_head","wp_generator");
 remove_action("wp_head","wlwmanifest_link");
 remove_action("wp_head","rsd_link");
@@ -1146,7 +1145,7 @@ add_action( 'woocommerce_register_form', function() {
         <input type="text" class="woocommerce-Input woocommerce-Input--text input-text" name="avo_business_number" id="avo_business_number" placeholder="000-00-00000" value="<?php echo isset( $_POST['avo_business_number'] ) ? esc_attr( wp_unslash( $_POST['avo_business_number'] ) ) : ''; ?>" required />
     </p>
     <p class="form-row form-row-wide">
-        <label for="avo_billing_first_name"><?php esc_html_e( '사업자명', 'woocommerce' ); ?>&nbsp;<span class="required">*</span></label>
+        <label for="avo_billing_first_name"><?php esc_html_e( '이름', 'woocommerce' ); ?>&nbsp;<span class="required">*</span></label>
         <input type="text" class="woocommerce-Input woocommerce-Input--text input-text" name="avo_billing_first_name" id="avo_billing_first_name" placeholder="이름을 입력하세요" value="<?php echo isset( $_POST['avo_billing_first_name'] ) ? esc_attr( wp_unslash( $_POST['avo_billing_first_name'] ) ) : ''; ?>" required />
     </p>
     <p class="form-row form-row-wide">
@@ -4002,5 +4001,148 @@ function avocadoss_redirect_path( $redirect ) {
 
 function avocadoss_is_staff_user( $user ) {
     return user_can( $user, 'manage_options' ) || user_can( $user, 'manage_woocommerce' ) || user_can( $user, 'edit_posts' );
+}
+
+// =========================================================================
+// Security Hardening Features
+// =========================================================================
+
+// Disable XML-RPC
+add_filter( 'xmlrpc_enabled', '__return_false' );
+
+// Restrict WP REST API user enumeration (block /wp-json/wp/v2/users for non-logged-in users)
+add_filter( 'rest_authentication_errors', function( $result ) {
+    if ( ! empty( $result ) ) {
+        return $result;
+    }
+    // Request is for user endpoint
+    if ( isset( $_SERVER['REQUEST_URI'] ) && strpos( strtolower( $_SERVER['REQUEST_URI'] ), '/wp/v2/users' ) !== false ) {
+        if ( ! is_user_logged_in() ) {
+            return new WP_Error( 'rest_forbidden', '접근 권한이 없습니다.', array( 'status' => 401 ) );
+        }
+    }
+    return $result;
+});
+
+// Disable detailed login error messages to prevent username enumeration
+add_filter( 'login_errors', function() {
+    return '입력하신 로그인 정보가 올바르지 않습니다.';
+});
+
+// Remove WordPress version query strings from styles and scripts
+add_filter( 'style_loader_src', 'avocadoss_remove_wp_ver_string', 9999 );
+add_filter( 'script_loader_src', 'avocadoss_remove_wp_ver_string', 9999 );
+function avocadoss_remove_wp_ver_string( $src ) {
+    if ( strpos( $src, 'ver=' . get_bloginfo( 'version' ) ) ) {
+        $src = remove_query_arg( 'ver', $src );
+    }
+    return $src;
+}
+
+// =========================================================================
+// Admin User Profile: Manual Points & Deposit Name Management
+// =========================================================================
+
+// Show points management fields on edit user profile screen
+add_action( 'show_user_profile', 'avocadoss_admin_user_points_fields' );
+add_action( 'edit_user_profile', 'avocadoss_admin_user_points_fields' );
+
+function avocadoss_admin_user_points_fields( $user ) {
+    if ( ! current_user_can( 'manage_options' ) ) {
+        return;
+    }
+
+    $points = (int) get_user_meta( $user->ID, '_avocadoss_points', true );
+    if ( $points < 0 ) {
+        $points = 0;
+    }
+    
+    $deposit_name = get_user_meta( $user->ID, '_deposit_name', true );
+    ?>
+    <hr />
+    <h2>도매허브 적립금 및 입금자명 관리 (수동 조절)</h2>
+    <table class="form-table">
+        <tr>
+            <th><label for="avocadoss_points">현재 보유 적립금 (원)</label></th>
+            <td>
+                <input type="number" name="avocadoss_points" id="avocadoss_points" value="<?php echo esc_attr( $points ); ?>" class="regular-text" min="0" required />
+                <p class="description">사용자의 현재 보유 적립금을 설정합니다. 단위는 원(KRW)입니다. 값을 수정한 후 하단의 사용자 업데이트 버튼을 클릭하면 반영됩니다.</p>
+            </td>
+        </tr>
+        <tr>
+            <th><label for="avocadoss_deposit_name">입금자명</label></th>
+            <td>
+                <input type="text" name="avocadoss_deposit_name" id="avocadoss_deposit_name" value="<?php echo esc_attr( $deposit_name ); ?>" class="regular-text" />
+                <p class="description">자동 입금 매칭(카카오뱅크 등) 시 사용되는 사용자의 입금자명입니다.</p>
+            </td>
+        </tr>
+    </table>
+    <?php
+}
+
+// Save points management fields when profile is updated
+add_action( 'personal_options_update', 'avocadoss_admin_save_user_points_fields' );
+add_action( 'edit_user_profile_update', 'avocadoss_admin_save_user_points_fields' );
+
+function avocadoss_admin_save_user_points_fields( $user_id ) {
+    if ( ! current_user_can( 'manage_options' ) ) {
+        return;
+    }
+
+    if ( isset( $_POST['avocadoss_points'] ) ) {
+        $points = (int) $_POST['avocadoss_points'];
+        if ( $points < 0 ) {
+            $points = 0;
+        }
+        update_user_meta( $user_id, '_avocadoss_points', $points );
+    }
+
+    if ( isset( $_POST['avocadoss_deposit_name'] ) ) {
+        $deposit_name = sanitize_text_field( $_POST['avocadoss_deposit_name'] );
+        update_user_meta( $user_id, '_deposit_name', $deposit_name );
+    }
+}
+
+// Add custom columns to Users list table
+add_filter( 'manage_users_columns', 'avocadoss_add_users_points_column' );
+function avocadoss_add_users_points_column( $columns ) {
+    $columns['avocadoss_points'] = '보유 적립금';
+    $columns['avocadoss_deposit_name'] = '입금자명';
+    return $columns;
+}
+
+// Display points and deposit name in the custom columns
+add_filter( 'manage_users_custom_column', 'avocadoss_show_users_points_column_content', 10, 3 );
+function avocadoss_show_users_points_column_content( $output, $column_name, $user_id ) {
+    if ( 'avocadoss_points' === $column_name ) {
+        $points = (int) get_user_meta( $user_id, '_avocadoss_points', true );
+        return '<strong>' . number_format( $points ) . '원</strong>';
+    }
+    if ( 'avocadoss_deposit_name' === $column_name ) {
+        $deposit_name = get_user_meta( $user_id, '_deposit_name', true );
+        return esc_html( $deposit_name ? $deposit_name : '-' );
+    }
+    return $output;
+}
+
+// Make the points column sortable
+add_filter( 'manage_users_sortable_columns', 'avocadoss_make_users_points_column_sortable' );
+function avocadoss_make_users_points_column_sortable( $columns ) {
+    $columns['avocadoss_points'] = 'avocadoss_points';
+    return $columns;
+}
+
+// Handle points sorting logic
+add_action( 'pre_get_users', 'avocadoss_sort_users_by_points' );
+function avocadoss_sort_users_by_points( $query ) {
+    if ( ! is_admin() ) {
+        return;
+    }
+    
+    $orderby = $query->get( 'orderby' );
+    if ( 'avocadoss_points' === $orderby ) {
+        $query->set( 'meta_key', '_avocadoss_points' );
+        $query->set( 'orderby', 'meta_value_num' );
+    }
 }
 
