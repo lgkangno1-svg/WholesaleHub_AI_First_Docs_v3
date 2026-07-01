@@ -71,7 +71,8 @@
     "rebuild:public-v2": "npm run build && node dist/reports/rebuild-public-catalog-v2-cli.js",
     "woocommerce:repair-images": "npm run build && node dist/reports/repair-public-product-images-cli.js",
     "woocommerce:classify-public-categories": "npm run build && node dist/reports/classify-public-products-cli.js",
-    "woocommerce:consolidate-public-groups": "npm run build && node dist/reports/consolidate-public-product-groups-cli.js"
+    "woocommerce:consolidate-public-groups": "npm run build && node dist/reports/consolidate-public-product-groups-cli.js",
+    "woocommerce:audit-public-prices": "npm run build && node dist/reports/audit-public-variation-prices-cli.js"
   },
   "dependencies": {
     "csv-parse": "^6.1.0",
