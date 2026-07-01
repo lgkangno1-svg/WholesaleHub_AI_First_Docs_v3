@@ -38,7 +38,7 @@ async function main() {
     consumerSecret: env("WOOCOMMERCE_CONSUMER_SECRET"),
   }
   const failures: string[] = []
-  const daily = await collectDaily(args.dailyMode, failures)
+  const daily = await collectDaily(failures)
   const walldo = await collectWalldo(failures)
   if (failures.length > 0) throw new Error(`delete blocked: ${failures.join("; ")}`)
   const before = await fetchMvpWooCatalog(credentials)
@@ -81,30 +81,23 @@ function parseArgs(args: readonly string[]) {
   return {
     execute: m.get("--execute") === "true",
     confirm: m.get("--confirm") ?? "",
-    dailyMode: m.get("--dailyfood-mode") ?? "snapshot",
     outDir: m.get("--out-dir") ?? "reports",
   }
 }
-async function collectDaily(mode: string, failures: string[]): Promise<CollectedProduct[]> {
+async function collectDaily(failures: string[]): Promise<CollectedProduct[]> {
   try {
     const cfg = await loadSupplierConfig("config/suppliers/dailyfood.google_sheet.yml")
     const path = "reports/snapshots/dailyfood-latest-success.json"
-    if (mode === "crawl") {
-      const csv = (await fetchDailyFoodHtmlViewAsCsv(cfg.googleSheet.sheetUrl)).csv
-      const products = [...parseDailyFoodCsv(csv, cfg).products]
-      await mkdir("reports/snapshots", { recursive: true })
-      await writeFile(
-        path,
-        JSON.stringify({ createdAt: new Date().toISOString(), products }, null, 2),
-      )
-      return products
-    }
-    const parsed = JSON.parse(await readFile(path, "utf8")) as { products: CollectedProduct[] }
-    if (!Array.isArray(parsed.products) || parsed.products.length < 400)
-      throw new Error("dailyfood snapshot missing/invalid")
-    return parsed.products
+    const csv = (await fetchDailyFoodHtmlViewAsCsv(cfg.googleSheet.sheetUrl)).csv
+    const products = [...parseDailyFoodCsv(csv, cfg).products]
+    await mkdir("reports/snapshots", { recursive: true })
+    await writeFile(
+      path,
+      JSON.stringify({ createdAt: new Date().toISOString(), products }, null, 2),
+    )
+    return products
   } catch (e) {
-    failures.push(`dailyfood ${mode} failed: ${msg(e)}`)
+    failures.push(`dailyfood actual-site failed: ${msg(e)}`)
     return []
   }
 }

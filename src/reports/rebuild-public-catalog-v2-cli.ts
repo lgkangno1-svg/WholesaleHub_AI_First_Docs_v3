@@ -33,14 +33,12 @@ type Candidate = {
   sale: number
   productKey: string
   optionKey: string
-  imageUrl: string | null
   raw: CollectedProduct
 }
 type OptionGroup = { optionName: string; selected: Candidate; candidates: Candidate[] }
 type ProductGroup = {
   productName: string
   productKey: string
-  imageUrl: string
   options: OptionGroup[]
 }
 type Entry = {
@@ -142,7 +140,6 @@ async function collectDailyFoodDirect(): Promise<CollectedProduct[]> {
     rawJson: JSON.stringify({
       sourceProductId: stableId(r.product),
       sourceOptionId: stableId(r.option || "기본"),
-      imageUrl: r.imageUrl,
       row: i,
     }),
   }))
@@ -158,7 +155,6 @@ type DailyRow = {
   product: string
   option: string
   price: number
-  imageUrl: string | null
   link: string | null
 }
 type Cell = { text: string; href: string | null }
@@ -201,18 +197,15 @@ function parseDailyHtml(html: string): DailyRow[] {
     link: find(header, ["발주&단가 상담 링크"]),
   }
   const out: DailyRow[] = []
-  let curProduct = "",
-    curImage: string | null = null
+  let curProduct = ""
   for (const row of rows.slice(h + 1)) {
-    const photo = idx.photo < 0 ? null : row[idx.photo]
-    if (photo?.href && /이미지|상세/i.test(photo.text)) curImage = unwrapGoogleUrl(photo.href)
     const prod = cleanText(row[idx.product]?.text)
     if (prod) curProduct = prod
     const opt = cleanText(row[idx.option]?.text)
     const price = parsePrice(row[idx.price]?.text)
     if (!curProduct || price === null) continue
     const link = idx.link < 0 ? null : unwrapGoogleUrl(row[idx.link]?.href ?? "")
-    out.push({ product: curProduct, option: opt, price, imageUrl: curImage, link })
+    out.push({ product: curProduct, option: opt, price, link })
   }
   return out
 }
@@ -309,14 +302,11 @@ function buildGroups(products: CollectedProduct[]): ProductGroup[] {
     )
     const s = sorted[0]
     if (!s) continue
-    const image = sorted.find((c) => c.imageUrl)?.imageUrl
     const g = pm.get(s.productKey) ?? {
       productName: s.baseName,
       productKey: s.productKey,
-      imageUrl: image ?? "",
       options: [],
     }
-    if (!g.imageUrl && image) g.imageUrl = image
     g.options.push({ optionName: s.optionName, selected: s, candidates: sorted })
     pm.set(s.productKey, g)
   }
@@ -346,7 +336,6 @@ function toCandidate(p: CollectedProduct): Candidate {
     sale: salePrice(cost),
     productKey: clean(base),
     optionKey: clean(opt),
-    imageUrl: stringValue(raw["imageUrl"]) || null,
     raw: p,
   }
 }
@@ -431,11 +420,6 @@ async function createPublicCatalog(c: Credentials, groups: ProductGroup[]) {
     skipped = 0,
     failed = 0
   for (const g of groups) {
-    if (!g.imageUrl) {
-      skipped++
-      entries.push({ product_name: g.productName, status: "skipped", reason: "missing image" })
-      continue
-    }
     try {
       const p = ProductSchema.parse(
         await ky
@@ -447,6 +431,8 @@ async function createPublicCatalog(c: Credentials, groups: ProductGroup[]) {
               status: "publish",
               catalog_visibility: "visible",
               images: [{ id: DEFAULT_IMAGE_ID }],
+              short_description: buildShortDescription(g),
+              description: buildDescription(g),
               attributes: [
                 {
                   name: "옵션",
@@ -458,7 +444,6 @@ async function createPublicCatalog(c: Credentials, groups: ProductGroup[]) {
               meta_data: [
                 { key: "_wholesalehub_rebuild_v2", value: "yes" },
                 { key: "_wholesalehub_product_group_key", value: g.productKey },
-                { key: "_wholesalehub_source_image_url", value: g.imageUrl },
               ],
             },
             timeout: 120000,
@@ -576,6 +561,27 @@ async function writeReports(r: Result) {
     `# Rebuild V2 Summary\n\n- deleted_products: ${r.summary.deletedProducts}\n- deleted_variations: ${r.summary.deletedVariations}\n- dailyfood_actual_site_products: ${r.summary.dailyFoodCount}\n- walldo_products: ${r.summary.walldoCount}\n- public_products_created: ${r.summary.productCreated}\n- variations_created: ${r.summary.variationCreated}\n- public_created: ${r.summary.publicCreated}\n- skipped: ${r.summary.skipped}\n- failed: ${r.summary.failed}\n- seafood_excluded: ${r.summary.seafoodExcluded}\n`,
   )
 }
+
+function buildDescription(group: ProductGroup) {
+  const options = group.options
+    .map((option) => `<li>${escapeHtml(option.optionName)}</li>`)
+    .join("")
+  return `<div class="wholesalehub-product-detail"><p>${escapeHtml(group.productName)}</p>${options ? `<ul>${options}</ul>` : ""}</div>`
+}
+
+function buildShortDescription(group: ProductGroup) {
+  return `${escapeHtml(group.productName)} 옵션 ${group.options.length}개`
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/gu, "&amp;")
+    .replace(/</gu, "&lt;")
+    .replace(/>/gu, "&gt;")
+    .replace(/"/gu, "&quot;")
+    .replace(/'/gu, "&#39;")
+}
+
 function clean(v: string) {
   return v
     .normalize("NFKC")

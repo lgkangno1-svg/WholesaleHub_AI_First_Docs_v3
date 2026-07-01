@@ -20,7 +20,7 @@ async function main(): Promise<void> {
   const missing = missingMvpCredentialKeys(process.env)
   if (missing.length > 0) failures.push(`missing credentials: ${missing.join(", ")}`)
 
-  const dailyFoodProducts = await collectDailyFood(failures, dailyFoodMode(process.argv.slice(2)))
+  const dailyFoodProducts = await collectDailyFood(failures)
   const walldob2bProducts = missing.length > 0 ? [] : await collectWalldob2b(failures)
   const wooProducts = missing.length > 0 ? [] : await collectWoo(failures)
 
@@ -47,39 +47,23 @@ async function main(): Promise<void> {
   console.log(JSON.stringify(report.summary, null, 2))
 }
 
-async function collectDailyFood(
-  failures: string[],
-  mode: "crawl" | "snapshot",
-): Promise<readonly CollectedProduct[]> {
+async function collectDailyFood(failures: string[]): Promise<readonly CollectedProduct[]> {
   const snapshotPath = "reports/snapshots/dailyfood-latest-success.json"
   try {
     const config = await loadSupplierConfig("config/suppliers/dailyfood.google_sheet.yml")
-    if (mode === "crawl") {
-      const csv = (await fetchDailyFoodHtmlViewAsCsv(config.googleSheet.sheetUrl)).csv
-      const products = parseDailyFoodCsv(csv, config).products
-      await mkdir("reports/snapshots", { recursive: true })
-      await writeFile(
-        snapshotPath,
-        `${JSON.stringify({ createdAt: new Date().toISOString(), products }, null, 2)}\n`,
-        "utf8",
-      )
-      return products
-    }
-    const snapshot = JSON.parse(await readFile(snapshotPath, "utf8")) as {
-      readonly products?: readonly CollectedProduct[]
-    }
-    if (!Array.isArray(snapshot.products)) throw new Error("dailyfood snapshot products missing")
-    return snapshot.products
+    const csv = (await fetchDailyFoodHtmlViewAsCsv(config.googleSheet.sheetUrl)).csv
+    const products = parseDailyFoodCsv(csv, config).products
+    await mkdir("reports/snapshots", { recursive: true })
+    await writeFile(
+      snapshotPath,
+      `${JSON.stringify({ createdAt: new Date().toISOString(), products }, null, 2)}\n`,
+      "utf8",
+    )
+    return products
   } catch (error) {
-    failures.push(`dailyfood ${mode} collection failed: ${message(error)}`)
+    failures.push(`dailyfood actual-site collection failed: ${message(error)}`)
     return []
   }
-}
-
-function dailyFoodMode(args: readonly string[]): "crawl" | "snapshot" {
-  const index = args.indexOf("--dailyfood-mode")
-  const value = index >= 0 ? args[index + 1] : "crawl"
-  return value === "snapshot" ? "snapshot" : "crawl"
 }
 
 async function collectWalldob2b(failures: string[]): Promise<readonly CollectedProduct[]> {

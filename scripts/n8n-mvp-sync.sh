@@ -24,15 +24,10 @@ run() {
   echo "[$(date -Is)] n8n MVP sync started"
   cd "$PROJECT_DIR"
   RUN_HOUR="${WHOLESALEHUB_RUN_HOUR:-$(TZ=Asia/Seoul date +%H)}"
-  if [ "$RUN_HOUR" = "09" ]; then
-    DAILYFOOD_MODE="crawl"
-  else
-    DAILYFOOD_MODE="snapshot"
-  fi
-  echo "[$(date -Is)] run_hour=$RUN_HOUR dailyfood_mode=$DAILYFOOD_MODE"
-  run npm run mvp:plan -- --dailyfood-mode "$DAILYFOOD_MODE"
+  echo "[$(date -Is)] run_hour=$RUN_HOUR dailyfood_mode=actual-site"
+  run npm run mvp:plan
   run npm run mvp:sync-existing -- --execute --confirm "EXECUTE_MVP_SYNC_EXISTING_VARIATIONS_ONLY"
-  run npm run mvp:delete-unsold -- --execute --confirm "PERMANENT_DELETE_UNSOLD_VARIATIONS_ONLY" --dailyfood-mode snapshot
+  run npm run mvp:delete-unsold -- --execute --confirm "PERMANENT_DELETE_UNSOLD_VARIATIONS_ONLY"
   if [ "$RUN_HOUR" = "09" ]; then
     run npm run mvp:add-create -- --execute --confirm "EXECUTE_MVP_ADD_VARIATIONS_AND_CREATE_DRAFTS"
   fi
