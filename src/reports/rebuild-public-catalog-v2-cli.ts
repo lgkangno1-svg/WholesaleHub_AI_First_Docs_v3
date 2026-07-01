@@ -373,10 +373,7 @@ function optionDisplay(product: string, opt: string | null) {
 }
 function goldKiwiOptionDisplay(product: string, opt: string | null) {
   if (!/골드키위/u.test(`${product} ${opt ?? ""}`)) return null
-  const source = `${product} ${opt ?? ""}`
-    .replace(/[\[\]]/gu, " ")
-    .replace(/\s+/gu, " ")
-    .trim()
+  const source = `${product} ${opt ?? ""}`.replace(/[[\]]/gu, " ").replace(/\s+/gu, " ").trim()
   const grade = /왕점보|특대과|대과|중과/u.exec(source)?.[0]
   const count = /(\d+)\s*과(?:\s*원박스)?/u.exec(source)?.[0]?.replace(/\s+/gu, " ")
   const eachWeight = /개당\s*(\d+)\s*g\s*내외/u.exec(source)?.[1]

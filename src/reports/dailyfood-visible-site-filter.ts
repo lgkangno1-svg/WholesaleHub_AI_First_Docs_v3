@@ -1,6 +1,6 @@
-﻿import type { CollectedProduct } from "../domain/product.js"
+import type { CollectedProduct } from "../domain/product.js"
 
-const HIDDEN_ON_DAILYFOOD_SITE = [/골드\s*망고/u]
+const HIDDEN_ON_DAILYFOOD_SITE = [/골드\s*망고/u, /산\s*딸기/u, /설향\s*메론\s*랜덤과/u]
 
 export function filterDailyFoodVisibleSiteProducts(
   products: readonly CollectedProduct[],
