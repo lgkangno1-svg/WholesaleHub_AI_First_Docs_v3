@@ -8,6 +8,7 @@ import {
 import { loadSupplierConfig } from "../config/supplier-config-loader.js"
 import type { CollectedProduct } from "../domain/product.js"
 import { filterDailyFoodVisibleSiteProducts } from "./dailyfood-visible-site-filter.js"
+import { buildNormalizedDescriptionHtml } from "./description-normalizer.js"
 
 const CONFIRM = "REBUILD_PUBLIC_CATALOG_V2"
 const DEFAULT_IMAGE_ID = 2905
@@ -34,9 +35,10 @@ type Candidate = {
   sale: number
   productKey: string
   optionKey: string
+  memo: string
   raw: CollectedProduct
 }
-type OptionGroup = { optionName: string; selected: Candidate; candidates: Candidate[] }
+type OptionGroup = { optionName: string; selected: Candidate; candidates: Candidate[]; memo: string }
 type ProductGroup = {
   productName: string
   productKey: string
@@ -144,6 +146,7 @@ async function collectDailyFoodDirect(): Promise<CollectedProduct[]> {
           sourceProductId: stableId(r.product),
           sourceOptionId: stableId(r.option || "기본"),
           row: i,
+          memo: r.memo,
         }),
       })),
     ),
@@ -161,6 +164,7 @@ type DailyRow = {
   option: string
   price: number
   link: string | null
+  memo: string
 }
 type Cell = { text: string; href: string | null }
 async function fetchDailyRows(rootUrl: string): Promise<DailyRow[]> {
@@ -200,6 +204,7 @@ function parseDailyHtml(html: string): DailyRow[] {
     option: find(header, ["중량", "옵션"]),
     price: find(header, ["단가", "공급가", "판매가"]),
     link: find(header, ["발주&단가 상담 링크"]),
+    memo: find(header, ["md 코멘트", "비고", "상세 설명", "메모"]),
   }
   const out: DailyRow[] = []
   let curProduct = ""
@@ -210,7 +215,8 @@ function parseDailyHtml(html: string): DailyRow[] {
     const price = parsePrice(row[idx.price]?.text)
     if (!curProduct || price === null) continue
     const link = idx.link < 0 ? null : unwrapGoogleUrl(row[idx.link]?.href ?? "")
-    out.push({ product: curProduct, option: opt, price, link })
+    const memo = idx.memo < 0 ? "" : cleanText(row[idx.memo]?.text ?? "")
+    out.push({ product: curProduct, option: opt, price, link, memo })
   }
   return out
 }
@@ -312,7 +318,7 @@ function buildGroups(products: CollectedProduct[]): ProductGroup[] {
       productKey: s.productKey,
       options: [],
     }
-    g.options.push({ optionName: s.optionName, selected: s, candidates: sorted })
+    g.options.push({ optionName: s.optionName, selected: s, candidates: sorted, memo: s.memo })
     pm.set(s.productKey, g)
   }
   return [...pm.values()]
@@ -341,6 +347,7 @@ function toCandidate(p: CollectedProduct): Candidate {
     sale: salePrice(cost),
     productKey: clean(base),
     optionKey: clean(opt),
+    memo: stringValue(safeJson(p.rawJson)["memo"]),
     raw: p,
   }
 }
@@ -585,10 +592,25 @@ async function writeReports(r: Result) {
 }
 
 function buildDescription(group: ProductGroup) {
+  // 첫 번째 DailyFood 옵션의 memo에서 발주마감/택배사 정규화 정보를 추출한다.
+  const dailyOption = group.options.find((o) => o.selected.supplierId === "dailyfood" && o.memo)
+  const normalizedMemoHtml = dailyOption?.memo
+    ? buildNormalizedDescriptionHtml(dailyOption.memo)
+    : ""
+
   const options = group.options
     .map((option) => `<li>${escapeHtml(option.optionName)}</li>`)
     .join("")
-  return `<div class="wholesalehub-product-detail"><p>${escapeHtml(group.productName)}</p>${options ? `<ul>${options}</ul>` : ""}</div>`
+  const optionListHtml = options ? `<ul>${options}</ul>` : ""
+
+  return [
+    `<div class="wholesalehub-product-detail">`,
+    normalizedMemoHtml,
+    optionListHtml,
+    `</div>`,
+  ]
+    .filter(Boolean)
+    .join("")
 }
 
 function buildShortDescription(group: ProductGroup) {
