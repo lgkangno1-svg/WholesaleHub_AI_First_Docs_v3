@@ -69,7 +69,8 @@
     "mvp:delete-unsold": "npm run build && node dist/reports/mvp-delete-unsold-cli.js",
     "rebuild:draft-catalog": "npm run build && node dist/reports/rebuild-draft-catalog-cli.js",
     "rebuild:public-v2": "npm run build && node dist/reports/rebuild-public-catalog-v2-cli.js",
-    "woocommerce:repair-images": "npm run build && node dist/reports/repair-public-product-images-cli.js"
+    "woocommerce:repair-images": "npm run build && node dist/reports/repair-public-product-images-cli.js",
+    "woocommerce:classify-public-categories": "npm run build && node dist/reports/classify-public-products-cli.js"
   },
   "dependencies": {
     "csv-parse": "^6.1.0",
