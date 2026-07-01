@@ -9,6 +9,7 @@ import {
 } from "../adapters/walldob2b/walldob2b-excel-download.js"
 import { loadSupplierConfig } from "../config/supplier-config-loader.js"
 import type { CollectedProduct } from "../domain/product.js"
+import { filterDailyFoodVisibleSiteProducts } from "./dailyfood-visible-site-filter.js"
 
 const CONFIRM = "HIDE_UNSOLD_PUBLIC_VARIATIONS"
 const ProductSchema = z.object({
@@ -175,7 +176,7 @@ function parseArgs(args: readonly string[]) {
 async function collectDaily(): Promise<readonly CollectedProduct[]> {
   const config = await loadSupplierConfig("config/suppliers/dailyfood.google_sheet.yml")
   const csv = (await fetchDailyFoodHtmlViewAsCsv(config.googleSheet.sheetUrl)).csv
-  return parseDailyFoodCsv(csv, config).products
+  return filterDailyFoodVisibleSiteProducts(parseDailyFoodCsv(csv, config).products)
 }
 
 async function collectWalldo(): Promise<readonly CollectedProduct[]> {

@@ -7,6 +7,7 @@ import {
 } from "../adapters/walldob2b/walldob2b-excel-download.js"
 import { loadSupplierConfig } from "../config/supplier-config-loader.js"
 import type { CollectedProduct } from "../domain/product.js"
+import { filterDailyFoodVisibleSiteProducts } from "./dailyfood-visible-site-filter.js"
 
 const CONFIRM = "REBUILD_PUBLIC_CATALOG_V2"
 const DEFAULT_IMAGE_ID = 2905
@@ -128,21 +129,25 @@ function parseArgs(args: readonly string[]) {
 async function collectDailyFoodDirect(): Promise<CollectedProduct[]> {
   const cfg = await loadSupplierConfig("config/suppliers/dailyfood.google_sheet.yml")
   const rows = await fetchDailyRows(cfg.googleSheet.sheetUrl)
-  return rows.map((r, i) => ({
-    supplierId: "dailyfood",
-    sourceType: "website",
-    originalProductName: r.product,
-    originalOptionName: r.option || null,
-    price: r.price,
-    shippingFee: 0,
-    stockStatus: "in_stock",
-    productUrl: r.link,
-    rawJson: JSON.stringify({
-      sourceProductId: stableId(r.product),
-      sourceOptionId: stableId(r.option || "기본"),
-      row: i,
-    }),
-  }))
+  return [
+    ...filterDailyFoodVisibleSiteProducts(
+      rows.map((r, i) => ({
+        supplierId: "dailyfood",
+        sourceType: "website",
+        originalProductName: r.product,
+        originalOptionName: r.option || null,
+        price: r.price,
+        shippingFee: 0,
+        stockStatus: "in_stock",
+        productUrl: r.link,
+        rawJson: JSON.stringify({
+          sourceProductId: stableId(r.product),
+          sourceOptionId: stableId(r.option || "기본"),
+          row: i,
+        }),
+      })),
+    ),
+  ]
 }
 async function collectWalldo() {
   const html = await fetchWalldob2bProductExcel({

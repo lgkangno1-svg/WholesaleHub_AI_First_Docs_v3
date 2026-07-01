@@ -7,6 +7,7 @@ import {
 } from "../adapters/walldob2b/walldob2b-excel-download.js"
 import { loadSupplierConfig } from "../config/supplier-config-loader.js"
 import type { CollectedProduct } from "../domain/product.js"
+import { filterDailyFoodVisibleSiteProducts } from "./dailyfood-visible-site-filter.js"
 import {
   buildMvpSyncPlanReport,
   fetchMvpWooCatalog,
@@ -52,7 +53,7 @@ async function collectDailyFood(failures: string[]): Promise<readonly CollectedP
   try {
     const config = await loadSupplierConfig("config/suppliers/dailyfood.google_sheet.yml")
     const csv = (await fetchDailyFoodHtmlViewAsCsv(config.googleSheet.sheetUrl)).csv
-    const products = parseDailyFoodCsv(csv, config).products
+    const products = filterDailyFoodVisibleSiteProducts(parseDailyFoodCsv(csv, config).products)
     await mkdir("reports/snapshots", { recursive: true })
     await writeFile(
       snapshotPath,
