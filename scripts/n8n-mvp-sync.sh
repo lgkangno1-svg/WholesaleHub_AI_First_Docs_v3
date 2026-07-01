@@ -27,7 +27,7 @@ run() {
   echo "[$(date -Is)] run_hour=$RUN_HOUR dailyfood_mode=actual-site"
   run npm run mvp:plan
   run npm run mvp:sync-existing -- --execute --confirm "EXECUTE_MVP_SYNC_EXISTING_VARIATIONS_ONLY"
-  run npm run mvp:delete-unsold -- --execute --confirm "PERMANENT_DELETE_UNSOLD_VARIATIONS_ONLY"
+  run npm run mvp:hide-unsold-public -- --execute --confirm "HIDE_UNSOLD_PUBLIC_VARIATIONS"
   if [ "$RUN_HOUR" = "09" ]; then
     run npm run mvp:add-create -- --execute --confirm "EXECUTE_MVP_ADD_VARIATIONS_AND_CREATE_DRAFTS"
   fi
