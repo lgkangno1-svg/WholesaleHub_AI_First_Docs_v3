@@ -345,11 +345,13 @@ function toCandidate(p: CollectedProduct): Candidate {
   }
 }
 function baseName(v: string) {
+  if (/골드키위/u.test(v)) return "골드키위"
   return (
     v
       .replace(/🔥?\s*\d+월\s*추천템/gu, " ")
       .replace(/추천템/gu, " ")
       .replace(/[\n\r]+/gu, " ")
+      .replace(/\[[^\]]*\d[^\]]*\]/gu, " ")
       .replace(/\([^)]*\d[^)]*\)/gu, " ")
       .replace(
         /\d+(?:[~-]\d+)?\s*(?:kg|g|통|개입|개|팩|봉|박스|망|과|cm|센치)\s*(?:내외|이상)?/giu,
@@ -360,12 +362,30 @@ function baseName(v: string) {
   )
 }
 function optionDisplay(product: string, opt: string | null) {
+  const goldKiwiOption = goldKiwiOptionDisplay(product, opt)
+  if (goldKiwiOption) return goldKiwiOption
   if (opt && opt !== "기본") return opt.trim()
   const m =
     /\d+(?:[~-]\d+)?\s*(?:kg|g|통|개입|개|팩|봉|박스|망|과|cm|센치)\s*(?:내외|이상)?(?:\s*\([^)]*\))?/iu.exec(
       product,
     )
   return m?.[0]?.trim() || "기본"
+}
+function goldKiwiOptionDisplay(product: string, opt: string | null) {
+  if (!/골드키위/u.test(`${product} ${opt ?? ""}`)) return null
+  const source = `${product} ${opt ?? ""}`
+    .replace(/[\[\]]/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim()
+  const grade = /왕점보|특대과|대과|중과/u.exec(source)?.[0]
+  const count = /(\d+)\s*과(?:\s*원박스)?/u.exec(source)?.[0]?.replace(/\s+/gu, " ")
+  const eachWeight = /개당\s*(\d+)\s*g\s*내외/u.exec(source)?.[1]
+  const kgWeight = /(\d+(?:\.\d+)?)\s*kg\s*내외/u.exec(source)?.[1]
+  if (!grade && !count) return opt && opt !== "기본" ? opt.trim() : "기본"
+  const pieces = [grade, count].filter(Boolean).join(" ")
+  if (eachWeight) return `${pieces} [개당 ${eachWeight}g내외]`.trim()
+  if (kgWeight) return `${pieces} [${kgWeight}kg내외]`.trim()
+  return pieces.trim()
 }
 function salePrice(cost: number) {
   return cost + (cost < 10000 ? 1500 : cost < 20000 ? 2000 : cost < 30000 ? 3000 : 4000)
