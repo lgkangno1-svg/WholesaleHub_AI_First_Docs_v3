@@ -210,6 +210,14 @@ function groupInfo(name: string): { groupKey: string; displayName: string } {
     return { groupKey: key("천도복숭아 오월화 오월도"), displayName: "천도복숭아 오월화 오월도" }
   if (/^햇\s*홍감자\s*\(/u.test(normalized))
     return { groupKey: key("햇 홍감자 등급"), displayName: "햇 홍감자" }
+  if (/무지개망고|마하차녹/u.test(normalized))
+    return { groupKey: key("무지개망고"), displayName: "무지개망고" }
+  if (/백용과/u.test(normalized)) return { groupKey: key("백용과"), displayName: "백용과" }
+  if (/머스크\s*메론/u.test(normalized))
+    return { groupKey: key("머스크 메론"), displayName: "머스크 메론" }
+  if (/가시오이/u.test(normalized)) return { groupKey: key("가시오이"), displayName: "가시오이" }
+  if (/백다다기/u.test(normalized))
+    return { groupKey: key("백다다기오이"), displayName: "백다다기오이" }
   if (/참외/u.test(normalized)) return { groupKey: key("참외"), displayName: "참외" }
   if (/흑수박/u.test(normalized)) return { groupKey: key("흑수박"), displayName: "흑수박" }
   if (/애플수박/u.test(normalized)) return { groupKey: key("애플수박"), displayName: "애플수박" }
@@ -272,13 +280,30 @@ function buildVariationPlan(group: readonly ProductBundle[]) {
       continue
     }
     if (!sameSellState(existing.sourceVariation, item.sourceVariation)) {
-      return { variations: deduped, blockedReason: `동일 옵션 가격/재고 충돌: ${item.option}` }
+      const disambiguated = disambiguateOption(item.option, item.sourceProductName)
+      item.option = disambiguated
+      item.optionKey = optionKey(disambiguated)
+      let suffix = 2
+      while (seen.has(item.optionKey)) {
+        item.option = `${disambiguated} ${suffix}`
+        item.optionKey = optionKey(item.option)
+        suffix++
+      }
+      seen.set(item.optionKey, item)
+      deduped.push(item)
     }
   }
   return {
     variations: deduped.sort((a, b) => a.option.localeCompare(b.option, "ko-KR")),
     blockedReason: "",
   }
+}
+
+function disambiguateOption(option: string, productName: string): string {
+  const descriptor = sourceDescriptor(productName)
+  return descriptor
+    ? `${descriptor} ${option}`.replace(/\s+/gu, " ").trim()
+    : `${productName} ${option}`.replace(/\s+/gu, " ").trim()
 }
 
 function optionFor(productName: string, variation: Variation): string {
@@ -297,6 +322,7 @@ function optionFor(productName: string, variation: Variation): string {
 function optionDescriptorFromProduct(name: string): string {
   const text = normalizeDisplayName(name)
   const parts = [
+    sourceDescriptor(name),
     ...text.matchAll(
       /특대과|대과|중대과|중과|중소과|소과|혼합과|로얄과|가정용|특품|실속형|왕특|특|중|대|랜덤과|못난이|혼합/gu,
     ),
@@ -304,7 +330,17 @@ function optionDescriptorFromProduct(name: string): string {
       /\d+(?:\.\d+)?(?:~\d+(?:\.\d+)?)?\s*(?:kg|g|통|개입|개|팩|봉|박스|망|과|입|수)\b/giu,
     ),
   ].map((match) => match[0])
-  return [...new Set(parts)].join(" ").trim()
+  return [...new Set(parts.filter(Boolean))].join(" ").trim()
+}
+
+function sourceDescriptor(name: string): string {
+  const parts: string[] = []
+  if (/마하차녹/u.test(name)) parts.push("마하차녹")
+  if (/실중량/u.test(name)) parts.push("실중량")
+  if (/박스포함/u.test(name)) parts.push("박스포함")
+  const numberPrefix = /(?:^|\s)(\d+)\s*\./u.exec(name)?.[1]
+  if (numberPrefix) parts.push(`${numberPrefix}번`)
+  return [...new Set(parts)].join(" ")
 }
 
 function sameSellState(a: Variation, b: Variation): boolean {
