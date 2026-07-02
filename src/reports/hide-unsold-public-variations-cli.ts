@@ -184,7 +184,7 @@ async function collectWalldo(): Promise<readonly CollectedProduct[]> {
     username: env("WALLDOB2B_USERNAME"),
     password: env("WALLDOB2B_PASSWORD"),
   })
-  return parseWalldob2bProductExcelHtml(html, 10000).products
+  return filterDailyFoodVisibleSiteProducts(parseWalldob2bProductExcelHtml(html, 10000).products)
 }
 
 function availableKeys(products: readonly CollectedProduct[]): Set<string> {

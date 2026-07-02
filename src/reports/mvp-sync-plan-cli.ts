@@ -25,7 +25,7 @@ async function main(): Promise<void> {
   const walldob2bProducts = missing.length > 0 ? [] : await collectWalldob2b(failures)
   const wooProducts = missing.length > 0 ? [] : await collectWoo(failures)
 
-  if (dailyFoodProducts.length < 400 || dailyFoodProducts.length > 500) {
+  if (dailyFoodProducts.length < 30 || dailyFoodProducts.length > 60) {
     failures.push(`dailyfood option count out of expected range: ${dailyFoodProducts.length}`)
   }
   if (walldob2bProducts.length < 180 || walldob2bProducts.length > 240) {
@@ -73,7 +73,7 @@ async function collectWalldob2b(failures: string[]): Promise<readonly CollectedP
       username: process.env["WALLDOB2B_USERNAME"] ?? "",
       password: process.env["WALLDOB2B_PASSWORD"] ?? "",
     })
-    return parseWalldob2bProductExcelHtml(html, 10_000).products
+    return filterDailyFoodVisibleSiteProducts(parseWalldob2bProductExcelHtml(html, 10_000).products)
   } catch (error) {
     failures.push(`walldob2b collection failed: ${message(error)}`)
     return []

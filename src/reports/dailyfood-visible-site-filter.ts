@@ -1,11 +1,25 @@
 import type { CollectedProduct } from "../domain/product.js"
 
-const HIDDEN_ON_DAILYFOOD_SITE = [/골드\s*망고/u, /산\s*딸기/u, /설향\s*메론\s*랜덤과/u]
+const GLOBAL_HUB_EXCLUDED_PRODUCTS = [/아보카도/u, /루비\s*레드\s*키위/u, /루비레드키위/u]
+
+const HIDDEN_ON_DAILYFOOD_SITE = [
+  /골드\s*망고/u,
+  /산\s*딸기/u,
+  /설향\s*메론\s*랜덤과/u,
+  /털\s*복숭아\s*중대과/u,
+]
 
 export function filterDailyFoodVisibleSiteProducts(
   products: readonly CollectedProduct[],
 ): readonly CollectedProduct[] {
-  return products.filter((product) => !isHiddenOnDailyFoodSite(product))
+  return products.filter(
+    (product) => !isGloballyExcludedHubProduct(product) && !isHiddenOnDailyFoodSite(product),
+  )
+}
+
+export function isGloballyExcludedHubProduct(product: CollectedProduct): boolean {
+  const text = `${product.originalProductName} ${product.originalOptionName ?? ""}`
+  return GLOBAL_HUB_EXCLUDED_PRODUCTS.some((pattern) => pattern.test(text))
 }
 
 export function isHiddenOnDailyFoodSite(product: CollectedProduct): boolean {

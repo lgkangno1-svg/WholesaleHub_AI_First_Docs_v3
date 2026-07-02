@@ -38,7 +38,12 @@ type Candidate = {
   memo: string
   raw: CollectedProduct
 }
-type OptionGroup = { optionName: string; selected: Candidate; candidates: Candidate[]; memo: string }
+type OptionGroup = {
+  optionName: string
+  selected: Candidate
+  candidates: Candidate[]
+  memo: string
+}
 type ProductGroup = {
   productName: string
   productKey: string
@@ -157,7 +162,9 @@ async function collectWalldo() {
     username: env("WALLDOB2B_USERNAME"),
     password: env("WALLDOB2B_PASSWORD"),
   })
-  return [...parseWalldob2bProductExcelHtml(html, 10000).products]
+  return [
+    ...filterDailyFoodVisibleSiteProducts(parseWalldob2bProductExcelHtml(html, 10000).products),
+  ]
 }
 type DailyRow = {
   product: string
@@ -603,12 +610,7 @@ function buildDescription(group: ProductGroup) {
     .join("")
   const optionListHtml = options ? `<ul>${options}</ul>` : ""
 
-  return [
-    `<div class="wholesalehub-product-detail">`,
-    normalizedMemoHtml,
-    optionListHtml,
-    `</div>`,
-  ]
+  return [`<div class="wholesalehub-product-detail">`, normalizedMemoHtml, optionListHtml, `</div>`]
     .filter(Boolean)
     .join("")
 }

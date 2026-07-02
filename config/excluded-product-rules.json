@@ -34,6 +34,18 @@
         "돈가스"
       ],
       "not_in_scope": ["수산물", "김치", "반찬", "농산물", "과일", "채소"]
+    },
+    {
+      "reason": "business_exclusion",
+      "description": "도매허브 운영 정책상 자동 등록하지 않는 상품군이다.",
+      "keywords": ["아보카도", "루비레드키위", "루비 레드 키위"],
+      "not_in_scope": []
+    },
+    {
+      "reason": "dailyfood_site_hidden_or_invalid_option",
+      "description": "DailyFood 실제 사이트 기준 옵션/가격이 명확하지 않아 자동 등록하지 않는 DailyFood 상품군이다.",
+      "keywords": ["골드망고", "산딸기", "설향 메론 랜덤과", "털 복숭아 중대과"],
+      "not_in_scope": []
     }
   ]
 }
