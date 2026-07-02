@@ -1,13 +1,11 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import ky from "ky"
 import { z } from "zod"
-import { parseDailyFoodCsv } from "../adapters/dailyfood/dailyfood-adapter.js"
-import { fetchDailyFoodHtmlViewAsCsv } from "../adapters/dailyfood/dailyfood-htmlview.js"
+import { collectDailyFoodDirectSiteProducts } from "../adapters/dailyfood/dailyfood-direct-site.js"
 import {
   fetchWalldob2bProductExcel,
   parseWalldob2bProductExcelHtml,
 } from "../adapters/walldob2b/walldob2b-excel-download.js"
-import { loadSupplierConfig } from "../config/supplier-config-loader.js"
 import type { CollectedProduct } from "../domain/product.js"
 
 const CONFIRM = "REBUILD_DRAFT_CATALOG_FROM_SUPPLIERS"
@@ -103,9 +101,13 @@ function parseArgs(args: readonly string[]) {
   return { execute: m.get("--execute") === "true", confirm: m.get("--confirm") ?? "" }
 }
 async function collectDaily() {
-  const cfg = await loadSupplierConfig("config/suppliers/dailyfood.google_sheet.yml")
-  const csv = (await fetchDailyFoodHtmlViewAsCsv(cfg.googleSheet.sheetUrl)).csv
-  const products = [...parseDailyFoodCsv(csv, cfg).products]
+  const products = [
+    ...(await collectDailyFoodDirectSiteProducts({
+      username: env("DAILYFOOD_USERNAME", "WALLDOB2B_USERNAME"),
+      password: env("DAILYFOOD_PASSWORD", "WALLDOB2B_PASSWORD"),
+      browserEndpoint: process.env["ADMINPLUS_BROWSER_ENDPOINT"] ?? "http://localhost:3000",
+    })),
+  ]
   await mkdir("reports/snapshots", { recursive: true })
   await writeFile(
     "reports/snapshots/dailyfood-latest-success.json",
@@ -387,8 +389,12 @@ async function loadDotEnv() {
     if (!(e instanceof Error && "code" in e && e.code === "ENOENT")) throw e
   }
 }
-function env(k: string) {
-  const v = process.env[k]?.trim()
+function env(k: string, fallbackKey?: string) {
+  const v = (
+    process.env[k] ??
+    (fallbackKey === undefined ? "" : process.env[fallbackKey]) ??
+    ""
+  ).trim()
   if (!v) throw new Error(`${k} is required`)
   return v
 }

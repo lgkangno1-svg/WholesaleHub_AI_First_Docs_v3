@@ -1,13 +1,11 @@
-﻿import { mkdir, readFile, writeFile } from "node:fs/promises"
+import { mkdir, readFile, writeFile } from "node:fs/promises"
 import ky from "ky"
 import { z } from "zod"
-import { parseDailyFoodCsv } from "../adapters/dailyfood/dailyfood-adapter.js"
-import { fetchDailyFoodHtmlViewAsCsv } from "../adapters/dailyfood/dailyfood-htmlview.js"
+import { collectDailyFoodDirectSiteProducts } from "../adapters/dailyfood/dailyfood-direct-site.js"
 import {
   fetchWalldob2bProductExcel,
   parseWalldob2bProductExcelHtml,
 } from "../adapters/walldob2b/walldob2b-excel-download.js"
-import { loadSupplierConfig } from "../config/supplier-config-loader.js"
 import type { CollectedProduct } from "../domain/product.js"
 import { filterDailyFoodVisibleSiteProducts } from "./dailyfood-visible-site-filter.js"
 
@@ -174,9 +172,13 @@ function parseArgs(args: readonly string[]) {
 }
 
 async function collectDaily(): Promise<readonly CollectedProduct[]> {
-  const config = await loadSupplierConfig("config/suppliers/dailyfood.google_sheet.yml")
-  const csv = (await fetchDailyFoodHtmlViewAsCsv(config.googleSheet.sheetUrl)).csv
-  return filterDailyFoodVisibleSiteProducts(parseDailyFoodCsv(csv, config).products)
+  return filterDailyFoodVisibleSiteProducts(
+    await collectDailyFoodDirectSiteProducts({
+      username: env("DAILYFOOD_USERNAME", "WALLDOB2B_USERNAME"),
+      password: env("DAILYFOOD_PASSWORD", "WALLDOB2B_PASSWORD"),
+      browserEndpoint: process.env["ADMINPLUS_BROWSER_ENDPOINT"] ?? "http://localhost:3000",
+    }),
+  )
 }
 
 async function collectWalldo(): Promise<readonly CollectedProduct[]> {
@@ -394,8 +396,12 @@ async function loadDotEnv(): Promise<void> {
   }
 }
 
-function env(key: string): string {
-  const value = process.env[key]?.trim()
+function env(key: string, fallbackKey?: string): string {
+  const value = (
+    process.env[key] ??
+    (fallbackKey === undefined ? "" : process.env[fallbackKey]) ??
+    ""
+  ).trim()
   if (!value) throw new Error(`${key} is required`)
   return value
 }

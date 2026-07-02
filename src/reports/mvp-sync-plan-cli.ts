@@ -1,11 +1,9 @@
-﻿import { mkdir, readFile, writeFile } from "node:fs/promises"
-import { parseDailyFoodCsv } from "../adapters/dailyfood/dailyfood-adapter.js"
-import { fetchDailyFoodHtmlViewAsCsv } from "../adapters/dailyfood/dailyfood-htmlview.js"
+import { mkdir, readFile, writeFile } from "node:fs/promises"
+import { collectDailyFoodDirectSiteProducts } from "../adapters/dailyfood/dailyfood-direct-site.js"
 import {
   fetchWalldob2bProductExcel,
   parseWalldob2bProductExcelHtml,
 } from "../adapters/walldob2b/walldob2b-excel-download.js"
-import { loadSupplierConfig } from "../config/supplier-config-loader.js"
 import type { CollectedProduct } from "../domain/product.js"
 import { filterDailyFoodVisibleSiteProducts } from "./dailyfood-visible-site-filter.js"
 import {
@@ -25,7 +23,7 @@ async function main(): Promise<void> {
   const walldob2bProducts = missing.length > 0 ? [] : await collectWalldob2b(failures)
   const wooProducts = missing.length > 0 ? [] : await collectWoo(failures)
 
-  if (dailyFoodProducts.length < 30 || dailyFoodProducts.length > 60) {
+  if (dailyFoodProducts.length < 400 || dailyFoodProducts.length > 700) {
     failures.push(`dailyfood option count out of expected range: ${dailyFoodProducts.length}`)
   }
   if (walldob2bProducts.length < 180 || walldob2bProducts.length > 240) {
@@ -51,9 +49,13 @@ async function main(): Promise<void> {
 async function collectDailyFood(failures: string[]): Promise<readonly CollectedProduct[]> {
   const snapshotPath = "reports/snapshots/dailyfood-latest-success.json"
   try {
-    const config = await loadSupplierConfig("config/suppliers/dailyfood.google_sheet.yml")
-    const csv = (await fetchDailyFoodHtmlViewAsCsv(config.googleSheet.sheetUrl)).csv
-    const products = filterDailyFoodVisibleSiteProducts(parseDailyFoodCsv(csv, config).products)
+    const products = filterDailyFoodVisibleSiteProducts(
+      await collectDailyFoodDirectSiteProducts({
+        username: process.env["DAILYFOOD_USERNAME"] ?? process.env["WALLDOB2B_USERNAME"] ?? "",
+        password: process.env["DAILYFOOD_PASSWORD"] ?? process.env["WALLDOB2B_PASSWORD"] ?? "",
+        browserEndpoint: process.env["ADMINPLUS_BROWSER_ENDPOINT"] ?? "http://localhost:3000",
+      }),
+    )
     await mkdir("reports/snapshots", { recursive: true })
     await writeFile(
       snapshotPath,
@@ -62,7 +64,7 @@ async function collectDailyFood(failures: string[]): Promise<readonly CollectedP
     )
     return products
   } catch (error) {
-    failures.push(`dailyfood actual-site collection failed: ${message(error)}`)
+    failures.push(`dailyfood direct-site collection failed: ${message(error)}`)
     return []
   }
 }

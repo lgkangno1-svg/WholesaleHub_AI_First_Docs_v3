@@ -73,7 +73,8 @@
     "woocommerce:classify-public-categories": "npm run build && node dist/reports/classify-public-products-cli.js",
     "woocommerce:consolidate-public-groups": "npm run build && node dist/reports/consolidate-public-product-groups-cli.js",
     "woocommerce:audit-public-prices": "npm run build && node dist/reports/audit-public-variation-prices-cli.js",
-    "mvp:hide-unsold-public": "npm run build && node dist/reports/hide-unsold-public-variations-cli.js"
+    "mvp:hide-unsold-public": "npm run build && node dist/reports/hide-unsold-public-variations-cli.js",
+    "dailyfood:direct-crawl": "npm run build && node dist/reports/dailyfood-direct-site-crawl-cli.js"
   },
   "dependencies": {
     "csv-parse": "^6.1.0",
