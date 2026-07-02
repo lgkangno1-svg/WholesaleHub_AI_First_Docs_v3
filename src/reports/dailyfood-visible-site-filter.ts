@@ -1,6 +1,13 @@
 import type { CollectedProduct } from "../domain/product.js"
 
-const GLOBAL_HUB_EXCLUDED_PRODUCTS = [/아보카도/u, /루비\s*레드\s*키위/u, /루비레드키위/u]
+const GLOBAL_HUB_EXCLUDED_PRODUCTS = [
+  /\uC544\uBCF4\uCE74\uB3C4/u,
+  /\uB8E8\uBE44\s*\uB808\uB4DC\s*\uD0A4\uC704/u,
+  /\uB8E8\uBE44\uB808\uB4DC\uD0A4\uC704/u,
+  /\uB9C8\uCF00\uD305.*\uBE48\s*\uBC15\uC2A4/u,
+  /\uBE48\s*\uBC15\uC2A4/u,
+  /\uD3EC\uC7A5\s*\uBC15\uC2A4/u,
+]
 
 const HIDDEN_ON_DAILYFOOD_SITE = [
   /골드\s*망고/u,

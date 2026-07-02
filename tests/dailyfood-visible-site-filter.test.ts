@@ -46,6 +46,8 @@ describe("filterDailyFoodVisibleSiteProducts", () => {
     const filtered = filterDailyFoodVisibleSiteProducts([
       product("아보카도 대과 10입", "기본", "walldob2b"),
       product("제스프리 루비레드키위 중과", "5과", "dailyfood"),
+      product("마케팅용 빈박스", "10개", "dailyfood"),
+      product("포장 박스", "1묶음", "walldob2b"),
       product("제스프리 골드키위 대과", "5과", "walldob2b"),
     ])
 
