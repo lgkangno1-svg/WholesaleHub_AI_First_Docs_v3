@@ -1,11 +1,11 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import ky from "ky"
 import { z } from "zod"
+import { collectDailyFoodDirectSiteProducts } from "../adapters/dailyfood/dailyfood-direct-site.js"
 import {
   fetchWalldob2bProductExcel,
   parseWalldob2bProductExcelHtml,
 } from "../adapters/walldob2b/walldob2b-excel-download.js"
-import { loadSupplierConfig } from "../config/supplier-config-loader.js"
 import type { CollectedProduct } from "../domain/product.js"
 import { filterDailyFoodVisibleSiteProducts } from "./dailyfood-visible-site-filter.js"
 import { buildNormalizedDescriptionHtml } from "./description-normalizer.js"
@@ -134,26 +134,13 @@ function parseArgs(args: readonly string[]) {
   return { execute: m.get("--execute") === "true", confirm: m.get("--confirm") ?? "" }
 }
 async function collectDailyFoodDirect(): Promise<CollectedProduct[]> {
-  const cfg = await loadSupplierConfig("config/suppliers/dailyfood.google_sheet.yml")
-  const rows = await fetchDailyRows(cfg.googleSheet.sheetUrl)
   return [
     ...filterDailyFoodVisibleSiteProducts(
-      rows.map((r, i) => ({
-        supplierId: "dailyfood",
-        sourceType: "website",
-        originalProductName: r.product,
-        originalOptionName: r.option || null,
-        price: r.price,
-        shippingFee: 0,
-        stockStatus: "in_stock",
-        productUrl: r.link,
-        rawJson: JSON.stringify({
-          sourceProductId: stableId(r.product),
-          sourceOptionId: stableId(r.option || "기본"),
-          row: i,
-          memo: r.memo,
-        }),
-      })),
+      await collectDailyFoodDirectSiteProducts({
+        username: env("DAILYFOOD_USERNAME", "WALLDOB2B_USERNAME"),
+        password: env("DAILYFOOD_PASSWORD", "WALLDOB2B_PASSWORD"),
+        browserEndpoint: process.env["ADMINPLUS_BROWSER_ENDPOINT"] ?? "http://localhost:3000",
+      }),
     ),
   ]
 }
@@ -165,145 +152,6 @@ async function collectWalldo() {
   return [
     ...filterDailyFoodVisibleSiteProducts(parseWalldob2bProductExcelHtml(html, 10000).products),
   ]
-}
-type DailyRow = {
-  product: string
-  option: string
-  price: number
-  link: string | null
-  memo: string
-}
-type Cell = { text: string; href: string | null }
-async function fetchDailyRows(rootUrl: string): Promise<DailyRow[]> {
-  const root = await ky.get(rootUrl, { timeout: 30000, retry: { limit: 2 } }).text()
-  const id = /\/d\/([^/]+)\//u.exec(rootUrl)?.[1]
-  const gids = [
-    ...new Set(
-      [...root.matchAll(/gid: "(\d+)"/gu)]
-        .map((m) => m[1])
-        .filter((x): x is string => x !== undefined),
-    ),
-  ]
-  const urls =
-    id && gids.length
-      ? gids.map(
-          (g) =>
-            `https://docs.google.com/spreadsheets/u/0/d/${id}/htmlview/sheet?headers=true&gid=${g}`,
-        )
-      : [rootUrl]
-  const out: DailyRow[] = []
-  for (const url of urls) {
-    const html = await ky.get(url, { timeout: 30000, retry: { limit: 2 } }).text()
-    out.push(...parseDailyHtml(html))
-  }
-  return out
-}
-function parseDailyHtml(html: string): DailyRow[] {
-  const rows = parseGrid(html)
-  const h = rows.findIndex(
-    (r) => r.some((c) => has(c.text, "상품명")) && r.some((c) => has(c.text, "단가")),
-  )
-  const header = rows[h]
-  if (!header) return []
-  const idx = {
-    photo: find(header, ["품목 사진", "사진"]),
-    product: find(header, ["상품명"]),
-    option: find(header, ["중량", "옵션"]),
-    price: find(header, ["단가", "공급가", "판매가"]),
-    link: find(header, ["발주&단가 상담 링크"]),
-    memo: find(header, ["md 코멘트", "비고", "상세 설명", "메모"]),
-  }
-  const out: DailyRow[] = []
-  let curProduct = ""
-  for (const row of rows.slice(h + 1)) {
-    const prod = cleanText(row[idx.product]?.text)
-    if (prod) curProduct = prod
-    const opt = cleanText(row[idx.option]?.text)
-    const price = parsePrice(row[idx.price]?.text)
-    if (!curProduct || price === null) continue
-    const link = idx.link < 0 ? null : unwrapGoogleUrl(row[idx.link]?.href ?? "")
-    const memo = idx.memo < 0 ? "" : cleanText(row[idx.memo]?.text ?? "")
-    out.push({ product: curProduct, option: opt, price, link, memo })
-  }
-  return out
-}
-function parseGrid(html: string): Cell[][] {
-  const active = new Map<number, { cell: Cell; remaining: number }>()
-  return [...html.matchAll(/<tr\b[\s\S]*?<\/tr>/giu)].map((r) => {
-    const row: Cell[] = []
-    let col = 0
-    for (const m of r[0].matchAll(/<td\b([^>]*)[\s\S]*?<\/td>/giu)) {
-      while (active.has(col)) {
-        const a = active.get(col)
-        if (a === undefined) break
-        row[col] = a.cell
-        if (a.remaining <= 1) active.delete(col)
-        else active.set(col, { cell: a.cell, remaining: a.remaining - 1 })
-        col++
-      }
-      const attrs = m[1] ?? ""
-      const raw = m[0]
-      const cell = { text: cellText(raw), href: href(raw) }
-      const cs = span(attrs, "colspan"),
-        rs = span(attrs, "rowspan")
-      for (let o = 0; o < cs; o++) {
-        row[col + o] = cell
-        if (rs > 1) active.set(col + o, { cell, remaining: rs - 1 })
-      }
-      col += cs
-    }
-    return row
-  })
-}
-function cellText(cell: string) {
-  return decode(cell.replace(/<br\s*\/?\s*>/giu, "\n").replace(/<[^>]+>/gu, " "))
-    .replace(/\s+\n/gu, "\n")
-    .replace(/\n\s+/gu, "\n")
-    .trim()
-}
-function href(cell: string) {
-  const h = /href="([^"]+)"/iu.exec(cell)?.[1]
-  return h ? decode(h) : null
-}
-function span(attrs: string, n: string) {
-  const v = new RegExp(`${n}="(\\d+)"`, `iu`).exec(attrs)?.[1]
-  return v ? Number.parseInt(v, 10) : 1
-}
-function find(h: Cell[], names: string[]) {
-  return h.findIndex((c) => names.some((n) => norm(c.text).includes(norm(n))))
-}
-function has(v: string, n: string) {
-  return norm(v).includes(norm(n))
-}
-function norm(v: string) {
-  return v.replace(/\s+/gu, " ").trim().toLocaleLowerCase("ko-KR")
-}
-function cleanText(v: string | undefined) {
-  return v?.trim() ?? ""
-}
-function parsePrice(v: string | undefined) {
-  const d = (v ?? "").replace(/[^\d]/gu, "")
-  if (!d) return null
-  const n = Number.parseInt(d, 10)
-  return Number.isSafeInteger(n) && n > 0 ? n : null
-}
-function decode(v: string) {
-  return v
-    .replace(/&amp;/gu, "&")
-    .replace(/&nbsp;/gu, " ")
-    .replace(/&lt;/gu, "<")
-    .replace(/&gt;/gu, ">")
-    .replace(/&#39;/gu, "'")
-    .replace(/&quot;/gu, '"')
-}
-function unwrapGoogleUrl(u: string | null) {
-  if (!u) return null
-  try {
-    const url = new URL(u)
-    return url.searchParams.get("q") ?? u
-  } catch {
-    return u
-  }
 }
 function buildGroups(products: CollectedProduct[]): ProductGroup[] {
   const map = new Map<string, Candidate[]>()
@@ -668,8 +516,12 @@ async function loadDotEnv() {
     if (!(e instanceof Error && "code" in e && e.code === "ENOENT")) throw e
   }
 }
-function env(k: string) {
-  const v = process.env[k]?.trim()
+function env(k: string, fallbackKey?: string) {
+  const v = (
+    process.env[k] ??
+    (fallbackKey === undefined ? "" : process.env[fallbackKey]) ??
+    ""
+  ).trim()
   if (!v) throw new Error(`${k} is required`)
   return v
 }

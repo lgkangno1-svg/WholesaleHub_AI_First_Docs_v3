@@ -20,7 +20,6 @@
 - npm run mvp:handoff
 - npm run mvp:export-review
 - npm run mvp:n8n-run
-- npm run orders:supplier-report -- --days 7
 
 ## Key Reports
 - reports/mvp-sync-plan.json
@@ -45,12 +44,6 @@
 - New products must stay draft/private until a human reviews and publishes them in WordPress.
 - Import JSON fallback: docs/n8n-wholesalehub-mvp-sync.workflow.json.
 
-## Admin Supplier Visibility
-- Admin product list, variation edit rows, and admin order detail now show supplier info with labels `데일리`, `월억`, `미확인`.
-- Order item `_hub_*` supplier snapshot meta is saved at checkout time and hidden from customer views/emails.
-- Source file: support/wordpress/avocadoss-supplier-admin.php; deployed into avocadoss-performance plugin on the WordPress volume.
-- Fulfillment report command: npm run orders:supplier-report -- --days 7.
-
 ## Remaining Work
 - Review existing 60 held/review items manually.
 - Review 11 draft/private products before any approval to publish.
@@ -67,46 +60,11 @@
 - Do not expose supplier_id, supplier cost, source URL, or original supplier URL to customers.
 
 ## Recent Commits
-- 1bfce07 Record n8n workflow test status
-- 1d00a66 Update n8n workflow automation for add-create
-- 19be147 Add n8n MVP review export automation
-- 4226cde Fix MVP handoff current commit guidance
-- 00086db Fix MVP handoff commit text
-- bfcebe2 Add MVP operations handoff
-- f132cd2 Refine MVP customer QA checks
-- 27063d7 Add MVP customer QA report
-
-## n8n Test Status
-- Workflow ID: jVFfCJtfEax1GeDQ
-- Workflow active: true
-- Last test time: 2026-06-29T23:16:45+0900
-- Manual Test Trigger: present and connected to `Run WholesaleHub MVP Sync`.
-- Schedule Trigger: still connected to `Run WholesaleHub MVP Sync`.
-- Manual workflow execution: success from `Manual Test Trigger`.
-- SSH node reached and `scripts/n8n-mvp-sync.sh` exited 0.
-- QA after the run: public exposure 0, draft/private exposure 0, supplier/cost/source leak 0, duplicate option exposure 0, cart failures 0.
-- Secret scan of docs/reports found 0 credential-like hits.
-
-## Order Excel Email Status
-
-- n8n workflow: `WholesaleHub MVP Sync` (`jVFfCJtfEax1GeDQ`).
-- Email subject: `[도매허브] 오늘 발주 엑셀 YYYY-MM-DD`.
-- Recipient: `tnfwod@naver.com`.
-- Email gate: 09:00 Asia/Seoul only; 15:00/21:00 do not send.
-- Fixture export option: `npm run orders:export-supplier-excels -- --fixture` creates 2 walldob2b rows and 1 dailyfood row without creating WooCommerce orders.
-- Latest email test generated the fixture Excel files but Gmail sending failed because the n8n Gmail OAuth credential has no OAuth token data. Authorize the Gmail credential in n8n before relying on email delivery.
-
-## Latest Order Excel Email Test
-
-- Result: success.
-- Gmail OAuth credential confirmed: true (`Gmail account 2`).
-- Fixture orders used: 3 total, walldob2b 2 and dailyfood 1.
-- Test email recipient: `tnfwod@naver.com`.
-- Subject format: `[도매허브] 오늘 발주 엑셀 YYYY-MM-DD`.
-- Attachments: `reports/orders/walldo-order.xlsx`, `reports/orders/dailyfood-order.xlsx`.
-- WooCommerce orders/products/prices/stock/order status changed: none.
-## AI Context Handoff
-- New ChatGPT/Codex conversations must start by reading `docs/ai-context/README.md`.
-- Read order: `02-rules.md`, `03-site-purpose.md`, `04-next-fixes.md`, `01-history.md`, `05-reporting.md`.
-- The folder records the current operating rules, site purpose, unresolved fixes, and reporting format.
-
+- c197b4b Refactor DailyFood direct site crawler
+- 4727e26 Exclude invalid supplier products
+- 081c427 Filter DailyFood no-option products, add description normalizer, update rules
+- ebe6411 Filter DailyFood products without site option data
+- 05fd8cd Improve Gold Kiwi grouping labels
+- 40cf980 Document category archive product visibility fix
+- d7e9f48 Filter DailyFood hidden site products from sync
+- 763f874 Hide public variations missing from supplier crawl
