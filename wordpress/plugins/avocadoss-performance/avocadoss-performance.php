@@ -3910,6 +3910,26 @@ function avocadoss_is_jeju_or_island_address( $postcode, $address ) {
 // =========================================================================
 
 add_filter( 'woocommerce_login_redirect', 'avocadoss_customer_login_redirect', 20, 2 );
+add_filter( 'login_redirect', 'avocadoss_customer_wp_login_redirect', 20, 3 );
+
+function avocadoss_customer_wp_login_redirect( $redirect_to, $requested_redirect_to, $user ) {
+    if ( is_wp_error( $user ) || avocadoss_is_staff_user( $user ) ) {
+        return $redirect_to;
+    }
+
+    $requested_redirect = avocadoss_normalize_redirect_url( $requested_redirect_to );
+    if ( avocadoss_should_preserve_customer_redirect( $requested_redirect ) ) {
+        return $requested_redirect;
+    }
+
+    $normalized_redirect = avocadoss_normalize_redirect_url( $redirect_to );
+    if ( avocadoss_should_preserve_customer_redirect( $normalized_redirect ) ) {
+        return $normalized_redirect;
+    }
+
+    return avocadoss_customer_shop_redirect_url();
+}
+
 function avocadoss_customer_login_redirect( $redirect, $user ) {
     if ( is_wp_error( $user ) || avocadoss_is_staff_user( $user ) ) {
         return $redirect;
