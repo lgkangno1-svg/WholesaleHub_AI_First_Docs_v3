@@ -74,7 +74,8 @@
     "woocommerce:consolidate-public-groups": "npm run build && node dist/reports/consolidate-public-product-groups-cli.js",
     "woocommerce:audit-public-prices": "npm run build && node dist/reports/audit-public-variation-prices-cli.js",
     "mvp:hide-unsold-public": "npm run build && node dist/reports/hide-unsold-public-variations-cli.js",
-    "dailyfood:direct-crawl": "npm run build && node dist/reports/dailyfood-direct-site-crawl-cli.js"
+    "dailyfood:direct-crawl": "npm run build && node dist/reports/dailyfood-direct-site-crawl-cli.js",
+    "groupbuy:sync-fafane-descriptions": "npm run build && node dist/reports/fafane-description-sync-cli.js"
   },
   "dependencies": {
     "csv-parse": "^6.1.0",
