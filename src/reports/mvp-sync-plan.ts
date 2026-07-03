@@ -1,4 +1,4 @@
-﻿import { mkdir, writeFile } from "node:fs/promises"
+import { mkdir, writeFile } from "node:fs/promises"
 import { resolve } from "node:path"
 import ky from "ky"
 import { z } from "zod"
@@ -112,6 +112,14 @@ const REQUIRED_ENV = [
   "WALLDOB2B_USERNAME",
   "WALLDOB2B_PASSWORD",
 ] as const
+
+export function hubSalePriceFromSupplierPrice(price: number): number {
+  if (!Number.isFinite(price) || price < 0) throw new Error(`invalid supplier price: ${price}`)
+  if (price < 10_000) return price + 1_500
+  if (price < 20_000) return price + 2_000
+  if (price < 30_000) return price + 3_000
+  return price + 4_000
+}
 
 export function missingMvpCredentialKeys(env: NodeJS.ProcessEnv): readonly string[] {
   return REQUIRED_ENV.filter((key) => (env[key] ?? "").trim().length === 0)
@@ -237,16 +245,22 @@ function planRow(
 ): MvpSyncPlanRow {
   const first = requireFirst(candidates)
   const available = candidates
-    .filter((candidate) => candidate.stockStatus !== "out_of_stock")
+    .filter(
+      (candidate) =>
+        candidate.stockStatus !== "out_of_stock" &&
+        Number.isFinite(candidate.price) &&
+        candidate.price >= 1_000,
+    )
     .sort(
       (left, right) => left.price - right.price || left.supplierId.localeCompare(right.supplierId),
     )
   const selected = available[0] ?? null
+  const selectedSalePrice = selected === null ? null : hubSalePriceFromSupplierPrice(selected.price)
   const matched = matchWoo(candidates, wooProducts)
   const currentSupplierId =
     metaValue(matched.variation?.meta_data ?? [], "_supplier_id") ||
     metaValue(matched.variation?.meta_data ?? [], "_wholesalehub_supplier_id")
-  const action = actionOf({ matched, selected, currentSupplierId })
+  const action = actionOf({ matched, selected, selectedSalePrice, currentSupplierId })
   const safety = safetyOf(action, matched.matchType)
   return {
     product_id: matched.product?.id ?? null,
@@ -256,14 +270,17 @@ function planRow(
     woocommerce_option_name:
       matched.variation === null ? first.originalOptionName : optionName(matched.variation),
     current_price: matched.variation?.price ?? "",
-    new_price: selected === null ? "" : String(selected.price),
+    new_price: selectedSalePrice === null ? "" : String(selectedSalePrice),
     current_stock_status: matched.variation?.stock_status ?? "",
     new_stock_status: selected === null ? "outofstock" : "instock",
     current_supplier_id: currentSupplierId,
     selected_supplier_id: selected?.supplierId ?? "",
     available_supplier_count: available.length,
     supplier_candidates_summary: candidates
-      .map((candidate) => `${candidate.supplierId}:${candidate.price}:${candidate.stockStatus}`)
+      .map(
+        (candidate) =>
+          `${candidate.supplierId}:${candidate.price}->${hubSalePriceFromSupplierPrice(candidate.price)}:${candidate.stockStatus}`,
+      )
       .join(" | "),
     match_type: matched.matchType,
     confidence: confidenceOf(matched.matchType),
@@ -276,6 +293,7 @@ function planRow(
 function actionOf(input: {
   readonly matched: MatchResult
   readonly selected: MvpSupplierCandidate | null
+  readonly selectedSalePrice: number | null
   readonly currentSupplierId: string
 }): MvpSyncAction {
   if (input.matched.product?.status === "draft") return "duplicate_draft_hold"
@@ -288,7 +306,7 @@ function actionOf(input: {
     return "switch_supplier_and_update_price"
   }
   if ((input.matched.variation.stock_status ?? "") === "outofstock") return "mark_instock"
-  return numberOrNull(input.matched.variation.price ?? "") === input.selected.price
+  return numberOrNull(input.matched.variation.price ?? "") === input.selectedSalePrice
     ? "no_op"
     : "update_price"
 }
