@@ -40,11 +40,12 @@ The automation runs supplier collection, existing variation sync, safe new optio
 - `npm run mvp:handoff`
 - `npm run mvp:n8n-run`
 - `npm run orders:supplier-report -- --days 7`
+- `npm run groupbuy:sync-fafane-descriptions -- --execute --force`
 
 ## Absolute Prohibitions
 - Do not print `.env`, API keys, login information, or credentials.
 - Do not delete WooCommerce products or variations.
-- Do not modify product names, option names, descriptions, images, or stock quantity unless explicitly authorized for that task.
+- Do not modify product names, option names, descriptions, images, or stock quantity unless explicitly authorized for that task. Fafane 공동구매 상품 설명 동기화는 예외적으로 허용된 자동화 단계다.
 - Do not create public new products automatically.
 - Do not publish draft/private products automatically.
 - Do not run orders, payments, deposits, auto-order, or AdminPlus auto-order flows.
@@ -78,6 +79,13 @@ The automation runs supplier collection, existing variation sync, safe new optio
 - `reports/mvp-handoff-summary.md`
 - `reports/order-supplier-fulfillment-report.csv`
 - `reports/order-supplier-fulfillment-summary.md`
+
+## Fafane Group-buy Description Sync
+
+- n8n `WholesaleHub MVP Sync` runs `npm run groupbuy:sync-fafane-descriptions -- --execute --force` before order Excel generation.
+- Scope: Fafane/Imweb 공동구매 product descriptions only.
+- It must not change product names, prices, stock, options, status, images, orders, or customer data.
+- Reports: `reports/fafane-description-sync.csv`, `reports/fafane-description-sync-summary.md`.
 
 ## Incident Files to Check
 - `reports/n8n-run-latest.log`

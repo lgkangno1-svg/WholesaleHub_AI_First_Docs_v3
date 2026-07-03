@@ -34,6 +34,7 @@ run() {
   run npm run mvp:qa
   run npm run mvp:export-review
   run npm run mvp:handoff
+  run npm run groupbuy:sync-fafane-descriptions -- --execute --force
   run npm run orders:export-supplier-excels
   echo "[$(date -Is)] n8n MVP sync completed"
 } > >(tee "$RUN_LOG" "$LATEST_LOG") 2>&1
