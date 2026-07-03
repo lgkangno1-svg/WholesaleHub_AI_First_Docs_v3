@@ -238,6 +238,7 @@ async function updateProductDescription(
     headers: client.headers,
     json: {
       description,
+      catalog_visibility: "visible",
       meta_data: [
         { key: "_fafane_description_synced_at", value: new Date().toISOString() },
         { key: "_fafane_description_source", value: "prodDetailPC_or_board_body" },
@@ -288,7 +289,7 @@ async function writeReports(rows: readonly Row[], total: number, options: Option
   const counts = countBy(rows.map((item) => item.action))
   await writeFile(
     resolve(REPORT_SUMMARY),
-    `# Fafane Description Sync Summary\n\n- total_groupbuy_products: ${total}\n- execute: ${options.execute}\n- force: ${options.force}\n- updated: ${counts["updated"] ?? 0}\n- dry_run: ${counts["dry_run"] ?? 0}\n- skipped: ${counts["skipped"] ?? 0}\n- failed: ${counts["failed"] ?? 0}\n- generated_at: ${new Date().toISOString()}\n- changed_fields: post_content(description) only; product name, price, status, stock, image, options, orders unchanged.\n\n## Reports\n- ${REPORT_CSV}\n- ${REPORT_SUMMARY}\n`,
+    `# Fafane Description Sync Summary\n\n- total_groupbuy_products: ${total}\n- execute: ${options.execute}\n- force: ${options.force}\n- updated: ${counts["updated"] ?? 0}\n- dry_run: ${counts["dry_run"] ?? 0}\n- skipped: ${counts["skipped"] ?? 0}\n- failed: ${counts["failed"] ?? 0}\n- generated_at: ${new Date().toISOString()}\n- changed_fields: post_content(description) and catalog_visibility only; product name, price, status, stock, image, options, orders unchanged.\n\n## Reports\n- ${REPORT_CSV}\n- ${REPORT_SUMMARY}\n`,
     "utf8",
   )
 }

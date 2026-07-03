@@ -83,7 +83,8 @@ The automation runs supplier collection, existing variation sync, safe new optio
 ## Fafane Group-buy Description Sync
 
 - n8n `WholesaleHub MVP Sync` runs `npm run groupbuy:sync-fafane-descriptions -- --execute --force` before order Excel generation.
-- Scope: Fafane/Imweb 공동구매 product descriptions only.
+- Scope: Fafane/Imweb 공동구매 product descriptions and catalog visibility only.
+- It keeps 공동구매 products visible in the WooCommerce category archive.
 - It must not change product names, prices, stock, options, status, images, orders, or customer data.
 - Reports: `reports/fafane-description-sync.csv`, `reports/fafane-description-sync-summary.md`.
 
