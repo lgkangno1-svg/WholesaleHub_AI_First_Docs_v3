@@ -33,11 +33,17 @@ finish() {
   fi
   if [ "$PRICE_REPORT_SENT" -ne 1 ] && [ -s "$REPORT_DIR/mvp-price-change-telegram-report.json" ]; then
     cp "$REPORT_DIR/mvp-price-change-telegram-report.json" "$PENDING_REPORT_DIR/$RUN_ID.json" >/dev/null 2>&1 || true
-    docker cp "$REPORT_DIR/mvp-price-change-telegram-report.json" avocadoss-wp:/tmp/mvp-price-change-telegram-report.json >/dev/null 2>&1 &&
-      docker exec avocadoss-wp wp avocadoss telegram-price-report /tmp/mvp-price-change-telegram-report.json --allow-root >/dev/null 2>&1 &&
-      node "$PROJECT_DIR/dist/reports/price-sync-mark-telegram-cli.js" --run-id "$RUN_ID" --status sent >/dev/null 2>&1 &&
-      rm -f "$PENDING_REPORT_DIR/$RUN_ID.json" ||
+    if docker cp "$REPORT_DIR/mvp-price-change-telegram-report.json" avocadoss-wp:/tmp/mvp-price-change-telegram-report.json >/dev/null 2>&1 &&
+      docker exec avocadoss-wp wp avocadoss telegram-price-report /tmp/mvp-price-change-telegram-report.json --allow-root >/dev/null 2>&1; then
+      node "$PROJECT_DIR/dist/reports/price-sync-mark-telegram-cli.js" --run-id "$RUN_ID" --status sent >/dev/null 2>&1 || true
+      rm -f "$PENDING_REPORT_DIR/$RUN_ID.json"
+      PRICE_REPORT_SENT=1
+    else
       node "$PROJECT_DIR/dist/reports/price-sync-mark-telegram-cli.js" --run-id "$RUN_ID" --status failed >/dev/null 2>&1 || true
+      docker exec avocadoss-wp wp eval "avocadoss_send_telegram_message('⚠️ 도매Hub 동기화 실패 (run_id: $RUN_ID, 단계: $CURRENT_STEP, 코드: $code). 가격 동기화가 제대로 전송되지 않았습니다.');" --allow-root >/dev/null 2>&1 || true
+    fi
+  elif [ "$code" -ne 0 ]; then
+    docker exec avocadoss-wp wp eval "avocadoss_send_telegram_message('⚠️ 도매Hub 동기화 실행 중 오류 발생 (run_id: $RUN_ID, 단계: $CURRENT_STEP, 에러코드: $code).');" --allow-root >/dev/null 2>&1 || true
   fi
   docker exec avocadoss-wp rm -f /tmp/mvp-price-change-telegram-report.json >/dev/null 2>&1 || true
   if [ "$code" -eq 0 ]; then status="completed"; fi
