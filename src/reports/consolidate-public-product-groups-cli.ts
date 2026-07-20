@@ -90,8 +90,7 @@ async function main(): Promise<void> {
       ...groupInfo(product.name),
     })
   }
-  const seafood = bundles.filter((bundle) => isSeafood(bundle.product.name))
-  const groups = mapGroups(bundles.filter((bundle) => !isSeafood(bundle.product.name)))
+  const groups = mapGroups(bundles)
   const rows: Row[] = []
   let mergedGroups = 0
   let trashedProducts = 0
@@ -152,22 +151,6 @@ async function main(): Promise<void> {
       })
     }
     if (groupTrashed > 0) mergedGroups++
-  }
-
-  for (const bundle of seafood) {
-    rows.push({
-      group_key: bundle.groupKey,
-      canonical_product_id: bundle.product.id,
-      canonical_name_before: bundle.product.name,
-      canonical_name_after: bundle.displayName,
-      merged_product_id: "",
-      merged_product_name: "",
-      created_variations: 0,
-      updated_variations: 0,
-      trashed: false,
-      status: "blocked",
-      reason_korean: "수산물로 감지됨: 별도 삭제 정책 대상이며 이번 통합에서는 생성/병합하지 않음",
-    })
   }
 
   const afterProducts = await fetchProducts(client, "publish")

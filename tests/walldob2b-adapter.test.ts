@@ -4,6 +4,7 @@ import {
   fetchWalldob2bCandidatesFromWooCommerce,
   findWalldob2bCandidatesFromWooProducts,
   parseWalldob2bDetailHtml,
+  parseWalldob2bProductAvailability,
 } from "../src/adapters/walldob2b/walldob2b-adapter.js"
 import { parseWalldob2bProductExcelHtml } from "../src/adapters/walldob2b/walldob2b-excel-download.js"
 import { findWalldob2bCandidatesFromWordPressRows } from "../src/adapters/walldob2b/wordpress-db-candidates.js"
@@ -165,6 +166,33 @@ describe("walldob2b read-only adapter", () => {
       price: 46_000,
       stockStatus: "in_stock",
       productUrl: "https://walldob2b.com/shop/item.php?it_id=JW000038",
+    })
+  })
+
+  it("detects the product-level insufficient-stock message as sold out", () => {
+    const html = `
+      <div class="sold-out-label">SOLD OUT</div>
+      <div class="stock-warning">상품의 재고가 부족하여 구매할 수 없습니다.</div>
+    `
+
+    expect(parseWalldob2bProductAvailability(html)).toEqual({
+      soldOut: true,
+      evidence: ["insufficient_stock_message", "sold_out_badge"],
+    })
+  })
+
+  it("does not mark the whole product sold out from an option label alone", () => {
+    const html = `
+      <select>
+        <option>선택</option>
+        <option>대과 2kg SOLD OUT</option>
+        <option>중과 2kg + 1,000원</option>
+      </select>
+    `
+
+    expect(parseWalldob2bProductAvailability(html)).toEqual({
+      soldOut: false,
+      evidence: ["sold_out_badge"],
     })
   })
 })

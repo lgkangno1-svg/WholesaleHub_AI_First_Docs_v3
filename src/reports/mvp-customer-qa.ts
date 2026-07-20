@@ -75,6 +75,11 @@ const LEAK_PATTERNS = [
   "supplier cost",
   "source_url",
   "source url",
+  "b2b automatic sync product",
+  "walldob2b.com",
+  "dailyfood",
+  "imweb.me",
+  "fafanedafane",
   "?? ???",
   "??? ??",
   "_supplier_id",
@@ -298,19 +303,22 @@ async function checkFrontendLeaks(
   products: readonly Product[],
   sampleProductIds: readonly number[],
 ): Promise<readonly QaRow[]> {
-  const candidates = [
-    ...new Set([...sampleProductIds, ...products.slice(0, 5).map((product) => product.id)]),
-  ]
-  const rows: QaRow[] = []
-  for (const id of candidates) {
-    const product = products.find((item) => item.id === id)
-    if (product === undefined || product.permalink.length === 0) continue
-    const html = await fetchPublicHtml(product.permalink)
-    const leaks = LEAK_PATTERNS.filter((pattern) =>
-      html.toLowerCase().includes(pattern.toLowerCase()),
-    )
-    rows.push(
-      row(
+  const candidates = [...new Set([...sampleProductIds, ...products.map((product) => product.id)])]
+  const rows: Array<QaRow | undefined> = Array.from({ length: candidates.length })
+  let cursor = 0
+  async function worker(): Promise<void> {
+    while (true) {
+      const index = cursor
+      cursor += 1
+      const id = candidates[index]
+      if (id === undefined) return
+      const product = products.find((item) => item.id === id)
+      if (product === undefined || product.permalink.length === 0) continue
+      const html = await fetchPublicHtml(product.permalink)
+      const leaks = LEAK_PATTERNS.filter((pattern) =>
+        html.toLowerCase().includes(pattern.toLowerCase()),
+      )
+      rows[index] = row(
         "frontend_leak",
         product.id,
         "",
@@ -318,10 +326,11 @@ async function checkFrontendLeaks(
         "",
         leaks.length > 0 ? "fail" : "pass",
         leaks.join(";") || "no leak",
-      ),
-    )
+      )
+    }
   }
-  return rows
+  await Promise.all(Array.from({ length: 8 }, () => worker()))
+  return rows.filter((item): item is QaRow => item !== undefined)
 }
 function checkDuplicateOptions(products: readonly Product[]): readonly QaRow[] {
   const rows: QaRow[] = []
@@ -552,21 +561,25 @@ function variationExists(
 }
 function catalogSignature(catalog: readonly Product[]): string {
   return JSON.stringify(
-    catalog.map((product) => ({
-      id: product.id,
-      name: product.name,
-      status: product.status,
-      description: product.description,
-      short_description: product.short_description,
-      images: product.images.map((image) => `${image.id ?? ""}:${image.src ?? ""}`),
-      variations: product.variations.map((variation) => ({
-        id: variation.id,
-        price: variation.price,
-        regular_price: variation.regular_price,
-        stock_status: variation.stock_status,
-        stock_quantity: variation.stock_quantity,
+    [...catalog]
+      .sort((left, right) => left.id - right.id)
+      .map((product) => ({
+        id: product.id,
+        name: product.name,
+        status: product.status,
+        description: product.description,
+        short_description: product.short_description,
+        images: product.images.map((image) => `${image.id ?? ""}:${image.src ?? ""}`),
+        variations: [...product.variations]
+          .sort((left, right) => left.id - right.id)
+          .map((variation) => ({
+            id: variation.id,
+            price: variation.price,
+            regular_price: variation.regular_price,
+            stock_status: variation.stock_status,
+            stock_quantity: variation.stock_quantity,
+          })),
       })),
-    })),
   )
 }
 async function writeReports(outputDir: string, report: QaReport): Promise<void> {

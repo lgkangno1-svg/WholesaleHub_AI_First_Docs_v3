@@ -1,0 +1,122 @@
+[
+  {
+    "table": "atomic_supplier_skus",
+    "rowCount": 360,
+    "schemaHash": "df3dfee78dda8beaff7b638e795949dfa56dd2cfd37cf39850fa03dd0f1cbdcd",
+    "rowsHash": "53028bd2a9fae690e58951a52b8916e934d717167da378ab6841f6aa7575c891"
+  },
+  {
+    "table": "atomic_sync_runs",
+    "rowCount": 1,
+    "schemaHash": "b1f4d500267cbb8b0522ebd1d8f9d3f3734b3f5f683a3c873037853411924279",
+    "rowsHash": "99f4f71ef26dbb375bc93abaa40846b6f3af1060df027706b05537ded0c5a8b8"
+  },
+  {
+    "table": "canonical_products",
+    "rowCount": 38,
+    "schemaHash": "6ddc5f798a3a093c2c9f84f8efdf1f08c6ac3a86dd0b9c586728d05b0a91ec33",
+    "rowsHash": "8f245b4effd292f9fc4b812bf480ed71f6539e4bf8f17c752f97288ae551276a"
+  },
+  {
+    "table": "canonical_variant_offers",
+    "rowCount": 343,
+    "schemaHash": "87e0153fce5b6d20f024e068c320f98374673937e259de5bf1f8e6bb0d9ffa2e",
+    "rowsHash": "de4c8208c97780f06d669da1832f56678a9d15bf7869cb4e21092454ffbd4e43"
+  },
+  {
+    "table": "canonical_variants",
+    "rowCount": 283,
+    "schemaHash": "013795f3ea917c8b779859e5d74ccab48df4bdcc31db7e092bc0e58e1a356684",
+    "rowsHash": "c3e9ae1429b554e5cfd6d19aa350ae5f7f0b7d17949faa643c9616098ebea5b3"
+  },
+  {
+    "table": "compare_products",
+    "rowCount": 509,
+    "schemaHash": "311112a7d9e3e0b836640a768f875369ccd7ab6f779273d3d193b1eeab09c777",
+    "rowsHash": "0109bbe62886ff17d20b5a7d034983711be2fa433debd939f7cd2bb659b4a05a"
+  },
+  {
+    "table": "comparison_variant_results",
+    "rowCount": 283,
+    "schemaHash": "7b52509770ad2c090fe1aadd19aa7cd0f0f3ddb6fe9b604141fd34e4657aef06",
+    "rowsHash": "ad0ec2de50af2f7861860d3c101279cfa51a9ec9c07a2b177ff164b2ff0b19e0"
+  },
+  {
+    "table": "normalization_review_queue",
+    "rowCount": 1,
+    "schemaHash": "dbbd309762c3711c9b6bb2a72dbe922e15d1d234b3f0c1709734b4d923683bca",
+    "rowsHash": "e2c51e3c1d92f0a2b5c0c36e162e4ca39da26fbc7bdfcf958101fbc7e1ab9465"
+  },
+  {
+    "table": "normalization_rules",
+    "rowCount": 0,
+    "schemaHash": "6df01d396c2af935d455d4b90c553c93d77916e67ced9681106f94223ef7ba6a",
+    "rowsHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "table": "normalized_offers",
+    "rowCount": 360,
+    "schemaHash": "25efcb8bd7cb54dbf36efb2c25903a8bb2bfc7791594a97493b2efd2b59e342a",
+    "rowsHash": "9d89c9a4f43c4b358197c8dd033e4bf0a0d422f036c80c59e280177b23878444"
+  },
+  {
+    "table": "normalized_products",
+    "rowCount": 643,
+    "schemaHash": "27b6d18dda61d87b29c4429474b6716b9400b0d27959695a5844bbaf19cf180a",
+    "rowsHash": "378b3156ddc0a7fff7fc8aace850dbc086dfc5066ae3048a4d41fbb84cdb58f7"
+  },
+  {
+    "table": "offer_price_history",
+    "rowCount": 360,
+    "schemaHash": "55295083a48a8eea0a321f462af9d99166a43a75739cffa9385b0693b9a9a349",
+    "rowsHash": "3a12a7cbac01a65192c4d03c8d17e438143b17767846e040940cf1433b70ae92"
+  },
+  {
+    "table": "product_mapping",
+    "rowCount": 643,
+    "schemaHash": "8e03f568e25a41058269300b5405decc67bcc467ae00060cea2a6dfb5cfdebe0",
+    "rowsHash": "9605300109a09a34fea3bd89805d58270c23d8b1e6f3c4dc55d3b492ae962799"
+  },
+  {
+    "table": "raw_products",
+    "rowCount": 643,
+    "schemaHash": "5e9b7d3ba66320fed58f759a5154e1209bdbc3410f5371d0845818a4079fa46f",
+    "rowsHash": "30cd26fe0c93a1541d4e9196c155c4d414fe4870e797b525b022fedb9e1aee5f"
+  },
+  {
+    "table": "supplier_options",
+    "rowCount": 360,
+    "schemaHash": "33e337a7627f0321cb3de912fd3e53717dda21ee5ad32510093a1d35d17fe74a",
+    "rowsHash": "94c7a932796f9b0548d95892b7f80bcf84bff1fea3008a074b0a8c9e8487dd2a"
+  },
+  {
+    "table": "supplier_price_files",
+    "rowCount": 22,
+    "schemaHash": "7d8dbcd9c77ed4c03a4b73d29cd513e17f57de9c974a57c9f6191adac3101499",
+    "rowsHash": "a5fc158008950c5a847b67188a2f86ee214b2b954e155cffb8db784dde400a78"
+  },
+  {
+    "table": "supplier_products",
+    "rowCount": 62,
+    "schemaHash": "41fb0883d36d7823eb4ce4236f3b297a7e00509987e6f1b45dbfaf673d18af6c",
+    "rowsHash": "3e860d44b368eedb42bf8508f2477ab384f4c125318c8d10129e331b1616325c"
+  },
+  {
+    "table": "suppliers",
+    "rowCount": 2,
+    "schemaHash": "1d0718014e4d56099a5f1af616cc1017df83916d4d16e18d1bebbc2f380f9e0c",
+    "rowsHash": "cfbafb4c402894e583b98b9e0814940b1178c17f0b3f24ba3af223672556919b"
+  },
+  {
+    "table": "woocommerce_product_mapping",
+    "rowCount": 213,
+    "schemaHash": "a5ccfd87e9e98828604eb5bfce4240dc312dfa7664a8e78b510234d1551d2ba1",
+    "rowsHash": "50f4222a43640e84485a0686d0d6850b57cf7fafb6688ea4e99477d34502a74d"
+  },
+  {
+    "table": "woocommerce_sync_logs",
+    "rowCount": 0,
+    "schemaHash": "5a85464b3ab85fb37870ce5d7a70307b4dbf3573b772c68ddf7a0b0d4c86e2f8",
+    "rowsHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

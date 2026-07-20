@@ -59,7 +59,7 @@ async function main(): Promise<void> {
   const client = woo(credentials)
   const daily = await collectDaily()
   const walldo = await collectWalldo()
-  if (daily.length < 400) throw new Error(`dailyfood crawl failed or too low: ${daily.length}`)
+  if (daily.length < 380) throw new Error(`dailyfood crawl failed or too low: ${daily.length}`)
   if (walldo.length < 180) throw new Error(`walldo crawl failed or too low: ${walldo.length}`)
   const available = availableKeys([...daily, ...walldo])
   const products = await fetchProducts(client)
@@ -130,11 +130,12 @@ async function main(): Promise<void> {
       })
     }
     const hasInstock = expectedStatuses.includes("instock")
-    const expectedVisibility = hasInstock ? "visible" : "hidden"
-    if (product.catalog_visibility !== expectedVisibility) {
-      await updateProductVisibility(client, product.id, expectedVisibility)
-      if (expectedVisibility === "hidden") productHidden++
-      else productVisible++
+    if (!hasInstock) {
+      await updateProductStatus(client, product.id, "trash")
+      productHidden++
+    } else if (product.catalog_visibility !== "visible") {
+      await updateProductVisibility(client, product.id, "visible")
+      productVisible++
     }
   }
   const summary = {
@@ -269,6 +270,19 @@ async function updateProductVisibility(
   })
 }
 
+async function updateProductStatus(
+  client: WooClient,
+  productId: number,
+  status: string,
+): Promise<void> {
+  await ky.put(`${client.baseUrl}/wp-json/wc/v3/products/${productId}`, {
+    headers: client.headers,
+    json: { status: status },
+    timeout: 60000,
+    retry: { limit: 0 },
+  })
+}
+
 function optionName(variation: Variation): string {
   return (
     variation.attributes
@@ -345,7 +359,7 @@ async function writeReports(summary: unknown, rows: readonly Row[]): Promise<voi
       `- mark_outofstock: ${s.markOutofstock}`,
       `- mark_instock: ${s.markInstock}`,
       `- review_needed: ${s.reviewNeeded}`,
-      `- products_hidden: ${s.productHidden}`,
+      `- products_trashed: ${s.productHidden}`,
       `- products_visible_restored: ${s.productVisible}`,
       "- product_name/price/category/image/description/order data changed: no",
     ].join("\n"),

@@ -2,19 +2,29 @@ import { mkdir, readFile, writeFile } from "node:fs/promises"
 import ky from "ky"
 import { z } from "zod"
 import {
-  classifyHubProductCategory,
-  HUB_PRODUCT_CATEGORY_NAMES,
-} from "./product-category-classifier.js"
+  groupbuyFoodCategory,
+  mergeCategoryIds,
+  type PublicProductSource,
+  replaceCategoryIds,
+  sourceFoodCategory,
+} from "./public-product-category-assignment.js"
 
 const CONFIRM = "CLASSIFY_PUBLIC_PRODUCTS"
 const ProductSchema = z.object({
   id: z.number().int(),
   name: z.string(),
   status: z.string(),
+  type: z.string().default(""),
   categories: z.array(z.object({ id: z.number().int(), name: z.string() })).default([]),
+  meta_data: z.array(z.object({ key: z.string(), value: z.unknown() })).default([]),
+})
+const VariationSchema = z.object({
+  id: z.number().int(),
+  meta_data: z.array(z.object({ key: z.string(), value: z.unknown() })).default([]),
 })
 const CategorySchema = z.object({ id: z.number().int(), name: z.string() })
 const ProductsSchema = z.array(ProductSchema)
+const VariationsSchema = z.array(VariationSchema)
 const CategoriesSchema = z.array(CategorySchema)
 
 type Credentials = { baseUrl: string; consumerKey: string; consumerSecret: string }
@@ -45,7 +55,11 @@ async function main(): Promise<void> {
   let updated = 0
   let failed = 0
   for (const product of products) {
-    const assigned = classifyHubProductCategory(product.name)
+    const source = await productSource(client, product)
+    const assigned =
+      sourceFoodCategory(product.name, source) ??
+      groupbuyFoodCategory(product.name, product.categories, source)
+    if (assigned === null) continue
     const categoryId = categoryIds.get(assigned)
     const before = product.categories.map((category) => category.name).join(" / ")
     if (categoryId === undefined) {
@@ -60,7 +74,16 @@ async function main(): Promise<void> {
       })
       continue
     }
-    if (product.categories.length === 1 && product.categories[0]?.id === categoryId) {
+    const categoryIdsAfter =
+      source === "dailyfood" || source === "walldob2b"
+        ? replaceCategoryIds(categoryId)
+        : mergeCategoryIds(product.categories, categoryId)
+    if (
+      sameIds(
+        categoryIdsAfter,
+        product.categories.map((category) => category.id),
+      )
+    ) {
       rows.push({
         product_id: product.id,
         product_name: product.name,
@@ -74,7 +97,7 @@ async function main(): Promise<void> {
     try {
       await ky.put(`${client.baseUrl}/wp-json/wc/v3/products/${product.id}`, {
         headers: client.headers,
-        json: { categories: [{ id: categoryId }] },
+        json: { categories: categoryIdsAfter.map((id) => ({ id })) },
         timeout: 60000,
         retry: { limit: 0 },
       })
@@ -112,6 +135,51 @@ async function main(): Promise<void> {
   if (failed > 0) throw new Error(`category classification failed: ${failed}`)
 }
 
+async function productSource(
+  client: ReturnType<typeof woo>,
+  product: z.infer<typeof ProductSchema>,
+): Promise<PublicProductSource> {
+  if (meta(product.meta_data, "_b2b_source") === "fafane") return "fafane"
+  if (
+    meta(product.meta_data, "_fafane_source_url") ||
+    meta(product.meta_data, "_fafane_description_source")
+  ) {
+    return "fafane"
+  }
+  if (product.type !== "variable") return "unknown"
+  const variations = VariationsSchema.parse(
+    await ky
+      .get(`${client.baseUrl}/wp-json/wc/v3/products/${product.id}/variations`, {
+        headers: client.headers,
+        searchParams: { status: "any", per_page: "100" },
+        timeout: 60000,
+        retry: { limit: 1 },
+      })
+      .json(),
+  )
+  const values = variations
+    .flatMap((variation) => [
+      meta(variation.meta_data, "_supplier_id"),
+      meta(variation.meta_data, "_selected_supplier_id"),
+    ])
+    .join(" ")
+    .toLowerCase()
+  if (values.includes("dailyfood")) return "dailyfood"
+  if (values.includes("walldob2b") || values.includes("walldo") || values.includes("waldo")) {
+    return "walldob2b"
+  }
+  return "unknown"
+}
+
+function meta(metaData: readonly { key: string; value: unknown }[], key: string): string {
+  const value = metaData.find((item) => item.key === key)?.value
+  return typeof value === "string" || typeof value === "number" ? String(value) : ""
+}
+
+function sameIds(a: readonly number[], b: readonly number[]): boolean {
+  return a.length === b.length && a.every((id, index) => id === b[index])
+}
+
 function parseArgs(args: readonly string[]) {
   const m = new Map<string, string>()
   for (let i = 0; i < args.length; i++) {
@@ -130,22 +198,7 @@ function parseArgs(args: readonly string[]) {
 
 async function ensureCategories(client: ReturnType<typeof woo>): Promise<Map<string, number>> {
   const categories = await fetchCategories(client)
-  const byName = new Map(categories.map((category) => [category.name, category.id]))
-  for (const name of HUB_PRODUCT_CATEGORY_NAMES) {
-    if (byName.has(name)) continue
-    const created = CategorySchema.parse(
-      await ky
-        .post(`${client.baseUrl}/wp-json/wc/v3/products/categories`, {
-          headers: client.headers,
-          json: { name },
-          timeout: 60000,
-          retry: { limit: 0 },
-        })
-        .json(),
-    )
-    byName.set(name, created.id)
-  }
-  return byName
+  return new Map(categories.map((category) => [category.name, category.id]))
 }
 
 async function fetchProducts(client: ReturnType<typeof woo>) {

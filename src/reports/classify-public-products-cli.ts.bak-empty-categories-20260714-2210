@@ -1,0 +1,278 @@
+import { mkdir, readFile, writeFile } from "node:fs/promises"
+import ky from "ky"
+import { z } from "zod"
+import {
+  classifyHubProductCategory,
+  HUB_PRODUCT_CATEGORY_NAMES,
+} from "./product-category-classifier.js"
+
+const CONFIRM = "CLASSIFY_PUBLIC_PRODUCTS"
+const ProductSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  status: z.string(),
+  categories: z.array(z.object({ id: z.number().int(), name: z.string() })).default([]),
+})
+const CategorySchema = z.object({ id: z.number().int(), name: z.string() })
+const ProductsSchema = z.array(ProductSchema)
+const CategoriesSchema = z.array(CategorySchema)
+
+type Credentials = { baseUrl: string; consumerKey: string; consumerSecret: string }
+type Row = {
+  product_id: number
+  product_name: string
+  before_categories: string
+  assigned_category: string
+  action: "updated" | "no_op" | "failed"
+  reason_korean: string
+}
+
+async function main(): Promise<void> {
+  await loadDotEnv()
+  const args = parseArgs(process.argv.slice(2))
+  if (!args.execute || args.confirm !== CONFIRM) {
+    throw new Error(`--execute --confirm "${CONFIRM}" is required`)
+  }
+  const credentials = {
+    baseUrl: env("WOOCOMMERCE_BASE_URL"),
+    consumerKey: env("WOOCOMMERCE_CONSUMER_KEY"),
+    consumerSecret: env("WOOCOMMERCE_CONSUMER_SECRET"),
+  }
+  const client = woo(credentials)
+  const categoryIds = await ensureCategories(client)
+  const products = await fetchProducts(client)
+  const rows: Row[] = []
+  let updated = 0
+  let failed = 0
+  for (const product of products) {
+    const assigned = classifyHubProductCategory(product.name)
+    const categoryId = categoryIds.get(assigned)
+    const before = product.categories.map((category) => category.name).join(" / ")
+    if (categoryId === undefined) {
+      failed++
+      rows.push({
+        product_id: product.id,
+        product_name: product.name,
+        before_categories: before,
+        assigned_category: assigned,
+        action: "failed",
+        reason_korean: "???? ID ??/?? ??",
+      })
+      continue
+    }
+    if (product.categories.length === 1 && product.categories[0]?.id === categoryId) {
+      rows.push({
+        product_id: product.id,
+        product_name: product.name,
+        before_categories: before,
+        assigned_category: assigned,
+        action: "no_op",
+        reason_korean: "?? ??? ????",
+      })
+      continue
+    }
+    try {
+      await ky.put(`${client.baseUrl}/wp-json/wc/v3/products/${product.id}`, {
+        headers: client.headers,
+        json: { categories: [{ id: categoryId }] },
+        timeout: 60000,
+        retry: { limit: 0 },
+      })
+      updated++
+      rows.push({
+        product_id: product.id,
+        product_name: product.name,
+        before_categories: before,
+        assigned_category: assigned,
+        action: "updated",
+        reason_korean: "??? ?? ?? ???? ??",
+      })
+    } catch (error) {
+      failed++
+      rows.push({
+        product_id: product.id,
+        product_name: product.name,
+        before_categories: before,
+        assigned_category: assigned,
+        action: "failed",
+        reason_korean: message(error),
+      })
+    }
+  }
+  const summary = {
+    generatedAt: new Date().toISOString(),
+    publicProductCount: products.length,
+    updated,
+    noOp: rows.filter((row) => row.action === "no_op").length,
+    failed,
+    categoryCounts: countByCategory(rows),
+  }
+  await writeReports(summary, rows)
+  console.log(JSON.stringify(summary, null, 2))
+  if (failed > 0) throw new Error(`category classification failed: ${failed}`)
+}
+
+function parseArgs(args: readonly string[]) {
+  const m = new Map<string, string>()
+  for (let i = 0; i < args.length; i++) {
+    const k = args[i]
+    if (k === "--execute") {
+      m.set(k, "true")
+      continue
+    }
+    const v = args[i + 1]
+    if (!k || !v || !k.startsWith("--")) throw new Error(`invalid argument: ${k ?? "unknown"}`)
+    m.set(k, v)
+    i++
+  }
+  return { execute: m.get("--execute") === "true", confirm: m.get("--confirm") ?? "" }
+}
+
+async function ensureCategories(client: ReturnType<typeof woo>): Promise<Map<string, number>> {
+  const categories = await fetchCategories(client)
+  const byName = new Map(categories.map((category) => [category.name, category.id]))
+  for (const name of HUB_PRODUCT_CATEGORY_NAMES) {
+    if (byName.has(name)) continue
+    const created = CategorySchema.parse(
+      await ky
+        .post(`${client.baseUrl}/wp-json/wc/v3/products/categories`, {
+          headers: client.headers,
+          json: { name },
+          timeout: 60000,
+          retry: { limit: 0 },
+        })
+        .json(),
+    )
+    byName.set(name, created.id)
+  }
+  return byName
+}
+
+async function fetchProducts(client: ReturnType<typeof woo>) {
+  const products: z.infer<typeof ProductSchema>[] = []
+  for (let page = 1; page <= 30; page++) {
+    const rows = ProductsSchema.parse(
+      await ky
+        .get(`${client.baseUrl}/wp-json/wc/v3/products`, {
+          headers: client.headers,
+          searchParams: { status: "publish", per_page: "100", page: String(page) },
+          timeout: 60000,
+          retry: { limit: 1 },
+        })
+        .json(),
+    )
+    products.push(...rows)
+    if (rows.length < 100) break
+  }
+  return products
+}
+
+async function fetchCategories(client: ReturnType<typeof woo>) {
+  const categories: z.infer<typeof CategorySchema>[] = []
+  for (let page = 1; page <= 10; page++) {
+    const rows = CategoriesSchema.parse(
+      await ky
+        .get(`${client.baseUrl}/wp-json/wc/v3/products/categories`, {
+          headers: client.headers,
+          searchParams: { per_page: "100", page: String(page) },
+          timeout: 60000,
+          retry: { limit: 1 },
+        })
+        .json(),
+    )
+    categories.push(...rows)
+    if (rows.length < 100) break
+  }
+  return categories
+}
+
+function countByCategory(rows: readonly Row[]): Record<string, number> {
+  return rows.reduce<Record<string, number>>((acc, row) => {
+    acc[row.assigned_category] = (acc[row.assigned_category] ?? 0) + 1
+    return acc
+  }, {})
+}
+
+async function writeReports(summary: unknown, rows: readonly Row[]): Promise<void> {
+  await mkdir("reports", { recursive: true })
+  await writeFile(
+    "reports/public-product-category-classification.json",
+    `${JSON.stringify({ summary, rows }, null, 2)}\n`,
+  )
+  await writeFile("reports/public-product-category-classification.csv", toCsv(rows))
+  const s = summary as {
+    publicProductCount: number
+    updated: number
+    noOp: number
+    failed: number
+    categoryCounts: Record<string, number>
+  }
+  await writeFile(
+    "reports/public-product-category-classification-summary.md",
+    [
+      "# Public Product Category Classification",
+      "",
+      `- public_products: ${s.publicProductCount}`,
+      `- updated: ${s.updated}`,
+      `- no_op: ${s.noOp}`,
+      `- failed: ${s.failed}`,
+      "- category_counts:",
+      ...Object.entries(s.categoryCounts).map(([name, count]) => `  - ${name}: ${count}`),
+      "- product_name/price/stock/order data changed: no",
+    ].join("\n"),
+  )
+}
+
+function toCsv(rows: readonly Row[]): string {
+  const header = [
+    "product_id",
+    "product_name",
+    "before_categories",
+    "assigned_category",
+    "action",
+    "reason_korean",
+  ] as const
+  return `${[header, ...rows.map((row) => header.map((key) => row[key]))]
+    .map((row) => row.map(csvCell).join(","))
+    .join("\n")}\n`
+}
+
+function csvCell(value: string | number): string {
+  return `"${String(value).replace(/"/gu, '""')}"`
+}
+
+function woo(c: Credentials) {
+  return {
+    baseUrl: c.baseUrl.replace(/\/$/u, ""),
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${c.consumerKey}:${c.consumerSecret}`).toString("base64")}`,
+    },
+  }
+}
+
+async function loadDotEnv(): Promise<void> {
+  try {
+    const text = await readFile(".env", "utf8")
+    for (const line of text.split(/\r?\n/u)) {
+      const match = /^([A-Z0-9_]+)=(.*)$/u.exec(line)
+      if (match?.[1] && process.env[match[1]] === undefined) process.env[match[1]] = match[2] ?? ""
+    }
+  } catch (error) {
+    if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error
+  }
+}
+
+function env(key: string): string {
+  const value = process.env[key]?.trim()
+  if (!value) throw new Error(`${key} is required`)
+  return value
+}
+
+function message(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+main().catch((error) => {
+  console.error(message(error))
+  process.exitCode = 1
+})

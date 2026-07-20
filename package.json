@@ -25,6 +25,11 @@
     "mapping:woocommerce:seed-pending": "npm run build && node dist/woocommerce/mapping-cli.js seed-pending",
     "phase1": "npm run build && node dist/cli.js phase1",
     "report:compare": "npm run build && node dist/reports/report-cli.js compare",
+    "atomic-sku:apply": "npm run build && node dist/reports/atomic-sku-apply-cli.js",
+    "daily:stable-collect": "npm run build && node dist/reports/daily-stable-collect-cli.js",
+    "daily:safe-draft-plan": "npm run build && node dist/reports/safe-daily-draft-plan-cli.js",
+    "woo:link-variation-offers": "npm run build && node dist/reports/woo-variation-offer-link-cli.js",
+    "orders:export-supplier-snapshot-csv": "npm run build && node dist/reports/supplier-order-snapshot-csv-cli.js",
     "report:mapping": "npm run build && node dist/reports/report-cli.js mapping",
     "report:raw": "npm run build && node dist/reports/report-cli.js raw",
     "report:woocommerce-dry-run": "npm run build && node dist/reports/report-cli.js woocommerce-dry-run",
@@ -32,6 +37,7 @@
     "test:gemini-live": "npm run build && node dist/normalization/gemini-live-test.js",
     "walldob2b:import": "npm run build && node dist/adapters/walldob2b/walldob2b-import-cli.js",
     "walldob2b:sample": "npm run build && node dist/adapters/walldob2b/walldob2b-sample-cli.js",
+    "walldob2b:stock-sync": "npm run build && node dist/reports/walldob2b-stock-sync-cli.js",
     "typecheck": "tsc --noEmit",
     "woocommerce:search": "npm run build && node dist/woocommerce/search-cli.js",
     "report:overlap-audit": "npm run build && node dist/reports/overlap-audit-cli.js",
@@ -75,7 +81,9 @@
     "woocommerce:audit-public-prices": "npm run build && node dist/reports/audit-public-variation-prices-cli.js",
     "mvp:hide-unsold-public": "npm run build && node dist/reports/hide-unsold-public-variations-cli.js",
     "dailyfood:direct-crawl": "npm run build && node dist/reports/dailyfood-direct-site-crawl-cli.js",
-    "groupbuy:sync-fafane-descriptions": "npm run build && node dist/reports/fafane-description-sync-cli.js"
+    "supplier:detail-image-crawl": "npm run build && node dist/reports/supplier-detail-image-crawl-cli.js",
+    "groupbuy:sync-fafane-descriptions": "npm run build && node dist/reports/fafane-description-sync-cli.js",
+    "mvp:delete-source-absent": "npm run build && node dist/reports/mvp-source-absence-delete-cli.js"
   },
   "dependencies": {
     "csv-parse": "^6.1.0",

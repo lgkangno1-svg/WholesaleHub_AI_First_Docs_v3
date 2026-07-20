@@ -1,0 +1,1133 @@
+{
+    "created_at": "2026-07-15T03:34:45+00:00",
+    "scope": "category_thumbnail_homepage_cleanup",
+    "products": [
+        {
+            "id": 18086,
+            "status": "publish",
+            "category_ids": [
+                36,
+                22
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 18083,
+            "status": "publish",
+            "category_ids": [
+                36,
+                22
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 18078,
+            "status": "publish",
+            "category_ids": [
+                36,
+                30
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 18073,
+            "status": "publish",
+            "category_ids": [
+                36,
+                30
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 18069,
+            "status": "publish",
+            "category_ids": [
+                36,
+                22
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 18065,
+            "status": "publish",
+            "category_ids": [
+                36,
+                22
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 18061,
+            "status": "publish",
+            "category_ids": [
+                36,
+                22
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 18057,
+            "status": "publish",
+            "category_ids": [
+                36,
+                22
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 18047,
+            "status": "publish",
+            "category_ids": [
+                36,
+                22
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 18042,
+            "status": "publish",
+            "category_ids": [
+                36,
+                22
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 18039,
+            "status": "publish",
+            "category_ids": [
+                36,
+                22
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 18037,
+            "status": "publish",
+            "category_ids": [
+                36,
+                33
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 18035,
+            "status": "publish",
+            "category_ids": [
+                36,
+                33
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 18029,
+            "status": "publish",
+            "category_ids": [
+                36,
+                22
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 18027,
+            "status": "publish",
+            "category_ids": [
+                36,
+                33
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 18025,
+            "status": "publish",
+            "category_ids": [
+                36,
+                33
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 18023,
+            "status": "publish",
+            "category_ids": [
+                36,
+                33
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 18018,
+            "status": "publish",
+            "category_ids": [
+                36,
+                22
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 18015,
+            "status": "publish",
+            "category_ids": [
+                36,
+                22
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 18011,
+            "status": "publish",
+            "category_ids": [
+                36,
+                39
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 18007,
+            "status": "publish",
+            "category_ids": [
+                36,
+                39
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 18003,
+            "status": "publish",
+            "category_ids": [
+                36,
+                39
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17999,
+            "status": "publish",
+            "category_ids": [
+                36,
+                39
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17995,
+            "status": "publish",
+            "category_ids": [
+                36,
+                39
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17989,
+            "status": "publish",
+            "category_ids": [
+                36,
+                31
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17983,
+            "status": "publish",
+            "category_ids": [
+                36,
+                31
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17977,
+            "status": "publish",
+            "category_ids": [
+                36,
+                31
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17971,
+            "status": "publish",
+            "category_ids": [
+                36,
+                31
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17965,
+            "status": "publish",
+            "category_ids": [
+                36,
+                31
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17961,
+            "status": "publish",
+            "category_ids": [
+                36,
+                31
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17955,
+            "status": "publish",
+            "category_ids": [
+                36,
+                31
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17951,
+            "status": "publish",
+            "category_ids": [
+                36,
+                31
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17945,
+            "status": "publish",
+            "category_ids": [
+                36,
+                31
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17939,
+            "status": "publish",
+            "category_ids": [
+                36,
+                31
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17933,
+            "status": "publish",
+            "category_ids": [
+                36,
+                31
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17929,
+            "status": "publish",
+            "category_ids": [
+                36,
+                31
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17923,
+            "status": "publish",
+            "category_ids": [
+                36,
+                31
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17918,
+            "status": "publish",
+            "category_ids": [
+                36,
+                31
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17914,
+            "status": "publish",
+            "category_ids": [
+                36,
+                31
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17908,
+            "status": "publish",
+            "category_ids": [
+                36,
+                31
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17904,
+            "status": "publish",
+            "category_ids": [
+                36,
+                31
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17898,
+            "status": "publish",
+            "category_ids": [
+                36,
+                31
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17889,
+            "status": "publish",
+            "category_ids": [
+                36,
+                31
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17886,
+            "status": "publish",
+            "category_ids": [
+                36,
+                39
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17882,
+            "status": "publish",
+            "category_ids": [
+                36,
+                22
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17875,
+            "status": "publish",
+            "category_ids": [
+                24,
+                36
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17871,
+            "status": "publish",
+            "category_ids": [
+                36,
+                22
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17862,
+            "status": "publish",
+            "category_ids": [
+                36,
+                30
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17852,
+            "status": "publish",
+            "category_ids": [
+                24,
+                36
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17849,
+            "status": "publish",
+            "category_ids": [
+                36,
+                22
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17846,
+            "status": "publish",
+            "category_ids": [
+                36,
+                30
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17840,
+            "status": "publish",
+            "category_ids": [
+                36,
+                22
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17834,
+            "status": "publish",
+            "category_ids": [
+                36,
+                31
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17830,
+            "status": "publish",
+            "category_ids": [
+                36,
+                22
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17825,
+            "status": "publish",
+            "category_ids": [
+                36,
+                22
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17821,
+            "status": "publish",
+            "category_ids": [
+                36,
+                31
+            ],
+            "thumbnail_id": 0,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17100,
+            "status": "publish",
+            "category_ids": [
+                36,
+                33
+            ],
+            "thumbnail_id": 17099,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17088,
+            "status": "publish",
+            "category_ids": [
+                24,
+                36
+            ],
+            "thumbnail_id": 9625,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17084,
+            "status": "publish",
+            "category_ids": [
+                24,
+                36
+            ],
+            "thumbnail_id": 9622,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17081,
+            "status": "publish",
+            "category_ids": [
+                36,
+                39
+            ],
+            "thumbnail_id": 9617,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17074,
+            "status": "publish",
+            "category_ids": [
+                24,
+                36
+            ],
+            "thumbnail_id": 9600,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17063,
+            "status": "publish",
+            "category_ids": [
+                24,
+                36
+            ],
+            "thumbnail_id": 9698,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 17021,
+            "status": "publish",
+            "category_ids": [
+                24,
+                36
+            ],
+            "thumbnail_id": 17049,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 16857,
+            "status": "publish",
+            "category_ids": [
+                39
+            ],
+            "thumbnail_id": 16856,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 16855,
+            "status": "publish",
+            "category_ids": [
+                39
+            ],
+            "thumbnail_id": 16854,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 16829,
+            "status": "publish",
+            "category_ids": [
+                21
+            ],
+            "thumbnail_id": 16828,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 16812,
+            "status": "publish",
+            "category_ids": [
+                22
+            ],
+            "thumbnail_id": 16811,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 16795,
+            "status": "publish",
+            "category_ids": [
+                30
+            ],
+            "thumbnail_id": 16793,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 16743,
+            "status": "publish",
+            "category_ids": [
+                21
+            ],
+            "thumbnail_id": 16742,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 16707,
+            "status": "publish",
+            "category_ids": [
+                22
+            ],
+            "thumbnail_id": 16706,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 16704,
+            "status": "publish",
+            "category_ids": [
+                22
+            ],
+            "thumbnail_id": 16703,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 16699,
+            "status": "publish",
+            "category_ids": [
+                22
+            ],
+            "thumbnail_id": 16697,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 16696,
+            "status": "publish",
+            "category_ids": [
+                22
+            ],
+            "thumbnail_id": 16693,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 16689,
+            "status": "publish",
+            "category_ids": [
+                22
+            ],
+            "thumbnail_id": 16688,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 16658,
+            "status": "publish",
+            "category_ids": [
+                36
+            ],
+            "thumbnail_id": 16661,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 16581,
+            "status": "publish",
+            "category_ids": [
+                24,
+                36
+            ],
+            "thumbnail_id": 16587,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 16546,
+            "status": "publish",
+            "category_ids": [
+                24,
+                36
+            ],
+            "thumbnail_id": 16561,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 16442,
+            "status": "publish",
+            "category_ids": [
+                35
+            ],
+            "thumbnail_id": 16537,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 15966,
+            "status": "publish",
+            "category_ids": [
+                21
+            ],
+            "thumbnail_id": 15965,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 15949,
+            "status": "publish",
+            "category_ids": [
+                21
+            ],
+            "thumbnail_id": 15948,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 15942,
+            "status": "publish",
+            "category_ids": [
+                21
+            ],
+            "thumbnail_id": 15941,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 15936,
+            "status": "publish",
+            "category_ids": [
+                21
+            ],
+            "thumbnail_id": 15935,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 15929,
+            "status": "publish",
+            "category_ids": [
+                21
+            ],
+            "thumbnail_id": 15928,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 15896,
+            "status": "publish",
+            "category_ids": [
+                21
+            ],
+            "thumbnail_id": 15895,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 15885,
+            "status": "publish",
+            "category_ids": [
+                21
+            ],
+            "thumbnail_id": 15884,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 15875,
+            "status": "publish",
+            "category_ids": [
+                21
+            ],
+            "thumbnail_id": 15874,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 15849,
+            "status": "publish",
+            "category_ids": [
+                21
+            ],
+            "thumbnail_id": 15848,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 15842,
+            "status": "publish",
+            "category_ids": [
+                21
+            ],
+            "thumbnail_id": 15841,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 15830,
+            "status": "publish",
+            "category_ids": [
+                21
+            ],
+            "thumbnail_id": 15829,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 15009,
+            "status": "publish",
+            "category_ids": [
+                21
+            ],
+            "thumbnail_id": 15008,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 14997,
+            "status": "publish",
+            "category_ids": [
+                21
+            ],
+            "thumbnail_id": 14996,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 14973,
+            "status": "publish",
+            "category_ids": [
+                21
+            ],
+            "thumbnail_id": 14972,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 14906,
+            "status": "publish",
+            "category_ids": [
+                21
+            ],
+            "thumbnail_id": 14905,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 14898,
+            "status": "publish",
+            "category_ids": [
+                21
+            ],
+            "thumbnail_id": 14897,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 14885,
+            "status": "publish",
+            "category_ids": [
+                21
+            ],
+            "thumbnail_id": 14884,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 14879,
+            "status": "publish",
+            "category_ids": [
+                21
+            ],
+            "thumbnail_id": 14878,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 14873,
+            "status": "publish",
+            "category_ids": [
+                21
+            ],
+            "thumbnail_id": 14872,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 14861,
+            "status": "publish",
+            "category_ids": [
+                21
+            ],
+            "thumbnail_id": 14860,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 14852,
+            "status": "publish",
+            "category_ids": [
+                21
+            ],
+            "thumbnail_id": 14851,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 14845,
+            "status": "publish",
+            "category_ids": [
+                21
+            ],
+            "thumbnail_id": 14843,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 14829,
+            "status": "publish",
+            "category_ids": [
+                21
+            ],
+            "thumbnail_id": 14828,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 14817,
+            "status": "publish",
+            "category_ids": [
+                21
+            ],
+            "thumbnail_id": 14816,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 14582,
+            "status": "publish",
+            "category_ids": [
+                36
+            ],
+            "thumbnail_id": 16157,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 14563,
+            "status": "publish",
+            "category_ids": [
+                36
+            ],
+            "thumbnail_id": 16127,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 14524,
+            "status": "publish",
+            "category_ids": [
+                36,
+                33
+            ],
+            "thumbnail_id": 16116,
+            "featured": false,
+            "menu_order": 0
+        },
+        {
+            "id": 14451,
+            "status": "publish",
+            "category_ids": [
+                36,
+                39
+            ],
+            "thumbnail_id": 16049,
+            "featured": false,
+            "menu_order": 0
+        }
+    ]
+}

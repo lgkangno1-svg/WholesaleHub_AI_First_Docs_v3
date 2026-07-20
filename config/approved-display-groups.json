@@ -1,0 +1,21 @@
+{
+  "groups": [
+    {
+      "id": "mango-peach",
+      "displayName": "망고복숭아",
+      "representativeWooProductId": 18047,
+      "approved": true,
+      "includeTerms": [
+        "망고복숭아",
+        "망고복숭아(천도복숭아 품종)",
+        "옐로드림 망고복숭아",
+        "초특가 망고복숭아"
+      ],
+      "excludeTerms": [
+        "천반도",
+        "딱딱이복숭아",
+        "일반 천도복숭아"
+      ]
+    }
+  ]
+}

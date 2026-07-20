@@ -60,11 +60,11 @@
 - Do not expose supplier_id, supplier cost, source URL, or original supplier URL to customers.
 
 ## Recent Commits
+- 4fdf778 Keep Fafane group-buy products visible
+- 9bd4ef4 Add Fafane description sync to n8n run
+- c37c4e6 Sync Fafane group-buy descriptions
+- 1f5a1b1 Apply hub margin in MVP sync plan
+- 9a445e6 Redirect customer logins to homepage
+- 59b060c Exclude marketing empty box products
+- aed2f3c Update rebuild-public-catalog-v2-cli to use direct site crawler and update handoff
 - c197b4b Refactor DailyFood direct site crawler
-- 4727e26 Exclude invalid supplier products
-- 081c427 Filter DailyFood no-option products, add description normalizer, update rules
-- ebe6411 Filter DailyFood products without site option data
-- 05fd8cd Improve Gold Kiwi grouping labels
-- 40cf980 Document category archive product visibility fix
-- d7e9f48 Filter DailyFood hidden site products from sync
-- 763f874 Hide public variations missing from supplier crawl

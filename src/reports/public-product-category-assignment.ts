@@ -1,0 +1,46 @@
+import {
+  classifyHubProductCategory,
+  type HubProductCategoryName,
+} from "./product-category-classifier.js"
+
+export const GROUPBUY_CATEGORY = "공동구매"
+export const DAILY_WALLDO_CATEGORY_NAMES = ["농산물", "수산물", "축산물", "가공식품"] as const
+
+export type PublicProductSource = "dailyfood" | "walldob2b" | "fafane" | "unknown"
+
+export type ProductCategory = { readonly id: number; readonly name: string }
+
+export function sourceFoodCategory(
+  productName: string,
+  source: PublicProductSource,
+): HubProductCategoryName | null {
+  if (source !== "dailyfood" && source !== "walldob2b") return null
+  const assigned = classifyHubProductCategory(productName)
+  return DAILY_WALLDO_CATEGORY_NAMES.includes(
+    assigned as (typeof DAILY_WALLDO_CATEGORY_NAMES)[number],
+  )
+    ? assigned
+    : null
+}
+
+export function groupbuyFoodCategory(
+  productName: string,
+  categories: readonly ProductCategory[],
+  source: PublicProductSource,
+): HubProductCategoryName | null {
+  if (source !== "fafane") return null
+  if (!categories.some((category) => category.name === GROUPBUY_CATEGORY)) return null
+  const assigned = classifyHubProductCategory(productName)
+  return assigned === "기타" ? null : assigned
+}
+
+export function mergeCategoryIds(
+  categories: readonly ProductCategory[],
+  addedCategoryId: number,
+): readonly number[] {
+  return [...new Set([...categories.map((category) => category.id), addedCategoryId])]
+}
+
+export function replaceCategoryIds(categoryId: number): readonly number[] {
+  return [categoryId]
+}

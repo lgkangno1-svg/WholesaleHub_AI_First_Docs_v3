@@ -1,0 +1,3754 @@
+[
+    {
+        "id": 14451,
+        "status": "publish",
+        "title": "🦀 위대한 한입 순살 간장\/양념게장 350g",
+        "title_key": "위대한한입순살간장양념게장350g",
+        "sku": "FAF-1741",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 3,
+        "variation_skus": [
+            "FAF-1741-e00db1d42b",
+            "FAF-1741-21427c42b1",
+            "FAF-1741-c1c177befb"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 09:51:07"
+    },
+    {
+        "id": 14524,
+        "status": "publish",
+        "title": "🐮 한우소머리 곰탕 550g",
+        "title_key": "한우소머리곰탕550g",
+        "sku": "FAF-1736",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 2,
+        "variation_skus": [
+            "FAF-1736-03933dc81f",
+            "FAF-1736-f44f28f3a1"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 09:59:51"
+    },
+    {
+        "id": 14563,
+        "status": "trash",
+        "title": "⚡ 에디터 25W 초고속 충전기 + 케이블 세트",
+        "title_key": "에디터25w초고속충전기케이블세트",
+        "sku": "FAF-1735",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 13:20:23"
+    },
+    {
+        "id": 14582,
+        "status": "publish",
+        "title": "❄️아이스 쿨링 침대 밴드형 냉감 패드사각❄️",
+        "title_key": "️아이스쿨링침대밴드형냉감패드사각️",
+        "sku": "FAF-1725",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 6,
+        "variation_skus": [
+            "FAF-1725-370589cc01",
+            "FAF-1725-129ca86736",
+            "FAF-1725-300fa9890a",
+            "FAF-1725-7758c90045",
+            "FAF-1725-c391c8c360",
+            "FAF-1725-b050d9b707"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 10:09:09"
+    },
+    {
+        "id": 14610,
+        "status": "trash",
+        "title": "🌈미니멀라이프 프리미엄 시트세제",
+        "title_key": "미니멀라이프프리미엄시트세제",
+        "sku": "FAF-1691",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-12 09:19:40"
+    },
+    {
+        "id": 14614,
+        "status": "trash",
+        "title": "제로 선크림 어니언 프레쉬 선크림",
+        "title_key": "제로선크림어니언프레쉬선크림",
+        "sku": "FAF-1678",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-12 09:19:44"
+    },
+    {
+        "id": 14648,
+        "status": "trash",
+        "title": "윈드 플로우MAX 날개없는 선풍기",
+        "title_key": "윈드플로우max날개없는선풍기",
+        "sku": "FAF-1638",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-12 09:19:49"
+    },
+    {
+        "id": 14652,
+        "status": "trash",
+        "title": "✋손앤박 뷰티 핸드크림 50ml 2종✋",
+        "title_key": "손앤박뷰티핸드크림50ml2종",
+        "sku": "FAF-1624",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-12 09:19:54"
+    },
+    {
+        "id": 14658,
+        "status": "trash",
+        "title": "✂테팔 컴포트 주방가위✂",
+        "title_key": "테팔컴포트주방가위",
+        "sku": "FAF-1619",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-12 12:14:06"
+    },
+    {
+        "id": 14662,
+        "status": "trash",
+        "title": "➿나인웨어 스윙착! 스탠딩 주걱➿",
+        "title_key": "나인웨어스윙착스탠딩주걱",
+        "sku": "FAF-1607",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 2,
+        "variation_skus": [
+            "FAF-1607-003b37fc57",
+            "FAF-1607-386b6a35a4"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-13 05:14:06"
+    },
+    {
+        "id": 14668,
+        "status": "trash",
+        "title": "🍵코멕스 스테인리스 머그컵🍵",
+        "title_key": "코멕스스테인리스머그컵",
+        "sku": "FAF-1601",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-12 12:14:02"
+    },
+    {
+        "id": 14679,
+        "status": "trash",
+        "title": "✨✨세탁명가 &#8216;애경&#8217;의 기술력, 팍스 프리미엄 세탁세제✨✨",
+        "title_key": "세탁명가8216애경8217의기술력팍스프리미엄세탁세제",
+        "sku": "FAF-1586",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-12 12:13:59"
+    },
+    {
+        "id": 14701,
+        "status": "trash",
+        "title": "🌹오미노비앙코 네이처 라벤더 세탁세제🌹",
+        "title_key": "오미노비앙코네이처라벤더세탁세제",
+        "sku": "FAF-1575",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-12 12:13:56"
+    },
+    {
+        "id": 14705,
+        "status": "trash",
+        "title": "👚나에노 라일락 고농축 액체세제👚",
+        "title_key": "나에노라일락고농축액체세제",
+        "sku": "FAF-1528",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-12 12:13:53"
+    },
+    {
+        "id": 14709,
+        "status": "trash",
+        "title": "💧곡물발효 에탄올70% 손소독제 살균 스프레이 500ml💧",
+        "title_key": "곡물발효에탄올70손소독제살균스프레이500ml",
+        "sku": "FAF-1506",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-12 12:13:50"
+    },
+    {
+        "id": 14713,
+        "status": "trash",
+        "title": "주 단위 공구상품]💄 애경 립바이브 슈가밤 4종 라인업 💄",
+        "title_key": "주단위공구상품애경립바이브슈가밤4종라인업",
+        "sku": "FAF-1492",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 4,
+        "variation_skus": [
+            "FAF-1492-c5bcab32d5",
+            "FAF-1492-d82b816477",
+            "FAF-1492-058eaaa28d",
+            "FAF-1492-75b07d24dd"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-13 05:14:04"
+    },
+    {
+        "id": 14728,
+        "status": "trash",
+        "title": "🥤 하루를 바꾸는 물 한 잔의 시작, 무드링크 브릭 스텐 텀블러 1.2L 🥤",
+        "title_key": "하루를바꾸는물한잔의시작무드링크브릭스텐텀블러12l",
+        "sku": "FAF-1466",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 1,
+        "variation_skus": [
+            "FAF-1466-ba4ee2f425"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-13 05:14:03"
+    },
+    {
+        "id": 14751,
+        "status": "trash",
+        "title": "🧺 건조기 필수템, 다루온 아이앤어스 건조기 양모볼 🧺",
+        "title_key": "건조기필수템다루온아이앤어스건조기양모볼",
+        "sku": "FAF-1447",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-12 12:13:45"
+    },
+    {
+        "id": 14755,
+        "status": "trash",
+        "title": "🧽 집안 청소·세탁 필수템 베이킹소다 &amp; 과탄산소다 2종 🧽",
+        "title_key": "집안청소세탁필수템베이킹소다amp과탄산소다2종",
+        "sku": "FAF-1446",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 2,
+        "variation_skus": [
+            "FAF-1446-c6bb773b36",
+            "FAF-1446-bdf146fa76"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-13 05:14:01"
+    },
+    {
+        "id": 14768,
+        "status": "trash",
+        "title": "🌿 스위스 감성 그대로 담은, 애경 알피스트 샴푸 🌿",
+        "title_key": "스위스감성그대로담은애경알피스트샴푸",
+        "sku": "FAF-1433",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-12 12:13:41"
+    },
+    {
+        "id": 14785,
+        "status": "trash",
+        "title": "👾실\/내외 스페시핏 곰팡이 제거제👾",
+        "title_key": "실내외스페시핏곰팡이제거제",
+        "sku": "FAF-1396",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-12 12:13:38"
+    },
+    {
+        "id": 14789,
+        "status": "trash",
+        "title": "💦 영양 가득 수분 충전 미스트, 손앤박 뷰티 워터 미스트 💦",
+        "title_key": "영양가득수분충전미스트손앤박뷰티워터미스트",
+        "sku": "FAF-1345",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-12 12:13:35"
+    },
+    {
+        "id": 14793,
+        "status": "trash",
+        "title": "💖 복숭아빛 광채 피부 완성템, 손앤박 뷰티 크림 프라이머 글로우 💖",
+        "title_key": "복숭아빛광채피부완성템손앤박뷰티크림프라이머글로우",
+        "sku": "FAF-1344",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-12 12:13:32"
+    },
+    {
+        "id": 14817,
+        "status": "publish",
+        "title": "황도복숭아",
+        "title_key": "황도복숭아",
+        "sku": "",
+        "source": "walldob2b",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "1783261804",
+        "source_product_id": "",
+        "variation_count": 4,
+        "variation_skus": [
+            "HUB-14817-17800",
+            "HUB-14817-17801"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 00:49:55"
+    },
+    {
+        "id": 14829,
+        "status": "publish",
+        "title": "특품 청사과",
+        "title_key": "특품청사과",
+        "sku": "",
+        "source": "walldob2b",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "1783213657",
+        "source_product_id": "",
+        "variation_count": 6,
+        "variation_skus": [
+            "HUB-14829-17798",
+            "HUB-14829-17799"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 00:49:55"
+    },
+    {
+        "id": 14845,
+        "status": "publish",
+        "title": "샤인머스켓",
+        "title_key": "샤인머스켓",
+        "sku": "",
+        "source": "walldob2b",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "1783213421",
+        "source_product_id": "",
+        "variation_count": 2,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-13 06:20:52"
+    },
+    {
+        "id": 14852,
+        "status": "publish",
+        "title": "거봉",
+        "title_key": "거봉",
+        "sku": "",
+        "source": "walldob2b",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "1783213005",
+        "source_product_id": "",
+        "variation_count": 2,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-13 04:46:56"
+    },
+    {
+        "id": 14861,
+        "status": "publish",
+        "title": "딱딱이 복숭아",
+        "title_key": "딱딱이복숭아",
+        "sku": "",
+        "source": "walldob2b",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "1783210740",
+        "source_product_id": "",
+        "variation_count": 9,
+        "variation_skus": [
+            "HUB-14861-17794",
+            "HUB-14861-17795",
+            "HUB-14861-17796",
+            "HUB-14861-17797"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 00:49:55"
+    },
+    {
+        "id": 14873,
+        "status": "publish",
+        "title": "분홍 강낭콩",
+        "title_key": "분홍강낭콩",
+        "sku": "",
+        "source": "walldob2b",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "1782988795",
+        "source_product_id": "",
+        "variation_count": 4,
+        "variation_skus": [
+            "HUB-14873-17792",
+            "HUB-14873-17793"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 00:49:54"
+    },
+    {
+        "id": 14879,
+        "status": "publish",
+        "title": "캠벨포도",
+        "title_key": "캠벨포도",
+        "sku": "",
+        "source": "walldob2b",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "1782624755",
+        "source_product_id": "",
+        "variation_count": 4,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-13 06:20:49"
+    },
+    {
+        "id": 14885,
+        "status": "publish",
+        "title": "노지 자두",
+        "title_key": "노지자두",
+        "sku": "",
+        "source": "walldob2b",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "JW000034",
+        "source_product_id": "",
+        "variation_count": 9,
+        "variation_skus": [
+            "HUB-14885-17803",
+            "HUB-14885-17804",
+            "HUB-14885-17805",
+            "HUB-14885-17806",
+            "HUB-14885-17807"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 00:49:55"
+    },
+    {
+        "id": 14896,
+        "status": "trash",
+        "title": "🔥 한겨울 필수템! 메티스 지켜줘 핫팩 포켓형&amp;부착형2종 🔥",
+        "title_key": "한겨울필수템메티스지켜줘핫팩포켓형amp부착형2종",
+        "sku": "FAF-1335",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 2,
+        "variation_skus": [
+            "FAF-1335-11c193d4df",
+            "FAF-1335-b6c5398e76"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-13 05:13:59"
+    },
+    {
+        "id": 14898,
+        "status": "trash",
+        "title": "호랑이콩 시즌오픈",
+        "title_key": "호랑이콩시즌오픈",
+        "sku": "",
+        "source": "walldob2b",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "JW000009",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 13:20:12"
+    },
+    {
+        "id": 14906,
+        "status": "publish",
+        "title": "포슬포슬 햇감자 시즌시작!",
+        "title_key": "포슬포슬햇감자시즌시작",
+        "sku": "",
+        "source": "walldob2b",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "JW000008",
+        "source_product_id": "",
+        "variation_count": 4,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-14 12:13:50"
+    },
+    {
+        "id": 14944,
+        "status": "trash",
+        "title": "✨ 하나로 끝내는 주방 밀폐 솔루션! 실리콘 밀폐용기 ✨",
+        "title_key": "하나로끝내는주방밀폐솔루션실리콘밀폐용기",
+        "sku": "FAF-1288",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-12 12:13:11"
+    },
+    {
+        "id": 14973,
+        "status": "publish",
+        "title": "마하차녹 무지개망고 시즌오픈 특가",
+        "title_key": "마하차녹무지개망고시즌오픈특가",
+        "sku": "",
+        "source": "walldob2b",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "manbae_1775904375",
+        "source_product_id": "",
+        "variation_count": 2,
+        "variation_skus": [
+            "HUB-14973-17814"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 1,
+        "modified_gmt": "2026-07-15 00:49:56"
+    },
+    {
+        "id": 14990,
+        "status": "trash",
+        "title": "👍 한 끗 차이로 완성되는 툴링 포인트 쿠션퍼프 👍",
+        "title_key": "한끗차이로완성되는툴링포인트쿠션퍼프",
+        "sku": "FAF-1273",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-12 12:13:01"
+    },
+    {
+        "id": 14997,
+        "status": "publish",
+        "title": "부사 사과 특품",
+        "title_key": "부사사과특품",
+        "sku": "",
+        "source": "walldob2b",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "1768375171",
+        "source_product_id": "",
+        "variation_count": 10,
+        "variation_skus": [
+            "HUB-14997-17782",
+            "HUB-14997-17783",
+            "HUB-14997-17784",
+            "HUB-14997-17785"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 00:49:54"
+    },
+    {
+        "id": 15009,
+        "status": "publish",
+        "title": "새콤달콤 고당도 레드루비자몽",
+        "title_key": "새콤달콤고당도레드루비자몽",
+        "sku": "",
+        "source": "walldob2b",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "1768291208",
+        "source_product_id": "",
+        "variation_count": 4,
+        "variation_skus": [],
+        "variation_sources": [
+            "walldob2b:1768291208"
+        ],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 12:39:08"
+    },
+    {
+        "id": 15024,
+        "status": "trash",
+        "title": "✨ 로댕 쇼 다이아몬드 실크콜라겐 5종 세트 ✨",
+        "title_key": "로댕쇼다이아몬드실크콜라겐5종세트",
+        "sku": "FAF-1246",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 1,
+        "variation_skus": [
+            "FAF-1246-4cd020153a"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-13 05:13:58"
+    },
+    {
+        "id": 15065,
+        "status": "trash",
+        "title": "⚡저주파 마사지⚡EMS 저주파 손목 마사지기⚡",
+        "title_key": "저주파마사지ems저주파손목마사지기",
+        "sku": "FAF-1184",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-12 12:12:54"
+    },
+    {
+        "id": 15086,
+        "status": "trash",
+        "title": "🌀믹서기 휴대용 텀플러🌀벤하임 포터블 블랜더🌀",
+        "title_key": "믹서기휴대용텀플러벤하임포터블블랜더",
+        "sku": "FAF-1179",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-12 12:12:51"
+    },
+    {
+        "id": 15113,
+        "status": "trash",
+        "title": "🍉오필리아 휴대용 과일후르츠팟 샐러드 도시락통🍉",
+        "title_key": "오필리아휴대용과일후르츠팟샐러드도시락통",
+        "sku": "FAF-1174",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-12 12:12:49"
+    },
+    {
+        "id": 15272,
+        "status": "publish",
+        "title": "조연재 순살고사리감자탕 2~3인분 (1.1kg",
+        "title_key": "조연재순살고사리감자탕23인분11kg",
+        "sku": "FAF-1777",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 09:08:41"
+    },
+    {
+        "id": 15347,
+        "status": "publish",
+        "title": "🥬 여름 별미! 국내산 열무물김치 2kg",
+        "title_key": "여름별미국내산열무물김치2kg",
+        "sku": "FAF-1744",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 09:43:51"
+    },
+    {
+        "id": 15389,
+        "status": "publish",
+        "title": "🍲 일산 얼큰수제비 430g (2인분",
+        "title_key": "일산얼큰수제비430g2인분",
+        "sku": "FAF-1743",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 09:46:09"
+    },
+    {
+        "id": 15422,
+        "status": "publish",
+        "title": "🦑 익숙한무징어젓갈 180g",
+        "title_key": "익숙한무징어젓갈180g",
+        "sku": "FAF-1742",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 09:48:29"
+    },
+    {
+        "id": 15469,
+        "status": "publish",
+        "title": "은나노스텝 시즌2 다용도세정제",
+        "title_key": "은나노스텝시즌2다용도세정제",
+        "sku": "FAF-1740",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 09:53:41"
+    },
+    {
+        "id": 15491,
+        "status": "publish",
+        "title": "새콤달콤한 궁채장아찌 200g",
+        "title_key": "새콤달콤한궁채장아찌200g",
+        "sku": "FAF-1737",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 09:56:42"
+    },
+    {
+        "id": 15830,
+        "status": "publish",
+        "title": "부사 사과 실속형",
+        "title_key": "부사사과실속형",
+        "sku": "",
+        "source": "walldob2b",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "1768298699",
+        "source_product_id": "",
+        "variation_count": 10,
+        "variation_skus": [
+            "HUB-15830-17775",
+            "HUB-15830-17776",
+            "HUB-15830-17777"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 00:49:53"
+    },
+    {
+        "id": 15842,
+        "status": "publish",
+        "title": "부사 사과 가정용",
+        "title_key": "부사사과가정용",
+        "sku": "",
+        "source": "walldob2b",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "1768301488",
+        "source_product_id": "",
+        "variation_count": 5,
+        "variation_skus": [
+            "HUB-15842-17778",
+            "HUB-15842-17779",
+            "HUB-15842-17780",
+            "HUB-15842-17781"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 00:49:54"
+    },
+    {
+        "id": 15849,
+        "status": "publish",
+        "title": "수박",
+        "title_key": "수박",
+        "sku": "",
+        "source": "walldob2b",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "1768370041",
+        "source_product_id": "",
+        "variation_count": 4,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-13 12:36:21"
+    },
+    {
+        "id": 15875,
+        "status": "publish",
+        "title": "성주 참외 가정용",
+        "title_key": "성주참외가정용",
+        "sku": "",
+        "source": "walldob2b",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "1772514578",
+        "source_product_id": "",
+        "variation_count": 8,
+        "variation_skus": [
+            "HUB-15875-17786",
+            "HUB-15875-17787",
+            "HUB-15875-17788",
+            "HUB-15875-17789",
+            "HUB-15875-17790"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 00:49:54"
+    },
+    {
+        "id": 15885,
+        "status": "trash",
+        "title": "노지 대극천 복숭아",
+        "title_key": "노지대극천복숭아",
+        "sku": "",
+        "source": "walldob2b",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "1782061015",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 13:19:43"
+    },
+    {
+        "id": 15896,
+        "status": "publish",
+        "title": "노지 살구",
+        "title_key": "노지살구",
+        "sku": "",
+        "source": "walldob2b",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "1782624290",
+        "source_product_id": "",
+        "variation_count": 3,
+        "variation_skus": [
+            "HUB-15896-17791"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 00:49:54"
+    },
+    {
+        "id": 15929,
+        "status": "publish",
+        "title": "태국 항공직송 생 망고스틴",
+        "title_key": "태국항공직송생망고스틴",
+        "sku": "",
+        "source": "walldob2b",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "JW000038",
+        "source_product_id": "",
+        "variation_count": 5,
+        "variation_skus": [
+            "HUB-15929-17808",
+            "HUB-15929-17809"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 00:49:55"
+    },
+    {
+        "id": 15936,
+        "status": "publish",
+        "title": "미백 찰 옥수수",
+        "title_key": "미백찰옥수수",
+        "sku": "",
+        "source": "walldob2b",
+        "inferred_source": "",
+        "source_evidence": [
+            "walldob2b",
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "JW000039",
+        "source_product_id": "",
+        "variation_count": 8,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-14 12:14:04"
+    },
+    {
+        "id": 15942,
+        "status": "publish",
+        "title": "경남 하우스 햇 당근",
+        "title_key": "경남하우스햇당근",
+        "sku": "",
+        "source": "walldob2b",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "kyungnam10000",
+        "source_product_id": "",
+        "variation_count": 5,
+        "variation_skus": [
+            "HUB-15942-17810",
+            "HUB-15942-17811",
+            "HUB-15942-17812",
+            "HUB-15942-17813"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 00:49:56"
+    },
+    {
+        "id": 15949,
+        "status": "publish",
+        "title": "뉴질랜드 제스프리 골드키위",
+        "title_key": "뉴질랜드제스프리골드키위",
+        "sku": "",
+        "source": "walldob2b",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "manbae_1776521162",
+        "source_product_id": "",
+        "variation_count": 15,
+        "variation_skus": [
+            "HUB-15949-17815",
+            "HUB-15949-17816",
+            "HUB-15949-17817",
+            "HUB-15949-17818",
+            "HUB-15949-17819"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 07:44:33"
+    },
+    {
+        "id": 15966,
+        "status": "publish",
+        "title": "첫출시 미국산 생체리",
+        "title_key": "첫출시미국산생체리",
+        "sku": "",
+        "source": "walldob2b",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "manbae_1777217504",
+        "source_product_id": "",
+        "variation_count": 3,
+        "variation_skus": [
+            "HUB-15966-17820"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 00:49:56"
+    },
+    {
+        "id": 16442,
+        "status": "publish",
+        "title": "쌀(신동진\/일반미)",
+        "title_key": "쌀신동진일반미",
+        "sku": "",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 3,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-13 06:08:48"
+    },
+    {
+        "id": 16478,
+        "status": "publish",
+        "title": "이소당 간편한끼 무가당 미숫가루 365 (1BOX \/ 40개",
+        "title_key": "이소당간편한끼무가당미숫가루3651box40개",
+        "sku": "FAF-1734",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 10:05:07"
+    },
+    {
+        "id": 16483,
+        "status": "publish",
+        "title": "한돈 돼지갈비 500g (20팩",
+        "title_key": "한돈돼지갈비500g20팩",
+        "sku": "FAF-1784",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 09:06:01"
+    },
+    {
+        "id": 16524,
+        "status": "trash",
+        "title": "택배전용] 샤우팅 비타민C 캔디 50g (150개입",
+        "title_key": "택배전용샤우팅비타민c캔디50g150개입",
+        "sku": "FAF-1780",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 00:10:16"
+    },
+    {
+        "id": 16546,
+        "status": "publish",
+        "title": "택배전용] 헝가리산 아카시아 벌집꿀 200g",
+        "title_key": "택배전용헝가리산아카시아벌집꿀200g",
+        "sku": "FAF-1764",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 2,
+        "variation_skus": [
+            "FAF-1764-b29a16f973",
+            "FAF-1764-fc40a4b3d1"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 09:13:49"
+    },
+    {
+        "id": 16570,
+        "status": "publish",
+        "title": "택배전용] 일산 코다리 비빔국수 413g",
+        "title_key": "택배전용일산코다리비빔국수413g",
+        "sku": "FAF-1763",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 09:16:07"
+    },
+    {
+        "id": 16581,
+        "status": "publish",
+        "title": "택배전용] 🌭 통통소시지 180g (40개",
+        "title_key": "택배전용통통소시지180g40개",
+        "sku": "FAF-1759",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 3,
+        "variation_skus": [
+            "FAF-1759-d3d6ab1215",
+            "FAF-1759-53af103221",
+            "FAF-1759-13e4b442db"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 09:20:29"
+    },
+    {
+        "id": 16595,
+        "status": "publish",
+        "title": "택배전용] 스페시핏 생활 악취제거액 1,000ml (12개",
+        "title_key": "택배전용스페시핏생활악취제거액1000ml12개",
+        "sku": "FAF-1758",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 09:22:47"
+    },
+    {
+        "id": 16606,
+        "status": "publish",
+        "title": "택배전용] 소풍 미숫가루 (1BOX 6세트",
+        "title_key": "택배전용소풍미숫가루1box6세트",
+        "sku": "FAF-1752",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 09:31:36"
+    },
+    {
+        "id": 16617,
+        "status": "publish",
+        "title": "택배전용] 쉐이킷 비건 (1BOX 6세트",
+        "title_key": "택배전용쉐이킷비건1box6세트",
+        "sku": "FAF-1751",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 09:33:51"
+    },
+    {
+        "id": 16636,
+        "status": "publish",
+        "title": "택배전용]생생 연어칩 로스티드 어니언맛 1BOX \/ 20봉",
+        "title_key": "택배전용생생연어칩로스티드어니언맛1box20봉",
+        "sku": "FAF-1750",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 09:36:53"
+    },
+    {
+        "id": 16647,
+        "status": "publish",
+        "title": "택배전용]바다소리 벌집바삭 초당콘스프맛 (1BOX 20봉",
+        "title_key": "택배전용바다소리벌집바삭초당콘스프맛1box20봉",
+        "sku": "FAF-1747",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 09:38:08"
+    },
+    {
+        "id": 16658,
+        "status": "publish",
+        "title": "택배전용] 무드링크 오브 스텐 텀블러 500ml",
+        "title_key": "택배전용무드링크오브스텐텀블러500ml",
+        "sku": "FAF-1746",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 3,
+        "variation_skus": [
+            "FAF-1746-8715d8cc08",
+            "FAF-1746-25176f5410",
+            "FAF-1746-ac496c8a7a"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 09:38:54"
+    },
+    {
+        "id": 16677,
+        "status": "publish",
+        "title": "택배전용] 크리미 버터 샌드 60g",
+        "title_key": "택배전용크리미버터샌드60g",
+        "sku": "FAF-1745",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 09:41:30"
+    },
+    {
+        "id": 16689,
+        "status": "publish",
+        "title": "천반도(납작복숭아)\/첫 출고 7월 15일",
+        "title_key": "천반도납작복숭아첫출고7월15일",
+        "sku": "",
+        "source": "dailyfood",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "10002944",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 3,
+        "variation_skus": [],
+        "variation_sources": [
+            "dailyfood:10002944"
+        ],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-13 12:36:21"
+    },
+    {
+        "id": 16696,
+        "status": "publish",
+        "title": "★초특가 썬프레 천도복숭아",
+        "title_key": "초특가썬프레천도복숭아",
+        "sku": "",
+        "source": "dailyfood",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "10002938",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 4,
+        "variation_skus": [
+            "HUB-16696-17773",
+            "HUB-16696-17774"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 00:49:53"
+    },
+    {
+        "id": 16699,
+        "status": "publish",
+        "title": "★초특가 망고복숭아",
+        "title_key": "초특가망고복숭아",
+        "sku": "",
+        "source": "dailyfood",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "10002933",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 4,
+        "variation_skus": [
+            "HUB-16699-17770",
+            "HUB-16699-17771",
+            "HUB-16699-17772"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 00:49:53"
+    },
+    {
+        "id": 16704,
+        "status": "publish",
+        "title": "★옐로드림 망고복숭아",
+        "title_key": "옐로드림망고복숭아",
+        "sku": "",
+        "source": "dailyfood",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "10002744",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 6,
+        "variation_skus": [
+            "HUB-16704-17764",
+            "HUB-16704-17765",
+            "HUB-16704-17766"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 00:49:53"
+    },
+    {
+        "id": 16707,
+        "status": "publish",
+        "title": "★초특가 대석자두 랜덤혼합과",
+        "title_key": "초특가대석자두랜덤혼합과",
+        "sku": "",
+        "source": "dailyfood",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "10002737",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 5,
+        "variation_skus": [
+            "HUB-16707-17760",
+            "HUB-16707-17761",
+            "HUB-16707-17762",
+            "HUB-16707-17763"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 00:49:52"
+    },
+    {
+        "id": 16743,
+        "status": "publish",
+        "title": "👍👍👍우리나라 최초 냉동석가 👍👍👍",
+        "title_key": "우리나라최초냉동석가",
+        "sku": "",
+        "source": "dailyfood",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "10001805",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 6,
+        "variation_skus": [
+            "HUB-16743-17759"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 00:49:52"
+    },
+    {
+        "id": 16795,
+        "status": "publish",
+        "title": "국내산 건조마늘",
+        "title_key": "국내산건조마늘",
+        "sku": "",
+        "source": "dailyfood",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "10001261",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 5,
+        "variation_skus": [
+            "HUB-16795-17757",
+            "HUB-16795-17758"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 00:49:52"
+    },
+    {
+        "id": 16812,
+        "status": "publish",
+        "title": "하우스 수박 ★국내 최저가★",
+        "title_key": "하우스수박국내최저가",
+        "sku": "",
+        "source": "dailyfood",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "10000728",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 6,
+        "variation_skus": [
+            "HUB-16812-17754",
+            "HUB-16812-17755",
+            "HUB-16812-17756"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 00:49:52"
+    },
+    {
+        "id": 16829,
+        "status": "publish",
+        "title": "GAP 인증 유럽채소",
+        "title_key": "gap인증유럽채소",
+        "sku": "",
+        "source": "dailyfood",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "10000130",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 2,
+        "variation_skus": [
+            "HUB-16829-17753"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 00:49:52"
+    },
+    {
+        "id": 16855,
+        "status": "publish",
+        "title": "갈치쌈 젓갈",
+        "title_key": "갈치쌈젓갈",
+        "sku": "",
+        "source": "dailyfood",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "10002917",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 3,
+        "variation_skus": [
+            "HUB-16855-17768",
+            "HUB-16855-17769"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 13:16:22"
+    },
+    {
+        "id": 16857,
+        "status": "publish",
+        "title": "멍게젓갈",
+        "title_key": "멍게젓갈",
+        "sku": "",
+        "source": "dailyfood",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "10002916",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 3,
+        "variation_skus": [
+            "HUB-16857-17767"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 13:16:07"
+    },
+    {
+        "id": 17021,
+        "status": "publish",
+        "title": "택배전용] 찹쌀 누룽지 2종(무가당, 츄러스",
+        "title_key": "택배전용찹쌀누룽지2종무가당츄러스",
+        "sku": "FAF-1771",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 2,
+        "variation_skus": [
+            "FAF-1771-bfe53e575b",
+            "FAF-1771-8ac7142986"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 09:11:18"
+    },
+    {
+        "id": 17063,
+        "status": "publish",
+        "title": "🧅 대파를 품은 메밀칩 160g",
+        "title_key": "대파를품은메밀칩160g",
+        "sku": "FAF-1738",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 1,
+        "variation_skus": [
+            "FAF-1738-a9df143af3"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 09:56:02"
+    },
+    {
+        "id": 17074,
+        "status": "publish",
+        "title": "택배전용] 연세두유 2종 (검은콩&amp;고칼슘\/아몬드&amp;잣) 190ml",
+        "title_key": "택배전용연세두유2종검은콩amp고칼슘아몬드amp잣190ml",
+        "sku": "FAF-1760",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 4,
+        "variation_skus": [
+            "FAF-1760-e1c7539675",
+            "FAF-1760-c9e6b27e82",
+            "FAF-1760-366274b341",
+            "FAF-1760-668286287d"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 09:20:05"
+    },
+    {
+        "id": 17081,
+        "status": "publish",
+        "title": "매콤 쭈꾸미볶음 600g",
+        "title_key": "매콤쭈꾸미볶음600g",
+        "sku": "FAF-1757",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 1,
+        "variation_skus": [
+            "FAF-1757-edee71426c"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 09:25:05"
+    },
+    {
+        "id": 17084,
+        "status": "publish",
+        "title": "진한들깨 떡만두국 470g",
+        "title_key": "진한들깨떡만두국470g",
+        "sku": "FAF-1756",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 1,
+        "variation_skus": [
+            "FAF-1756-edee71426c"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 09:27:05"
+    },
+    {
+        "id": 17088,
+        "status": "publish",
+        "title": "진한들깨 쌀수제비 410g",
+        "title_key": "진한들깨쌀수제비410g",
+        "sku": "FAF-1755",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 1,
+        "variation_skus": [
+            "FAF-1755-edee71426c"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 09:29:15"
+    },
+    {
+        "id": 17100,
+        "status": "publish",
+        "title": "한상궁 소곱창전골 1kg",
+        "title_key": "한상궁소곱창전골1kg",
+        "sku": "FAF-1507",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 1,
+        "variation_skus": [
+            "FAF-1507-443a734e07"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 10:11:19"
+    },
+    {
+        "id": 17724,
+        "status": "publish",
+        "title": "전라도 석박지 국내산 2kg",
+        "title_key": "전라도석박지국내산2kg",
+        "sku": "FAF-1787",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 09:01:01"
+    },
+    {
+        "id": 17740,
+        "status": "publish",
+        "title": "하남돼지집 돼지 고추장술밥 250g",
+        "title_key": "하남돼지집돼지고추장술밥250g",
+        "sku": "FAF-1785",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 09:03:44"
+    },
+    {
+        "id": 17746,
+        "status": "publish",
+        "title": "귀빈정 깐새우장 400g (10미",
+        "title_key": "귀빈정깐새우장400g10미",
+        "sku": "FAF-1733",
+        "source": "fafane",
+        "inferred_source": "fafane",
+        "source_evidence": [
+            "fafane"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "",
+        "variation_count": 0,
+        "variation_skus": [],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 10:05:41"
+    },
+    {
+        "id": 17821,
+        "status": "publish",
+        "title": "국산100%포기김치",
+        "title_key": "국산100포기김치",
+        "sku": "HUB-17821",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10000251",
+        "variation_count": 3,
+        "variation_skus": [
+            "HUB-17821-17822",
+            "HUB-17821-17823",
+            "HUB-17821-17824"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 06:05:51"
+    },
+    {
+        "id": 17825,
+        "status": "publish",
+        "title": "★초특가★ 세척사과(부사\/가정용)",
+        "title_key": "초특가세척사과부사가정용",
+        "sku": "HUB-17825",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10000871",
+        "variation_count": 4,
+        "variation_skus": [
+            "HUB-17825-17826",
+            "HUB-17825-17827",
+            "HUB-17825-17828",
+            "HUB-17825-17829"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 06:05:38"
+    },
+    {
+        "id": 17830,
+        "status": "publish",
+        "title": "★초특가★ 부사 사과(가정용)",
+        "title_key": "초특가부사사과가정용",
+        "sku": "HUB-17830",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10001086",
+        "variation_count": 3,
+        "variation_skus": [
+            "HUB-17830-17831",
+            "HUB-17830-17832",
+            "HUB-17830-17833"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 06:05:23"
+    },
+    {
+        "id": 17834,
+        "status": "publish",
+        "title": "여수 돌산 갓김치",
+        "title_key": "여수돌산갓김치",
+        "sku": "HUB-17834",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10001216",
+        "variation_count": 5,
+        "variation_skus": [
+            "HUB-17834-17835",
+            "HUB-17834-17836",
+            "HUB-17834-17837",
+            "HUB-17834-17838",
+            "HUB-17834-17839"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 06:04:55"
+    },
+    {
+        "id": 17840,
+        "status": "publish",
+        "title": "초특가 세척사과 (랜덤과\/실중량)",
+        "title_key": "초특가세척사과랜덤과실중량",
+        "sku": "HUB-17840",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10001249",
+        "variation_count": 5,
+        "variation_skus": [
+            "HUB-17840-17841",
+            "HUB-17840-17842",
+            "HUB-17840-17843",
+            "HUB-17840-17844",
+            "HUB-17840-17845"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 06:04:08"
+    },
+    {
+        "id": 17846,
+        "status": "publish",
+        "title": "★초특가 홍감자★",
+        "title_key": "초특가홍감자",
+        "sku": "HUB-17846",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "1768387832",
+        "variation_count": 2,
+        "variation_skus": [
+            "HUB-17846-17847",
+            "HUB-17846-17848"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 06:03:45"
+    },
+    {
+        "id": 17849,
+        "status": "publish",
+        "title": "[씨없는 수박 90%미만] 씨들리스 수박",
+        "title_key": "씨없는수박90미만씨들리스수박",
+        "sku": "HUB-17849",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10001731",
+        "variation_count": 2,
+        "variation_skus": [
+            "HUB-17849-17850",
+            "HUB-17849-17851"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 13:14:06"
+    },
+    {
+        "id": 17852,
+        "status": "publish",
+        "title": "참기름, 들기름 세트",
+        "title_key": "참기름들기름세트",
+        "sku": "HUB-17852",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10001856",
+        "variation_count": 9,
+        "variation_skus": [
+            "HUB-17852-17853",
+            "HUB-17852-17854",
+            "HUB-17852-17855",
+            "HUB-17852-17856",
+            "HUB-17852-17857",
+            "HUB-17852-17858",
+            "HUB-17852-17859",
+            "HUB-17852-17860",
+            "HUB-17852-17861"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 06:02:52"
+    },
+    {
+        "id": 17862,
+        "status": "publish",
+        "title": "흑찰 옥수수 24cm이상 (특A품)",
+        "title_key": "흑찰옥수수24cm이상특a품",
+        "sku": "HUB-17862",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002651",
+        "variation_count": 8,
+        "variation_skus": [
+            "HUB-17862-17863",
+            "HUB-17862-17864",
+            "HUB-17862-17865",
+            "HUB-17862-17866",
+            "HUB-17862-17867",
+            "HUB-17862-17868",
+            "HUB-17862-17869",
+            "HUB-17862-17870"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 13:14:43"
+    },
+    {
+        "id": 17871,
+        "status": "publish",
+        "title": "부사 사과 (쥬스용)",
+        "title_key": "부사사과쥬스용",
+        "sku": "HUB-17871",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002657",
+        "variation_count": 3,
+        "variation_skus": [
+            "HUB-17871-17872",
+            "HUB-17871-17873",
+            "HUB-17871-17874"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 06:01:55"
+    },
+    {
+        "id": 17875,
+        "status": "publish",
+        "title": "[독점\/7월6일 출고] 100% 프리미엄 마카다미아",
+        "title_key": "독점7월6일출고100프리미엄마카다미아",
+        "sku": "HUB-17875",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002665",
+        "variation_count": 6,
+        "variation_skus": [
+            "HUB-17875-17876",
+            "HUB-17875-17877",
+            "HUB-17875-17878",
+            "HUB-17875-17879",
+            "HUB-17875-17880",
+            "HUB-17875-17881"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 06:01:38"
+    },
+    {
+        "id": 17882,
+        "status": "publish",
+        "title": "대추방울토마토",
+        "title_key": "대추방울토마토",
+        "sku": "HUB-17882",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002712",
+        "variation_count": 3,
+        "variation_skus": [
+            "HUB-17882-17883",
+            "HUB-17882-17884",
+            "HUB-17882-17885"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 06:01:22"
+    },
+    {
+        "id": 17886,
+        "status": "publish",
+        "title": "[해썹] 흰다리새우(활\/국내)",
+        "title_key": "해썹흰다리새우활국내",
+        "sku": "HUB-17886",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002716",
+        "variation_count": 2,
+        "variation_skus": [
+            "HUB-17886-17887",
+            "HUB-17886-17888"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 06:01:05"
+    },
+    {
+        "id": 17889,
+        "status": "publish",
+        "title": "[✨ 해썹]김치양념",
+        "title_key": "해썹김치양념",
+        "sku": "HUB-17889",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002835",
+        "variation_count": 8,
+        "variation_skus": [
+            "HUB-17889-17890",
+            "HUB-17889-17891",
+            "HUB-17889-17892",
+            "HUB-17889-17893",
+            "HUB-17889-17894",
+            "HUB-17889-17895",
+            "HUB-17889-17896",
+            "HUB-17889-17897"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 06:00:52"
+    },
+    {
+        "id": 17898,
+        "status": "publish",
+        "title": "[✨100% 국내산 해썹] 보쌈무채김치",
+        "title_key": "100국내산해썹보쌈무채김치",
+        "sku": "HUB-17898",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002836",
+        "variation_count": 5,
+        "variation_skus": [
+            "HUB-17898-17899",
+            "HUB-17898-17900",
+            "HUB-17898-17901",
+            "HUB-17898-17902",
+            "HUB-17898-17903"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 06:00:15"
+    },
+    {
+        "id": 17904,
+        "status": "publish",
+        "title": "[✨100% 국내산 해썹] 열무 얼갈이 물김치",
+        "title_key": "100국내산해썹열무얼갈이물김치",
+        "sku": "HUB-17904",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002837",
+        "variation_count": 3,
+        "variation_skus": [
+            "HUB-17904-17905",
+            "HUB-17904-17906",
+            "HUB-17904-17907"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:59:46"
+    },
+    {
+        "id": 17908,
+        "status": "publish",
+        "title": "[✨100% 국내산 해썹] 백김치",
+        "title_key": "100국내산해썹백김치",
+        "sku": "HUB-17908",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002838",
+        "variation_count": 5,
+        "variation_skus": [
+            "HUB-17908-17909",
+            "HUB-17908-17910",
+            "HUB-17908-17911",
+            "HUB-17908-17912",
+            "HUB-17908-17913"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:59:32"
+    },
+    {
+        "id": 17914,
+        "status": "publish",
+        "title": "[✨100% 국내산 해썹] 파김치",
+        "title_key": "100국내산해썹파김치",
+        "sku": "HUB-17914",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002839",
+        "variation_count": 3,
+        "variation_skus": [
+            "HUB-17914-17915",
+            "HUB-17914-17916",
+            "HUB-17914-17917"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:59:16"
+    },
+    {
+        "id": 17918,
+        "status": "publish",
+        "title": "[✨해썹]매운 실비 총각김치",
+        "title_key": "해썹매운실비총각김치",
+        "sku": "HUB-17918",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002840",
+        "variation_count": 4,
+        "variation_skus": [
+            "HUB-17918-17919",
+            "HUB-17918-17920",
+            "HUB-17918-17921",
+            "HUB-17918-17922"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:59:02"
+    },
+    {
+        "id": 17923,
+        "status": "publish",
+        "title": "[✨100% 국내산 해썹] 배추겉절이",
+        "title_key": "100국내산해썹배추겉절이",
+        "sku": "HUB-17923",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002841",
+        "variation_count": 5,
+        "variation_skus": [
+            "HUB-17923-17924",
+            "HUB-17923-17925",
+            "HUB-17923-17926",
+            "HUB-17923-17927",
+            "HUB-17923-17928"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:58:48"
+    },
+    {
+        "id": 17929,
+        "status": "publish",
+        "title": "[✨100% 국내산 해썹] 김치키트 (절임배추 + 김치양념)",
+        "title_key": "100국내산해썹김치키트절임배추김치양념",
+        "sku": "HUB-17929",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002842",
+        "variation_count": 3,
+        "variation_skus": [
+            "HUB-17929-17930",
+            "HUB-17929-17931",
+            "HUB-17929-17932"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:58:35"
+    },
+    {
+        "id": 17933,
+        "status": "publish",
+        "title": "[✨100% 국내산 해썹] 열무 얼갈이 자박이 김치",
+        "title_key": "100국내산해썹열무얼갈이자박이김치",
+        "sku": "HUB-17933",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002843",
+        "variation_count": 5,
+        "variation_skus": [
+            "HUB-17933-17934",
+            "HUB-17933-17935",
+            "HUB-17933-17936",
+            "HUB-17933-17937",
+            "HUB-17933-17938"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:58:21"
+    },
+    {
+        "id": 17939,
+        "status": "publish",
+        "title": "[✨100% 국내산 해썹] 총각김치",
+        "title_key": "100국내산해썹총각김치",
+        "sku": "HUB-17939",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002844",
+        "variation_count": 5,
+        "variation_skus": [
+            "HUB-17939-17940",
+            "HUB-17939-17941",
+            "HUB-17939-17942",
+            "HUB-17939-17943",
+            "HUB-17939-17944"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:58:06"
+    },
+    {
+        "id": 17945,
+        "status": "publish",
+        "title": "[✨100% 국내산 해썹] 얼갈이김치",
+        "title_key": "100국내산해썹얼갈이김치",
+        "sku": "HUB-17945",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002845",
+        "variation_count": 5,
+        "variation_skus": [
+            "HUB-17945-17946",
+            "HUB-17945-17947",
+            "HUB-17945-17948",
+            "HUB-17945-17949",
+            "HUB-17945-17950"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:57:52"
+    },
+    {
+        "id": 17951,
+        "status": "publish",
+        "title": "[✨100% 국내산 해썹] 열무물김치",
+        "title_key": "100국내산해썹열무물김치",
+        "sku": "HUB-17951",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002846",
+        "variation_count": 3,
+        "variation_skus": [
+            "HUB-17951-17952",
+            "HUB-17951-17953",
+            "HUB-17951-17954"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:57:36"
+    },
+    {
+        "id": 17955,
+        "status": "publish",
+        "title": "[✨100% 국내산 해썹] 맛김치",
+        "title_key": "100국내산해썹맛김치",
+        "sku": "HUB-17955",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002847",
+        "variation_count": 5,
+        "variation_skus": [
+            "HUB-17955-17956",
+            "HUB-17955-17957",
+            "HUB-17955-17958",
+            "HUB-17955-17959",
+            "HUB-17955-17960"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:57:19"
+    },
+    {
+        "id": 17961,
+        "status": "publish",
+        "title": "[✨해썹] 매운 실비 파김치",
+        "title_key": "해썹매운실비파김치",
+        "sku": "HUB-17961",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002848",
+        "variation_count": 3,
+        "variation_skus": [
+            "HUB-17961-17962",
+            "HUB-17961-17963",
+            "HUB-17961-17964"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:56:42"
+    },
+    {
+        "id": 17965,
+        "status": "publish",
+        "title": "[✨ 해썹] 매운 실비 겉절이",
+        "title_key": "해썹매운실비겉절이",
+        "sku": "HUB-17965",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002849",
+        "variation_count": 5,
+        "variation_skus": [
+            "HUB-17965-17966",
+            "HUB-17965-17967",
+            "HUB-17965-17968",
+            "HUB-17965-17969",
+            "HUB-17965-17970"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:56:25"
+    },
+    {
+        "id": 17971,
+        "status": "publish",
+        "title": "[✨100% 국내산 해썹] 열무 얼갈이김치",
+        "title_key": "100국내산해썹열무얼갈이김치",
+        "sku": "HUB-17971",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002850",
+        "variation_count": 5,
+        "variation_skus": [
+            "HUB-17971-17972",
+            "HUB-17971-17973",
+            "HUB-17971-17974",
+            "HUB-17971-17975",
+            "HUB-17971-17976"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 06:22:21"
+    },
+    {
+        "id": 17977,
+        "status": "publish",
+        "title": "[✨100% 국내산 해썹] 열무 자박이",
+        "title_key": "100국내산해썹열무자박이",
+        "sku": "HUB-17977",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002851",
+        "variation_count": 5,
+        "variation_skus": [
+            "HUB-17977-17978",
+            "HUB-17977-17979",
+            "HUB-17977-17980",
+            "HUB-17977-17981",
+            "HUB-17977-17982"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:55:35"
+    },
+    {
+        "id": 17983,
+        "status": "publish",
+        "title": "[✨100% 국내산 해썹] 열무김치",
+        "title_key": "100국내산해썹열무김치",
+        "sku": "HUB-17983",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002852",
+        "variation_count": 5,
+        "variation_skus": [
+            "HUB-17983-17984",
+            "HUB-17983-17985",
+            "HUB-17983-17986",
+            "HUB-17983-17987",
+            "HUB-17983-17988"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:55:22"
+    },
+    {
+        "id": 17989,
+        "status": "publish",
+        "title": "[✨100% 국내산 해썹] 김장 포기김치",
+        "title_key": "100국내산해썹김장포기김치",
+        "sku": "HUB-17989",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002853",
+        "variation_count": 5,
+        "variation_skus": [
+            "HUB-17989-17990",
+            "HUB-17989-17991",
+            "HUB-17989-17992",
+            "HUB-17989-17993",
+            "HUB-17989-17994"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:55:07"
+    },
+    {
+        "id": 17995,
+        "status": "publish",
+        "title": "가리비젓갈",
+        "title_key": "가리비젓갈",
+        "sku": "HUB-17995",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002909",
+        "variation_count": 3,
+        "variation_skus": [
+            "HUB-17995-17996",
+            "HUB-17995-17997",
+            "HUB-17995-17998"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 13:13:42"
+    },
+    {
+        "id": 17999,
+        "status": "publish",
+        "title": "창난젓갈",
+        "title_key": "창난젓갈",
+        "sku": "HUB-17999",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002914",
+        "variation_count": 3,
+        "variation_skus": [
+            "HUB-17999-18000",
+            "HUB-17999-18001",
+            "HUB-17999-18002"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 13:13:37"
+    },
+    {
+        "id": 18003,
+        "status": "publish",
+        "title": "청어알 젓갈",
+        "title_key": "청어알젓갈",
+        "sku": "HUB-18003",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002915",
+        "variation_count": 3,
+        "variation_skus": [
+            "HUB-18003-18004",
+            "HUB-18003-18005",
+            "HUB-18003-18006"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 13:13:30"
+    },
+    {
+        "id": 18007,
+        "status": "publish",
+        "title": "가오리 무침",
+        "title_key": "가오리무침",
+        "sku": "HUB-18007",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002918",
+        "variation_count": 3,
+        "variation_skus": [
+            "HUB-18007-18008",
+            "HUB-18007-18009",
+            "HUB-18007-18010"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 13:13:24"
+    },
+    {
+        "id": 18011,
+        "status": "publish",
+        "title": "가자미식해",
+        "title_key": "가자미식해",
+        "sku": "HUB-18011",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002920",
+        "variation_count": 3,
+        "variation_skus": [
+            "HUB-18011-18012",
+            "HUB-18011-18013",
+            "HUB-18011-18014"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 13:13:16"
+    },
+    {
+        "id": 18015,
+        "status": "publish",
+        "title": "[단독특가 \/ 박스포함] 성주참외 혼합 랜덤과",
+        "title_key": "단독특가박스포함성주참외혼합랜덤과",
+        "sku": "HUB-18015",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002939",
+        "variation_count": 2,
+        "variation_skus": [
+            "HUB-18015-18016",
+            "HUB-18015-18017"
+        ],
+        "variation_sources": [
+            "dailyfood:10002939"
+        ],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 12:04:00"
+    },
+    {
+        "id": 18018,
+        "status": "publish",
+        "title": "★국내산 최저가 백도 딱딱이 털복숭아 랜덤과 [100~140g내외]",
+        "title_key": "국내산최저가백도딱딱이털복숭아랜덤과100140g내외",
+        "sku": "HUB-18018",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002965",
+        "variation_count": 4,
+        "variation_skus": [
+            "HUB-18018-18019",
+            "HUB-18018-18020",
+            "HUB-18018-18021",
+            "HUB-18018-18022"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:53:27"
+    },
+    {
+        "id": 18023,
+        "status": "publish",
+        "title": "한돈 1+등급 뒷고기",
+        "title_key": "한돈1등급뒷고기",
+        "sku": "HUB-18023",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002971",
+        "variation_count": 1,
+        "variation_skus": [
+            "HUB-18023-18024"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:53:13"
+    },
+    {
+        "id": 18025,
+        "status": "publish",
+        "title": "[냉동] 삼겹살",
+        "title_key": "냉동삼겹살",
+        "sku": "HUB-18025",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002972",
+        "variation_count": 1,
+        "variation_skus": [
+            "HUB-18025-18026"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:52:59"
+    },
+    {
+        "id": 18027,
+        "status": "publish",
+        "title": "[냉동] 목살",
+        "title_key": "냉동목살",
+        "sku": "HUB-18027",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002973",
+        "variation_count": 1,
+        "variation_skus": [
+            "HUB-18027-18028"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:52:45"
+    },
+    {
+        "id": 18029,
+        "status": "publish",
+        "title": "★초특가 청사과",
+        "title_key": "초특가청사과",
+        "sku": "HUB-18029",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002989",
+        "variation_count": 5,
+        "variation_skus": [
+            "HUB-18029-18030",
+            "HUB-18029-18031",
+            "HUB-18029-18032",
+            "HUB-18029-18033",
+            "HUB-18029-18034"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:52:31"
+    },
+    {
+        "id": 18035,
+        "status": "publish",
+        "title": "[최저가 맛돌이] 소곱창모둠 한판 610g",
+        "title_key": "최저가맛돌이소곱창모둠한판610g",
+        "sku": "HUB-18035",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002998",
+        "variation_count": 1,
+        "variation_skus": [
+            "HUB-18035-18036"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 13:12:09"
+    },
+    {
+        "id": 18037,
+        "status": "publish",
+        "title": "양념 박포갈비 800g",
+        "title_key": "양념박포갈비800g",
+        "sku": "HUB-18037",
+        "source": "",
+        "inferred_source": "dailyfood",
+        "source_evidence": [
+            "dailyfood"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "10002999",
+        "variation_count": 1,
+        "variation_skus": [
+            "HUB-18037-18038"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 13:12:02"
+    },
+    {
+        "id": 18039,
+        "status": "publish",
+        "title": "성주 참외 못난이 혼합과",
+        "title_key": "성주참외못난이혼합과",
+        "sku": "HUB-18039",
+        "source": "",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "1772082302",
+        "variation_count": 2,
+        "variation_skus": [
+            "HUB-18039-18040",
+            "HUB-18039-18041"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:51:54"
+    },
+    {
+        "id": 18042,
+        "status": "publish",
+        "title": "주스용 사과 (박스포함)",
+        "title_key": "주스용사과박스포함",
+        "sku": "HUB-18042",
+        "source": "",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "1774311924",
+        "variation_count": 4,
+        "variation_skus": [
+            "HUB-18042-18043",
+            "HUB-18042-18044",
+            "HUB-18042-18045",
+            "HUB-18042-18046"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:51:42"
+    },
+    {
+        "id": 18047,
+        "status": "publish",
+        "title": "망고복숭아 (천도복숭아 품종)",
+        "title_key": "망고복숭아천도복숭아품종",
+        "sku": "HUB-18047",
+        "source": "",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "1783215445",
+        "variation_count": 9,
+        "variation_skus": [
+            "HUB-18047-18048",
+            "HUB-18047-18049",
+            "HUB-18047-18050",
+            "HUB-18047-18051",
+            "HUB-18047-18052",
+            "HUB-18047-18053",
+            "HUB-18047-18054",
+            "HUB-18047-18055",
+            "HUB-18047-18056"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:51:29"
+    },
+    {
+        "id": 18057,
+        "status": "publish",
+        "title": "딱딱이 복숭아 소과 (꼬마)",
+        "title_key": "딱딱이복숭아소과꼬마",
+        "sku": "HUB-18057",
+        "source": "",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "1783868648",
+        "variation_count": 3,
+        "variation_skus": [
+            "HUB-18057-18058",
+            "HUB-18057-18059",
+            "HUB-18057-18060"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:51:17"
+    },
+    {
+        "id": 18061,
+        "status": "publish",
+        "title": "속 빨간 피자두",
+        "title_key": "속빨간피자두",
+        "sku": "HUB-18061",
+        "source": "",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "1783870330",
+        "variation_count": 3,
+        "variation_skus": [
+            "HUB-18061-18062",
+            "HUB-18061-18063",
+            "HUB-18061-18064"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:51:04"
+    },
+    {
+        "id": 18065,
+        "status": "publish",
+        "title": "천반도 (천도 납작복숭아)",
+        "title_key": "천반도천도납작복숭아",
+        "sku": "HUB-18065",
+        "source": "",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "1783920372",
+        "variation_count": 3,
+        "variation_skus": [
+            "HUB-18065-18066",
+            "HUB-18065-18067",
+            "HUB-18065-18068"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:50:52"
+    },
+    {
+        "id": 18069,
+        "status": "publish",
+        "title": "거반도 (털복숭아 납작복숭아)",
+        "title_key": "거반도털복숭아납작복숭아",
+        "sku": "HUB-18069",
+        "source": "",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "1783920622",
+        "variation_count": 3,
+        "variation_skus": [
+            "HUB-18069-18070",
+            "HUB-18069-18071",
+            "HUB-18069-18072"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:50:39"
+    },
+    {
+        "id": 18073,
+        "status": "publish",
+        "title": "특품 흑찰옥수수",
+        "title_key": "특품흑찰옥수수",
+        "sku": "HUB-18073",
+        "source": "",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "1783944185",
+        "variation_count": 4,
+        "variation_skus": [
+            "HUB-18073-18074",
+            "HUB-18073-18075",
+            "HUB-18073-18076",
+            "HUB-18073-18077"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:50:25"
+    },
+    {
+        "id": 18078,
+        "status": "publish",
+        "title": "미백 찰 옥수수",
+        "title_key": "미백찰옥수수",
+        "sku": "HUB-18078",
+        "source": "",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "JW000039",
+        "variation_count": 4,
+        "variation_skus": [
+            "HUB-18078-18079",
+            "HUB-18078-18080",
+            "HUB-18078-18081",
+            "HUB-18078-18082"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:50:13"
+    },
+    {
+        "id": 18083,
+        "status": "publish",
+        "title": "사과값 하락세 가정용 미친 노마진 특가 !",
+        "title_key": "사과값하락세가정용미친노마진특가",
+        "sku": "HUB-18083",
+        "source": "",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "manbae_1775018696",
+        "variation_count": 2,
+        "variation_skus": [
+            "HUB-18083-18084",
+            "HUB-18083-18085"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:50:00"
+    },
+    {
+        "id": 18086,
+        "status": "publish",
+        "title": "못난이수박 시즌시작!",
+        "title_key": "못난이수박시즌시작",
+        "sku": "HUB-18086",
+        "source": "",
+        "inferred_source": "walldob2b",
+        "source_evidence": [
+            "walldob2b"
+        ],
+        "dailyfood_pcode": "",
+        "walldo_it_id": "",
+        "source_product_id": "manbae_1776046728",
+        "variation_count": 4,
+        "variation_skus": [
+            "HUB-18086-18087",
+            "HUB-18086-18088",
+            "HUB-18086-18089",
+            "HUB-18086-18090"
+        ],
+        "variation_sources": [],
+        "safety_status": "",
+        "legacy_safety_status": "",
+        "order_item_count": 0,
+        "modified_gmt": "2026-07-15 05:49:48"
+    }
+]

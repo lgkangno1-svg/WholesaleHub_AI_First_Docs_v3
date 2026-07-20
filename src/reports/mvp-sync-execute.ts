@@ -3,6 +3,7 @@ import { resolve } from "node:path"
 import ky from "ky"
 import { z } from "zod"
 import { matchExcludedProduct } from "../exclusions/livestock.js"
+import { validateMvpPriceRows } from "./mvp-price-preflight.js"
 import { fetchMvpWooCatalog } from "./mvp-sync-plan.js"
 
 type AllowedAction =
@@ -29,6 +30,12 @@ const PlanRowSchema = z.object({
   current_stock_status: z.string(),
   new_stock_status: z.enum(["instock", "outofstock", "review"]),
   selected_supplier_id: z.string(),
+  selected_source_product_id: z.string(),
+  selected_source_option_id: z.string(),
+  selected_source_image_url: z.string(),
+  selected_supplier_price: z.number().nullable().optional(),
+  baseline_supplier_price: z.number().nullable().optional(),
+  source_price_changed: z.boolean().nullable().optional(),
   supplier_candidates_summary: z.string().optional(),
   action: z.string(),
   safety_status: z.string(),
@@ -67,6 +74,9 @@ export type MvpSafetyReviewRow = {
   readonly new_price: string
   readonly price_direction: "increase" | "decrease" | "same" | "unknown"
   readonly selected_supplier_id: string
+  readonly selected_source_product_id: string
+  readonly selected_source_option_id: string
+  readonly selected_source_image_url: string
 }
 export type MvpConsolidatedTarget = MvpSafetyReviewRow & {
   readonly source_row_count: number
@@ -153,6 +163,7 @@ export async function executeMvpSyncPlan(options: {
   readonly credentials: Credentials
   readonly execute: boolean
   readonly confirm: string
+  readonly priceOnly?: boolean
 }): Promise<{
   readonly log: MvpExecuteLog
   readonly verification: MvpExecuteVerification
@@ -161,9 +172,16 @@ export async function executeMvpSyncPlan(options: {
   if (!options.execute || options.confirm !== "EXECUTE_MVP_SYNC_EXISTING_VARIATIONS_ONLY")
     throw new Error('--execute --confirm "EXECUTE_MVP_SYNC_EXISTING_VARIATIONS_ONLY" is required')
   const rows = await readMvpPlanRows(options.planPath)
+  if (options.priceOnly) {
+    const preflight = validateMvpPriceRows(rows)
+    if (!preflight.ok) throw new Error(`MVP price preflight failed: ${preflight.reasons.join(", ")}`)
+  }
   const beforeCatalog = await fetchMvpWooCatalog(options.credentials)
   const selection = buildExecutionSelection(rows, beforeCatalog)
-  const entries = await executeRows(selection.selectedRows, options.credentials)
+  const selectedRows = options.priceOnly
+    ? selection.selectedRows.filter((row) => isPriceAction(row.action))
+    : selection.selectedRows
+  const entries = await executeRows(selectedRows, options.credentials, options.priceOnly ?? false)
   const afterCatalog = await fetchMvpWooCatalog(options.credentials)
   const verification = verifyExecution(entries, beforeCatalog, afterCatalog)
   const log: MvpExecuteLog = {
@@ -171,14 +189,17 @@ export async function executeMvpSyncPlan(options: {
     requestedAt: new Date().toISOString(),
     planPath: options.planPath,
     reviewNeededTotal: rows.filter(
-      (row) => ALLOWED_ACTIONS.has(row.action) && row.safety_status === "review_needed",
+      (row) =>
+        (!options.priceOnly || isPriceAction(row.action)) &&
+        ALLOWED_ACTIONS.has(row.action) &&
+        row.safety_status === "review_needed",
     ).length,
     ...selection.metrics,
-    selectedCount: selection.selectedRows.length,
+    selectedCount: selectedRows.length,
     heldCount:
       selection.safetyReview.filter((row) => row.decision === "hold").length +
       selection.consolidatedTargets.filter((row) => row.decision === "hold").length,
-    actionCounts: countActions(selection.selectedRows),
+    actionCounts: countActions(selectedRows),
     failedCount: entries.filter((entry) => entry.status === "failed").length,
     entries,
     wooCommerceChanged: entries.some((entry) => entry.status === "verified"),
@@ -193,9 +214,15 @@ export async function executeMvpSyncPlan(options: {
   return { log, verification, safetyReview: selection.safetyReview }
 }
 
-function buildExecutionSelection(rows: readonly PlanRow[], catalog: LiveCatalog): Selection {
+export function buildExecutionSelection(rows: readonly PlanRow[], catalog: LiveCatalog): Selection {
   const allowedRows = rows.filter((row) => ALLOWED_ACTIONS.has(row.action))
-  const counts = targetCounts(allowedRows)
+  const targetableRows = rows.filter(
+    (row) =>
+      row.product_id !== null &&
+      row.variation_id !== null &&
+      (ALLOWED_ACTIONS.has(row.action) || row.action === "no_op"),
+  )
+  const counts = targetCounts(targetableRows)
   const duplicateKeys = new Set(
     [...counts.entries()].filter(([, count]) => count > 1).map(([key]) => key),
   )
@@ -208,14 +235,14 @@ function buildExecutionSelection(rows: readonly PlanRow[], catalog: LiveCatalog)
   )
   const consolidatedTargets = [...duplicateKeys].map((key) =>
     consolidateTarget(
-      allowedRows.filter((row) => rowKey(row) === key),
+      targetableRows.filter((row) => rowKey(row) === key),
       catalog,
     ),
   )
   const selectedConsolidated = consolidatedTargets
     .filter((row) => row.decision === "safe_to_execute")
     .map(consolidatedToPlanRow)
-  const duplicateRows = allowedRows.filter((row) => duplicateKeys.has(rowKey(row)))
+  const duplicateRows = targetableRows.filter((row) => duplicateKeys.has(rowKey(row)))
   const priceOver50Existing = allowedRows.filter((row) => over50AgainstPlan(row)).length
   const priceOver50Promoted = [...selectedIndividuals, ...selectedConsolidated].filter((row) =>
     over50AgainstLive(row, catalog),
@@ -235,17 +262,16 @@ function buildExecutionSelection(rows: readonly PlanRow[], catalog: LiveCatalog)
 }
 
 function consolidateTarget(rows: readonly PlanRow[], catalog: LiveCatalog): MvpConsolidatedTarget {
-  const candidates = rows.filter(
-    (row) =>
-      Number.isFinite(Number(row.new_price)) &&
-      Number(row.new_price) >= 1000 &&
-      row.new_stock_status !== "review",
-  )
-  const selected =
-    [...candidates].sort((a, b) => Number(a.new_price) - Number(b.new_price))[0] ?? rows[0]
+  const selected = rows[0]
   if (selected === undefined) throw new Error("empty consolidated target")
   const review = reviewRow(selected, catalog, new Map([[rowKey(selected), 1]]), true)
-  return { ...review, source_row_count: rows.length, consolidated: true }
+  return {
+    ...review,
+    decision: "hold",
+    reasons: [...new Set([...review.reasons, "ambiguous_duplicate_target"])],
+    source_row_count: rows.length,
+    consolidated: true,
+  }
 }
 
 function consolidatedToPlanRow(target: MvpConsolidatedTarget): PlanRow {
@@ -259,6 +285,9 @@ function consolidatedToPlanRow(target: MvpConsolidatedTarget): PlanRow {
     current_stock_status: "",
     new_stock_status: target.action === "mark_outofstock" ? "outofstock" : "instock",
     selected_supplier_id: target.selected_supplier_id,
+    selected_source_product_id: target.selected_source_product_id,
+    selected_source_option_id: target.selected_source_option_id,
+    selected_source_image_url: target.selected_source_image_url,
     action: target.action,
     safety_status: "safe",
     match_type: "consolidated",
@@ -268,6 +297,7 @@ function consolidatedToPlanRow(target: MvpConsolidatedTarget): PlanRow {
 async function executeRows(
   rows: readonly PlanRow[],
   credentials: Credentials,
+  priceOnly: boolean,
 ): Promise<readonly MvpExecuteEntry[]> {
   const client = wooClient(credentials)
   const entries: MvpExecuteEntry[] = []
@@ -278,15 +308,7 @@ async function executeRows(
     const beforeRows = await Promise.all(
       productRows.map((row) => fetchVariation(client, productId, row.variation_id ?? 0)),
     )
-    const updates = productRows.map((row) => ({
-      id: row.variation_id,
-      regular_price: row.new_price,
-      stock_status: row.new_stock_status,
-      meta_data: [
-        { key: "_supplier_id", value: row.selected_supplier_id },
-        { key: "_wholesalehub_selected_supplier_id", value: row.selected_supplier_id },
-      ],
-    }))
+    const updates = productRows.map((row) => buildVariationUpdate(row, priceOnly))
     try {
       await ky.put(`${client.baseUrl}/wp-json/wc/v3/products/${productId}/variations/batch`, {
         headers: client.headers,
@@ -307,8 +329,11 @@ async function executeRows(
               row,
               before,
               after,
-              verifyRow(row, after) ? "verified" : "failed",
-              verifyRow(row, after) ? null : "post-update verification mismatch",
+              verifyRow(row, before, after, priceOnly) ? "verified" : "failed",
+              verifyRow(row, before, after, priceOnly)
+                ? null
+                : "post-update verification mismatch",
+              priceOnly,
             ),
           )
       }
@@ -324,6 +349,7 @@ async function executeRows(
               null,
               "failed",
               error instanceof Error ? error.message : String(error),
+              priceOnly,
             ),
           )
       }
@@ -331,6 +357,42 @@ async function executeRows(
     }
   }
   return entries
+}
+
+export function buildVariationUpdate(row: PlanRow, priceOnly: boolean) {
+  const price = {
+    id: row.variation_id,
+    regular_price: row.new_price,
+  }
+  const sourceMeta = [
+    { key: "_supplier_id", value: row.selected_supplier_id },
+    { key: "_wholesalehub_selected_supplier_id", value: row.selected_supplier_id },
+    { key: "_source_product_id", value: row.selected_source_product_id },
+    { key: "_source_option_id", value: row.selected_source_option_id },
+    { key: "_wholesalehub_source_product_id", value: row.selected_source_product_id },
+    { key: "_wholesalehub_source_option_id", value: row.selected_source_option_id },
+    { key: "_wholesalehub_source_image_url", value: row.selected_source_image_url },
+  ]
+  if (priceOnly) {
+    if (row.match_type !== "hard_meta" || typeof row.selected_supplier_price !== "number") return price
+    return {
+      ...price,
+      meta_data: [
+        ...sourceMeta,
+        { key: "_wholesalehub_supplier_price", value: String(row.selected_supplier_price) },
+      ],
+    }
+  }
+  return {
+    ...price,
+    stock_status: row.new_stock_status,
+    meta_data: [
+      ...sourceMeta,
+      ...(typeof row.selected_supplier_price === "number"
+        ? [{ key: "_wholesalehub_supplier_price", value: String(row.selected_supplier_price) }]
+        : []),
+    ],
+  }
 }
 
 function reviewRow(
@@ -351,6 +413,10 @@ function reviewRow(
   if (!variation) reasons.push("variation_get_failed")
   if (product?.status === "draft") reasons.push("draft_product")
   if (!ALLOWED_ACTIONS.has(row.action)) reasons.push("disallowed_action")
+  if (isPriceAction(row.action) && row.match_type !== "hard_meta")
+    reasons.push("price_update_requires_hard_meta")
+  if (isPriceAction(row.action) && row.source_price_changed !== true)
+    reasons.push("supplier_price_change_not_proven")
   if (!Number.isFinite(newPrice) || newPrice < 1000) reasons.push("invalid_new_price")
   if (!ignoreDuplicate && counts.get(rowKey(row)) !== 1) reasons.push("duplicate_target_variation")
   if (
@@ -383,6 +449,9 @@ function reviewRow(
     new_price: row.new_price,
     price_direction: priceDirection(livePrice, newPrice),
     selected_supplier_id: row.selected_supplier_id,
+    selected_source_product_id: row.selected_source_product_id,
+    selected_source_option_id: row.selected_source_option_id,
+    selected_source_image_url: row.selected_source_image_url,
   }
 }
 
@@ -443,11 +512,16 @@ function verifyExecution(
     stockQuantityChanged: false,
   }
 }
-function verifyRow(row: PlanRow, after: z.infer<typeof VariationSchema>): boolean {
-  return (
-    String(after.price ?? after.regular_price ?? "") === row.new_price &&
-    (after.stock_status ?? "") === row.new_stock_status
-  )
+function verifyRow(
+  row: PlanRow,
+  before: z.infer<typeof VariationSchema>,
+  after: z.infer<typeof VariationSchema>,
+  priceOnly: boolean,
+): boolean {
+  const priceMatches = String(after.price ?? after.regular_price ?? "") === row.new_price
+  return priceOnly
+    ? priceMatches && (after.stock_status ?? "") === (before.stock_status ?? "")
+    : priceMatches && (after.stock_status ?? "") === row.new_stock_status
 }
 function toEntry(
   row: PlanRow,
@@ -455,6 +529,7 @@ function toEntry(
   after: z.infer<typeof VariationSchema> | null,
   status: ExecuteStatus,
   errorMessage: string | null,
+  priceOnly = false,
 ): MvpExecuteEntry {
   if (row.product_id === null || row.variation_id === null || !ALLOWED_ACTIONS.has(row.action))
     throw new Error("invalid executable row")
@@ -467,7 +542,13 @@ function toEntry(
     expected_price: row.new_price,
     before_stock_status: before.stock_status ?? "",
     after_stock_status: after?.stock_status ?? null,
-    expected_stock_status: row.new_stock_status === "outofstock" ? "outofstock" : "instock",
+    expected_stock_status: priceOnly
+      ? before.stock_status === "outofstock"
+        ? "outofstock"
+        : "instock"
+      : row.new_stock_status === "outofstock"
+        ? "outofstock"
+        : "instock",
     selected_supplier_id: row.selected_supplier_id,
     status,
     error_message: errorMessage,
@@ -624,6 +705,9 @@ function sameRow(row: PlanRow, review: MvpSafetyReviewRow): boolean {
 }
 function rowKey(row: PlanRow): string {
   return `${row.product_id}:${row.variation_id}`
+}
+function isPriceAction(action: string): boolean {
+  return action === "update_price" || action === "switch_supplier_and_update_price"
 }
 function optionName(variation: LiveVariation): string {
   return variation.attributes

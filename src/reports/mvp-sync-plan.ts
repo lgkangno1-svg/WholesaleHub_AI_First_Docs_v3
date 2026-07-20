@@ -51,6 +51,7 @@ export type MvpSupplierCandidate = {
   readonly stockStatus: CollectedProduct["stockStatus"]
   readonly productGroupKey: string
   readonly normalizedOptionKey: string
+  readonly sourceImageUrl: string
 }
 
 export type MvpSyncPlanRow = {
@@ -64,6 +65,12 @@ export type MvpSyncPlanRow = {
   readonly new_stock_status: "instock" | "outofstock" | "review"
   readonly current_supplier_id: string
   readonly selected_supplier_id: string
+  readonly selected_source_product_id: string
+  readonly selected_source_option_id: string
+  readonly selected_source_image_url: string
+  readonly selected_supplier_price: number | null
+  readonly baseline_supplier_price: number | null
+  readonly source_price_changed: boolean | null
   readonly available_supplier_count: number
   readonly supplier_candidates_summary: string
   readonly match_type: MatchType
@@ -257,6 +264,12 @@ function planRow(
   const selected = available[0] ?? null
   const selectedSalePrice = selected === null ? null : hubSalePriceFromSupplierPrice(selected.price)
   const matched = matchWoo(candidates, wooProducts)
+  const baselineSupplierPrice = matched.matchType === "hard_meta"
+    ? numberOrNull(metaValue(matched.variation?.meta_data ?? [], "_wholesalehub_supplier_price"))
+    : null
+  const sourcePriceChanged = selected === null || baselineSupplierPrice === null
+    ? null
+    : selected.price !== baselineSupplierPrice
   const currentSupplierId =
     metaValue(matched.variation?.meta_data ?? [], "_supplier_id") ||
     metaValue(matched.variation?.meta_data ?? [], "_wholesalehub_supplier_id")
@@ -275,6 +288,12 @@ function planRow(
     new_stock_status: selected === null ? "outofstock" : "instock",
     current_supplier_id: currentSupplierId,
     selected_supplier_id: selected?.supplierId ?? "",
+    selected_source_product_id: selected?.sourceProductId ?? "",
+    selected_source_option_id: selected?.sourceOptionId ?? "",
+    selected_source_image_url: selected?.sourceImageUrl ?? "",
+    selected_supplier_price: selected?.price ?? null,
+    baseline_supplier_price: baselineSupplierPrice,
+    source_price_changed: sourcePriceChanged,
     available_supplier_count: available.length,
     supplier_candidates_summary: candidates
       .map(
@@ -336,10 +355,19 @@ function matchWoo(
     wooProducts.filter((item) => item.status !== "draft"),
   )
   if (product !== null) {
+    const matchingSupplierVariations = product.variations.filter(
+      (item) => variationSupplierId(item) === first.supplierId,
+    )
     const variation =
-      product.variations.find(
+      matchingSupplierVariations.find(
         (item) => optionKey(optionName(item)) === first.normalizedOptionKey,
       ) ?? null
+    const hasForeignSupplier = product.variations.some((item) => {
+      const supplier = variationSupplierId(item)
+      return supplier.length > 0 && supplier !== first.supplierId
+    })
+    if (variation === null && hasForeignSupplier)
+      return { product: null, variation: null, matchType: "none" }
     return { product, variation, matchType: "soft_normalized" }
   }
   const draft = bestProduct(
@@ -372,17 +400,23 @@ function variationMetaMatches(
   const option =
     metaValue(meta, "_normalized_option_key") ||
     metaValue(meta, "_wholesalehub_normalized_option_key")
-  if (productKey === candidate.productGroupKey && option === candidate.normalizedOptionKey)
-    return true
-  const supplier = metaValue(meta, "_supplier_id") || metaValue(meta, "_wholesalehub_supplier_id")
+  const supplier = variationSupplierId(variation)
+  if (supplier !== candidate.supplierId) return false
   const sourceProduct =
     metaValue(meta, "_source_product_id") || metaValue(meta, "_wholesalehub_source_product_id")
   const sourceOption =
     metaValue(meta, "_source_option_id") || metaValue(meta, "_wholesalehub_source_option_id")
+  if (sourceProduct.length > 0 || sourceOption.length > 0)
+    return (
+      sourceProduct === candidate.sourceProductId &&
+      sourceOption === candidate.sourceOptionId &&
+      optionKey(optionName(variation)) === candidate.normalizedOptionKey
+    )
+  if (productKey === candidate.productGroupKey && option === candidate.normalizedOptionKey)
+    return true
   return (
-    supplier === candidate.supplierId &&
-    sourceProduct === candidate.sourceProductId &&
-    sourceOption === candidate.sourceOptionId
+    optionKey(optionName(variation)) === candidate.normalizedOptionKey &&
+    productKey === candidate.productGroupKey
   )
 }
 
@@ -403,7 +437,8 @@ function toCandidate(product: CollectedProduct): MvpSupplierCandidate {
     price: product.price,
     stockStatus: product.stockStatus,
     productGroupKey: productGroupKey(product.originalProductName),
-    normalizedOptionKey: optionKey(`${product.originalProductName} ${option}`),
+    normalizedOptionKey: optionKey(option),
+    sourceImageUrl: stringValue(raw["imageUrl"]),
   }
 }
 
@@ -412,7 +447,7 @@ function groupCandidates(
 ): Map<string, readonly MvpSupplierCandidate[]> {
   const groups = new Map<string, MvpSupplierCandidate[]>()
   for (const candidate of candidates) {
-    const key = `${candidate.productGroupKey}|${candidate.normalizedOptionKey}`
+    const key = `${candidate.supplierId}|${candidate.sourceProductId}|${candidate.sourceOptionId}`
     groups.set(key, [...(groups.get(key) ?? []), candidate])
   }
   return new Map(
@@ -429,10 +464,14 @@ function productGroupKey(value: string): string {
 }
 
 function optionKey(value: string): string {
-  const matches = [...value.matchAll(/\d+(?:\.\d+)?\s*(?:kg|g|개입|개|팩|봉|박스|망|과|R)/giu)].map(
+  const descriptors = [...value.matchAll(
+    /(?:^|[\s([{,\/])((?:왕특|특대|특|대|중|소))(?=$|[\s)\]},\/]|\d|개|과|입)/gu,
+  )].map((match) => cleanKey(match[1] ?? ""))
+  const measures = [...value.matchAll(/\d+(?:\.\d+)?\s*(?:kg|g|개입|개|팩|봉|박스|망|과|R)/giu)].map(
     (match) => cleanKey(match[0] ?? ""),
   )
-  return matches.length > 0 ? matches.join("|") : cleanKey(value)
+  const keys = [...new Set([...descriptors, ...measures].filter(Boolean))]
+  return keys.length > 0 ? keys.join("|") : cleanKey(value)
 }
 
 function duplicateExposureSuspects(products: readonly MvpWooProduct[]): number {
@@ -460,6 +499,12 @@ function csv(rows: readonly MvpSyncPlanRow[]): string {
     "new_stock_status",
     "current_supplier_id",
     "selected_supplier_id",
+    "selected_source_product_id",
+    "selected_source_option_id",
+    "selected_source_image_url",
+    "selected_supplier_price",
+    "baseline_supplier_price",
+    "source_price_changed",
     "available_supplier_count",
     "supplier_candidates_summary",
     "match_type",
@@ -542,7 +587,15 @@ function cleanKey(value: string): string {
 }
 
 function sameText(left: string, right: string): boolean {
-  return left.length >= 2 && right.length >= 2 && (left.includes(right) || right.includes(left))
+  return left.length >= 2 && left === right
+}
+
+function variationSupplierId(variation: MvpWooVariation): string {
+  return (
+    metaValue(variation.meta_data, "_supplier_id") ||
+    metaValue(variation.meta_data, "_wholesalehub_supplier_id") ||
+    metaValue(variation.meta_data, "_wholesalehub_selected_supplier_id")
+  )
 }
 
 function metaValue(

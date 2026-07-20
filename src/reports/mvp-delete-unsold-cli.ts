@@ -186,7 +186,7 @@ async function deleteUnsold(input: {
       await ky
         .delete(`${client.baseUrl}/wp-json/wc/v3/products/${product.id}`, {
           headers: client.headers,
-          searchParams: { force: "true" },
+          searchParams: { force: "false" },
           timeout: 60000,
           retry: { limit: 0 },
         })
@@ -198,7 +198,7 @@ async function deleteUnsold(input: {
         option_name: "",
         action: "delete_product",
         status: "deleted",
-        reason: "모든 variation 영구삭제 완료",
+        reason: "모든 variation 삭제 후 휴지통으로 이동 완료",
       })
     } catch (e) {
       rows.push({

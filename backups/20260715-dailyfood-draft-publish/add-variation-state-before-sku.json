@@ -1,0 +1,481 @@
+{
+    "createdAt": "2026-07-15T00:49:32+00:00",
+    "variations": [
+        {
+            "variation_id": 17753,
+            "parent_id": 16829,
+            "sku": "",
+            "status": "publish",
+            "price": "10000"
+        },
+        {
+            "variation_id": 17754,
+            "parent_id": 16812,
+            "sku": "",
+            "status": "publish",
+            "price": "11200"
+        },
+        {
+            "variation_id": 17755,
+            "parent_id": 16812,
+            "sku": "",
+            "status": "publish",
+            "price": "11400"
+        },
+        {
+            "variation_id": 17756,
+            "parent_id": 16812,
+            "sku": "",
+            "status": "publish",
+            "price": "17500"
+        },
+        {
+            "variation_id": 17757,
+            "parent_id": 16795,
+            "sku": "",
+            "status": "publish",
+            "price": "10000"
+        },
+        {
+            "variation_id": 17758,
+            "parent_id": 16795,
+            "sku": "",
+            "status": "publish",
+            "price": "20800"
+        },
+        {
+            "variation_id": 17759,
+            "parent_id": 16743,
+            "sku": "",
+            "status": "publish",
+            "price": "19000"
+        },
+        {
+            "variation_id": 17760,
+            "parent_id": 16707,
+            "sku": "",
+            "status": "publish",
+            "price": "8300"
+        },
+        {
+            "variation_id": 17761,
+            "parent_id": 16707,
+            "sku": "",
+            "status": "publish",
+            "price": "11100"
+        },
+        {
+            "variation_id": 17762,
+            "parent_id": 16707,
+            "sku": "",
+            "status": "publish",
+            "price": "18200"
+        },
+        {
+            "variation_id": 17763,
+            "parent_id": 16707,
+            "sku": "",
+            "status": "publish",
+            "price": "21000"
+        },
+        {
+            "variation_id": 17764,
+            "parent_id": 16704,
+            "sku": "",
+            "status": "publish",
+            "price": "9200"
+        },
+        {
+            "variation_id": 17765,
+            "parent_id": 16704,
+            "sku": "",
+            "status": "publish",
+            "price": "10400"
+        },
+        {
+            "variation_id": 17766,
+            "parent_id": 16704,
+            "sku": "",
+            "status": "publish",
+            "price": "8400"
+        },
+        {
+            "variation_id": 17767,
+            "parent_id": 16857,
+            "sku": "",
+            "status": "publish",
+            "price": "8500"
+        },
+        {
+            "variation_id": 17768,
+            "parent_id": 16855,
+            "sku": "",
+            "status": "publish",
+            "price": "5800"
+        },
+        {
+            "variation_id": 17769,
+            "parent_id": 16855,
+            "sku": "",
+            "status": "publish",
+            "price": "8800"
+        },
+        {
+            "variation_id": 17770,
+            "parent_id": 16699,
+            "sku": "",
+            "status": "publish",
+            "price": "9000"
+        },
+        {
+            "variation_id": 17771,
+            "parent_id": 16699,
+            "sku": "",
+            "status": "publish",
+            "price": "8000"
+        },
+        {
+            "variation_id": 17772,
+            "parent_id": 16699,
+            "sku": "",
+            "status": "publish",
+            "price": "11000"
+        },
+        {
+            "variation_id": 17773,
+            "parent_id": 16696,
+            "sku": "",
+            "status": "publish",
+            "price": "7200"
+        },
+        {
+            "variation_id": 17774,
+            "parent_id": 16696,
+            "sku": "",
+            "status": "publish",
+            "price": "9800"
+        },
+        {
+            "variation_id": 17775,
+            "parent_id": 15830,
+            "sku": "",
+            "status": "publish",
+            "price": "8200"
+        },
+        {
+            "variation_id": 17776,
+            "parent_id": 15830,
+            "sku": "",
+            "status": "publish",
+            "price": "9000"
+        },
+        {
+            "variation_id": 17777,
+            "parent_id": 15830,
+            "sku": "",
+            "status": "publish",
+            "price": "18500"
+        },
+        {
+            "variation_id": 17778,
+            "parent_id": 15842,
+            "sku": "",
+            "status": "publish",
+            "price": "6000"
+        },
+        {
+            "variation_id": 17779,
+            "parent_id": 15842,
+            "sku": "",
+            "status": "publish",
+            "price": "7000"
+        },
+        {
+            "variation_id": 17780,
+            "parent_id": 15842,
+            "sku": "",
+            "status": "publish",
+            "price": "8000"
+        },
+        {
+            "variation_id": 17781,
+            "parent_id": 15842,
+            "sku": "",
+            "status": "publish",
+            "price": "10000"
+        },
+        {
+            "variation_id": 17782,
+            "parent_id": 14997,
+            "sku": "",
+            "status": "publish",
+            "price": "9300"
+        },
+        {
+            "variation_id": 17783,
+            "parent_id": 14997,
+            "sku": "",
+            "status": "publish",
+            "price": "18200"
+        },
+        {
+            "variation_id": 17784,
+            "parent_id": 14997,
+            "sku": "",
+            "status": "publish",
+            "price": "10300"
+        },
+        {
+            "variation_id": 17785,
+            "parent_id": 14997,
+            "sku": "",
+            "status": "publish",
+            "price": "21400"
+        },
+        {
+            "variation_id": 17786,
+            "parent_id": 15875,
+            "sku": "",
+            "status": "publish",
+            "price": "9400"
+        },
+        {
+            "variation_id": 17787,
+            "parent_id": 15875,
+            "sku": "",
+            "status": "publish",
+            "price": "21700"
+        },
+        {
+            "variation_id": 17788,
+            "parent_id": 15875,
+            "sku": "",
+            "status": "publish",
+            "price": "9200"
+        },
+        {
+            "variation_id": 17789,
+            "parent_id": 15875,
+            "sku": "",
+            "status": "publish",
+            "price": "10700"
+        },
+        {
+            "variation_id": 17790,
+            "parent_id": 15875,
+            "sku": "",
+            "status": "publish",
+            "price": "8300"
+        },
+        {
+            "variation_id": 17791,
+            "parent_id": 15896,
+            "sku": "",
+            "status": "publish",
+            "price": "11000"
+        },
+        {
+            "variation_id": 17792,
+            "parent_id": 14873,
+            "sku": "",
+            "status": "publish",
+            "price": "8000"
+        },
+        {
+            "variation_id": 17793,
+            "parent_id": 14873,
+            "sku": "",
+            "status": "publish",
+            "price": "11000"
+        },
+        {
+            "variation_id": 17794,
+            "parent_id": 14861,
+            "sku": "",
+            "status": "publish",
+            "price": "19000"
+        },
+        {
+            "variation_id": 17795,
+            "parent_id": 14861,
+            "sku": "",
+            "status": "publish",
+            "price": "17500"
+        },
+        {
+            "variation_id": 17796,
+            "parent_id": 14861,
+            "sku": "",
+            "status": "publish",
+            "price": "21000"
+        },
+        {
+            "variation_id": 17797,
+            "parent_id": 14861,
+            "sku": "",
+            "status": "publish",
+            "price": "19000"
+        },
+        {
+            "variation_id": 17798,
+            "parent_id": 14829,
+            "sku": "",
+            "status": "publish",
+            "price": "10000"
+        },
+        {
+            "variation_id": 17799,
+            "parent_id": 14829,
+            "sku": "",
+            "status": "publish",
+            "price": "18000"
+        },
+        {
+            "variation_id": 17800,
+            "parent_id": 14817,
+            "sku": "",
+            "status": "publish",
+            "price": "10500"
+        },
+        {
+            "variation_id": 17801,
+            "parent_id": 14817,
+            "sku": "",
+            "status": "publish",
+            "price": "18500"
+        },
+        {
+            "variation_id": 17802,
+            "parent_id": 14898,
+            "sku": "",
+            "status": "publish",
+            "price": "9500"
+        },
+        {
+            "variation_id": 17803,
+            "parent_id": 14885,
+            "sku": "",
+            "status": "publish",
+            "price": "8500"
+        },
+        {
+            "variation_id": 17804,
+            "parent_id": 14885,
+            "sku": "",
+            "status": "publish",
+            "price": "9500"
+        },
+        {
+            "variation_id": 17805,
+            "parent_id": 14885,
+            "sku": "",
+            "status": "publish",
+            "price": "18500"
+        },
+        {
+            "variation_id": 17806,
+            "parent_id": 14885,
+            "sku": "",
+            "status": "publish",
+            "price": "10500"
+        },
+        {
+            "variation_id": 17807,
+            "parent_id": 14885,
+            "sku": "",
+            "status": "publish",
+            "price": "21500"
+        },
+        {
+            "variation_id": 17808,
+            "parent_id": 15929,
+            "sku": "",
+            "status": "publish",
+            "price": "9000"
+        },
+        {
+            "variation_id": 17809,
+            "parent_id": 15929,
+            "sku": "",
+            "status": "publish",
+            "price": "21500"
+        },
+        {
+            "variation_id": 17810,
+            "parent_id": 15942,
+            "sku": "",
+            "status": "publish",
+            "price": "6200"
+        },
+        {
+            "variation_id": 17811,
+            "parent_id": 15942,
+            "sku": "",
+            "status": "publish",
+            "price": "7200"
+        },
+        {
+            "variation_id": 17812,
+            "parent_id": 15942,
+            "sku": "",
+            "status": "publish",
+            "price": "8000"
+        },
+        {
+            "variation_id": 17813,
+            "parent_id": 15942,
+            "sku": "",
+            "status": "publish",
+            "price": "10200"
+        },
+        {
+            "variation_id": 17814,
+            "parent_id": 14973,
+            "sku": "",
+            "status": "publish",
+            "price": "19000"
+        },
+        {
+            "variation_id": 17815,
+            "parent_id": 15949,
+            "sku": "",
+            "status": "publish",
+            "price": "8500"
+        },
+        {
+            "variation_id": 17816,
+            "parent_id": 15949,
+            "sku": "",
+            "status": "publish",
+            "price": "10500"
+        },
+        {
+            "variation_id": 17817,
+            "parent_id": 15949,
+            "sku": "",
+            "status": "publish",
+            "price": "17500"
+        },
+        {
+            "variation_id": 17818,
+            "parent_id": 15949,
+            "sku": "",
+            "status": "publish",
+            "price": "21500"
+        },
+        {
+            "variation_id": 17819,
+            "parent_id": 15949,
+            "sku": "",
+            "status": "publish",
+            "price": "9500"
+        },
+        {
+            "variation_id": 17820,
+            "parent_id": 15966,
+            "sku": "",
+            "status": "publish",
+            "price": "20500"
+        }
+    ]
+}

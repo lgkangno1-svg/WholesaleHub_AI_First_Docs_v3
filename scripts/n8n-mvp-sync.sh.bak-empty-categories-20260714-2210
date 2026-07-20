@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+PROJECT_DIR="/home/tnfwod/projects/wholesalehub"
+REPORT_DIR="$PROJECT_DIR/reports"
+LOCK_FILE="$REPORT_DIR/n8n-mvp-sync.lock"
+STAMP="$(TZ=Asia/Seoul date +%Y%m%d-%H%M)"
+LATEST_LOG="$REPORT_DIR/n8n-run-latest.log"
+RUN_LOG="$REPORT_DIR/n8n-run-$STAMP.log"
+
+mkdir -p "$REPORT_DIR"
+exec 9>"$LOCK_FILE"
+if ! flock -n 9; then
+  echo "[$(date -Is)] another n8n MVP sync run is already active" | tee "$LATEST_LOG" "$RUN_LOG"
+  exit 1
+fi
+
+run() {
+  echo "[$(date -Is)] $*"
+  "$@"
+}
+
+{
+  echo "[$(date -Is)] n8n MVP sync started"
+  cd "$PROJECT_DIR"
+  RUN_HOUR="${WHOLESALEHUB_RUN_HOUR:-$(TZ=Asia/Seoul date +%H)}"
+  echo "[$(date -Is)] run_hour=$RUN_HOUR dailyfood_mode=actual-site"
+  run npm run build
+  run node dist/reports/mvp-sync-plan-cli.js
+  run node dist/reports/mvp-sync-execute-cli.js --execute --confirm "EXECUTE_MVP_SYNC_EXISTING_VARIATIONS_ONLY"
+  run node dist/reports/mvp-price-change-telegram-cli.js
+  run docker cp "$REPORT_DIR/mvp-price-change-telegram-report.json" avocadoss-wp:/tmp/mvp-price-change-telegram-report.json
+  run docker exec avocadoss-wp wp avocadoss telegram-price-report /tmp/mvp-price-change-telegram-report.json --allow-root
+  run docker exec avocadoss-wp rm -f /tmp/mvp-price-change-telegram-report.json
+  run node dist/reports/mvp-source-absence-delete-cli.js --execute --confirm "DELETE_SOURCE_ABSENT_NON_GROUPBUY_PRODUCTS"
+  run node dist/reports/hide-unsold-public-variations-cli.js --execute --confirm "HIDE_UNSOLD_PUBLIC_VARIATIONS"
+  if [ "$RUN_HOUR" = "09" ]; then
+    run node dist/reports/mvp-add-create-cli.js --execute --confirm "EXECUTE_MVP_ADD_VARIATIONS_AND_CREATE_DRAFTS"
+  fi
+  run node dist/reports/supplier-detail-image-crawl-cli.js
+  run /home/tnfwod/b2b-sync/venv/bin/python3 /home/tnfwod/b2b-sync/sync_supplier_detail_images.py \
+    --manifest "$REPORT_DIR/supplier-detail-images.json" \
+    --report "$REPORT_DIR/supplier-detail-images-sync-report.json" \
+    --apply
+  run node dist/reports/mvp-customer-qa-cli.js
+  run node dist/reports/mvp-export-review-cli.js
+  run node dist/reports/mvp-handoff-cli.js
+  run node dist/reports/order-supplier-excel-export-cli.js
+  echo "[$(date -Is)] n8n MVP sync completed"
+} > >(tee "$RUN_LOG" "$LATEST_LOG") 2>&1

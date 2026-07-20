@@ -45,7 +45,119 @@ describe("MVP sync plan margin pricing", () => {
       ]),
     )
   })
+
+  it("does not replace a DailyFood variation with a cheaper Walldo option", () => {
+    const report = buildMvpSyncPlanReport({
+      dailyFoodProducts: [sourceProduct("dailyfood", "d-1", "흑수박", "흑수박 4-5kg 내외", 20_000)],
+      walldob2bProducts: [sourceProduct("walldob2b", "w-1", "흑수박", "흑수박 4-5kg 내외", 17_400)],
+      wooProducts: [
+        {
+          ...wooProduct(),
+          name: "흑수박",
+          variations: [
+            {
+              ...variation(8216, "흑수박 4-5kg 내외", "23000"),
+              meta_data: [{ key: "_supplier_id", value: "dailyfood" }],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(report.rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          selected_supplier_id: "dailyfood",
+          variation_id: 8216,
+          new_price: "23000",
+        }),
+        expect.objectContaining({
+          selected_supplier_id: "walldob2b",
+          variation_id: null,
+          action: "create_draft_product_candidate",
+        }),
+      ]),
+    )
+  })
+
+  it("does not match 흑수박 to a generic 수박 product", () => {
+    const report = buildMvpSyncPlanReport({
+      dailyFoodProducts: [sourceProduct("dailyfood", "d-1", "흑수박", "흑수박 4-5kg 내외", 20_000)],
+      walldob2bProducts: [],
+      wooProducts: [
+        {
+          ...wooProduct(),
+          name: "수박",
+          variations: [variation(8216, "수박 4-5kg 내외", "22000")],
+        },
+      ],
+    })
+
+    expect(report.rows[0]).toMatchObject({
+      product_id: null,
+      variation_id: null,
+      action: "create_draft_product_candidate",
+    })
+  })
+
+  it("never maps 중 and 대 grapefruit options to the same Woo variation", () => {
+    const prices = [9_700, 15_600, 21_500, 28_000, 10_300, 16_700, 23_100, 30_100]
+    const options = ["중 5개", "중 10개", "중 15개", "중 20개", "대 5개", "대 10개", "대 15개", "대 20개"]
+    const walldob2bProducts = options.map((optionName, index) => ({
+      ...sourceProduct("walldob2b", "1768291208", "새콤달콤 고당도 레드루비자몽", optionName, prices[index] ?? 0),
+      rawJson: JSON.stringify({ sourceProductId: "1768291208", sourceOptionId: String(index + 1) }),
+    }))
+    const wooProducts: MvpWooProduct[] = [{
+      id: 15009,
+      name: "새콤달콤 고당도 레드루비자몽",
+      status: "publish",
+      type: "variable",
+      price: "",
+      stock_status: "instock",
+      meta_data: [],
+      variations: options.slice(4).map((optionName, index) => ({
+        id: 15014 + index,
+        productId: 15009,
+        price: String(hubSalePriceFromSupplierPrice(prices[index + 4] ?? 0)),
+        stock_status: "instock",
+        attributes: [{ name: "옵션", option: optionName }],
+        meta_data: [{ key: "_supplier_id", value: "walldob2b" }],
+      })),
+    }]
+
+    const report = buildMvpSyncPlanReport({ dailyFoodProducts: [], walldob2bProducts, wooProducts })
+    const bySourceOption = new Map(report.rows.map((row) => [row.selected_source_option_id, row]))
+
+    for (const sourceOptionId of ["1", "2", "3", "4"])
+      expect(bySourceOption.get(sourceOptionId)?.variation_id).toBeNull()
+    for (const [offset, sourceOptionId] of ["5", "6", "7", "8"].entries())
+      expect(bySourceOption.get(sourceOptionId)).toMatchObject({ variation_id: 15014 + offset, action: "no_op" })
+    expect(new Set(report.rows.map((row) => row.variation_id).filter((id) => id !== null)).size).toBe(4)
+  })
 })
+
+function sourceProduct(
+  supplierId: "dailyfood" | "walldob2b",
+  sourceProductId: string,
+  productName: string,
+  optionName: string,
+  price: number,
+): CollectedProduct {
+  return {
+    supplierId,
+    sourceType: "website",
+    originalProductName: productName,
+    originalOptionName: optionName,
+    price,
+    shippingFee: 0,
+    stockStatus: "in_stock",
+    productUrl: null,
+    rawJson: JSON.stringify({
+      sourceProductId,
+      sourceOptionId: `${sourceProductId}:${optionName}`,
+    }),
+  }
+}
 
 function collected(optionName: string, price: number): CollectedProduct {
   return {
