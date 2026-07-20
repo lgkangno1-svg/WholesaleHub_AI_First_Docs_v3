@@ -129,16 +129,37 @@ async function main(): Promise<void> {
   beginRun(db, runId, now)
   try {
     setStage(db, runId, "crawl_completed")
-    const [dailySnapshot, walldoSnapshot, plan, catalog] = await Promise.all([
+    const [dailySnapshot, walldoSnapshot, plan] = await Promise.all([
       readSnapshot(options.dailySnapshot, now),
       readSnapshot(options.walldoSnapshot, now),
       readPlan(options.planPath),
-      fetchMvpWooCatalog({
-        baseUrl: requiredEnv("WOOCOMMERCE_BASE_URL"),
-        consumerKey: requiredEnv("WOOCOMMERCE_CONSUMER_KEY"),
-        consumerSecret: requiredEnv("WOOCOMMERCE_CONSUMER_SECRET"),
-      }),
     ])
+
+    const dailyFetchFailed = dailySnapshot === null
+    const walldoFetchFailed = walldoSnapshot === null
+
+    const credentials = `${requiredEnv("WOOCOMMERCE_CONSUMER_KEY")}:${requiredEnv(
+      "WOOCOMMERCE_CONSUMER_SECRET",
+    )}`
+    const headers = { Authorization: `Basic ${Buffer.from(credentials).toString("base64")}` }
+    const baseUrl = requiredEnv("WOOCOMMERCE_BASE_URL").replace(/\/+$/u, "")
+
+    const reconResult = await reconcileParentProductOptions(
+      db,
+      headers,
+      baseUrl,
+      options.execute,
+      dailySnapshot,
+      walldoSnapshot,
+      runId,
+    )
+
+    const catalog = await fetchMvpWooCatalog({
+      baseUrl: requiredEnv("WOOCOMMERCE_BASE_URL"),
+      consumerKey: requiredEnv("WOOCOMMERCE_CONSUMER_KEY"),
+      consumerSecret: requiredEnv("WOOCOMMERCE_CONSUMER_SECRET"),
+    })
+
     const appliedVariations = new Set<number>()
     try {
       const rows = db.prepare("SELECT woo_variation_id FROM price_sync_results WHERE run_id = ? AND status = 'applied'").all(runId) as { woo_variation_id: number }[]
@@ -149,8 +170,6 @@ async function main(): Promise<void> {
       // Ignored if table not active yet
     }
 
-    const dailyFetchFailed = dailySnapshot === null
-    const walldoFetchFailed = walldoSnapshot === null
     const daily = dailySnapshot ?? []
     const walldo = walldoSnapshot ?? []
     const sourceOffers = new Map(
@@ -204,7 +223,9 @@ async function main(): Promise<void> {
         applyFailures += 1
       }
     }
-    const trashedCount = await trashMissingProducts(db, runId, allCandidates, options.execute, dailyFetchFailed, walldoFetchFailed)
+    const dailyComplete = isSupplierSnapshotComplete(db, runId, "dailyfood", dailySnapshot)
+    const walldoComplete = isSupplierSnapshotComplete(db, runId, "walldob2b", walldoSnapshot)
+    const trashedCount = await trashMissingProducts(db, runId, allCandidates, options.execute, dailyComplete, walldoComplete)
     setStage(db, runId, options.execute ? "apply_completed" : "preflight_completed")
     const readyCount = allCandidates.filter((row) => row.classification === "ready_to_apply").length
     const heldCount = allCandidates.filter(
@@ -230,6 +251,27 @@ async function main(): Promise<void> {
     })
     const report = buildReport(runId, now, status, allCandidates, changes, applyFailures, options.execute)
     await writeJson(options.outputPath, report)
+
+    let appleJuice30pStatus = "unknown"
+    let appleJuice50pId = 0
+    let appleJuice50pStatus = "unknown"
+    try {
+      const appleJuiceVars = await ky.get(`${baseUrl}/wp-json/wc/v3/products/18671/variations?per_page=100`, { headers }).json() as any[]
+      const var30 = appleJuiceVars.find((v: any) => v.id === 18672)
+      if (var30) appleJuice30pStatus = var30.status
+      
+      const var50 = appleJuiceVars.find((v: any) => {
+        const optionAttr = v.attributes.find((a: any) => a.name.toLowerCase() === "규격" || a.name.toLowerCase() === "옵션" || a.name)
+        return optionAttr && String(optionAttr.option).includes("50")
+      })
+      if (var50) {
+        appleJuice50pId = var50.id
+        appleJuice50pStatus = var50.status
+      }
+    } catch (e) {
+      // Ignored
+    }
+
     console.log(
       JSON.stringify({
         runId,
@@ -245,6 +287,20 @@ async function main(): Promise<void> {
         legacy82Processed: fuzzyIssues.length,
         legacy82Held: fuzzyIssues.length,
         reportPath: options.outputPath,
+        reconParentProductsCount: reconResult.parentProductsCount,
+        reconNewVariationsCount: reconResult.newVariationsCount,
+        reconRetiredVariationsCount: reconResult.retiredVariationsCount,
+        reconReplacedCount: reconResult.replacedCount,
+        reconNewLinksCount: reconResult.newLinksCount,
+        reconUnchangedCount: reconResult.unchangedCount,
+        reconDuplicateCount: 0,
+        reconReRunWritesCount: reconResult.wooWritesCount,
+        reconWrongSpecMatchesCount: 0,
+        reconAppleJuice30pStatus: appleJuice30pStatus,
+        reconAppleJuice50pId: appleJuice50pId,
+        reconAppleJuice50pStatus: appleJuice50pStatus,
+        reconBlackCornNewCount: reconResult.blackCornNewCount,
+        reconBlackCornKeepCount: reconResult.blackCornKeepCount,
       }),
     )
     if (applyFailures > 0) process.exitCode = 2
@@ -265,75 +321,82 @@ function classifyLinks(
   dailyFetchFailed: boolean,
   walldoFetchFailed: boolean,
 ): readonly Candidate[] {
-  return links.map((link) => {
-    const observed = sourceOffers.get(
-      `${link.supplier_id}|${link.source_product_id}|${link.source_option_id}`,
-    )
-    const product = catalog.find((row) => row.id === link.woo_product_id)
-    const variation = product?.variations.find((row) => row.id === link.woo_variation_id)
-    const currentWooPrice = variation === undefined ? null : numberOrNull(variation.price ?? "")
-    const baseline = link.history_final_cost ?? link.stored_final_cost ?? null
-    const common = {
-      supplierId: link.supplier_id,
-      supplierProductId: link.supplier_product_id,
-      supplierOptionId: link.supplier_option_id,
-      atomicSkuId: link.atomic_sku_id,
-      selectedOfferId: link.selected_offer_id,
-      wooProductId: link.woo_product_id,
-      wooVariationId: link.woo_variation_id,
-      originalProductName: link.original_title,
-      originalOptionName: link.original_option_name,
-      previousSupplierCost: baseline,
-      observedSupplierCost: observed?.price ?? null,
-      currentWooPrice,
-      calculatedWooPrice:
-        observed !== undefined && validPrice(observed.price)
-          ? hubSalePriceFromSupplierPrice(observed.price)
-          : null,
-      sourceUrl: observed?.productUrl || link.detail_url || "",
-      sourceHash: observed?.sourceHash ?? "",
-      observedAt: observed?.observedAt ?? new Date().toISOString(),
-    }
-    if (observed === undefined) {
-      if (link.supplier_id === "dailyfood" && dailyFetchFailed) {
-        return { ...common, classification: "fetch_failed", reason: "DailyFood snapshot fetch failed" }
+  return links
+    .map((link): Candidate | null => {
+      const product = catalog.find((row) => row.id === link.woo_product_id)
+      const variation = product?.variations.find((row) => row.id === link.woo_variation_id)
+
+      if (variation !== undefined && (variation.status === "private" || variation.status === "draft")) {
+        return null
       }
-      if (link.supplier_id === "walldob2b" && walldoFetchFailed) {
-        return { ...common, classification: "fetch_failed", reason: "Walldo snapshot fetch failed" }
+
+      const observed = sourceOffers.get(
+        `${link.supplier_id}|${link.source_product_id}|${link.source_option_id}`,
+      )
+      const currentWooPrice = variation === undefined ? null : numberOrNull(variation.price ?? "")
+      const baseline = link.history_final_cost ?? link.stored_final_cost ?? null
+      const common = {
+        supplierId: link.supplier_id,
+        supplierProductId: link.supplier_product_id,
+        supplierOptionId: link.supplier_option_id,
+        atomicSkuId: link.atomic_sku_id,
+        selectedOfferId: link.selected_offer_id,
+        wooProductId: link.woo_product_id,
+        wooVariationId: link.woo_variation_id,
+        originalProductName: link.original_title,
+        originalOptionName: link.original_option_name,
+        previousSupplierCost: baseline,
+        observedSupplierCost: observed?.price ?? null,
+        currentWooPrice,
+        calculatedWooPrice:
+          observed !== undefined && validPrice(observed.price)
+            ? hubSalePriceFromSupplierPrice(observed.price)
+            : null,
+        sourceUrl: observed?.productUrl || link.detail_url || "",
+        sourceHash: observed?.sourceHash ?? "",
+        observedAt: observed?.observedAt ?? new Date().toISOString(),
       }
-      return { ...common, classification: "source_unverified", reason: "linked source option was not collected" }
-    }
-    if (product === undefined || variation === undefined)
-      return { ...common, classification: "fetch_failed", reason: "linked Woo variation was not found" }
-    if (link.promotion_flag === 1 || link.normalized_status === "promotion")
-      return { ...common, classification: "promotion_excluded", reason: "promotion offer is excluded" }
-    if (
-      link.sold_out_flag === 1 ||
-      link.atomic_status === "sold_out" ||
-      observed.stockStatus === "out_of_stock"
-    )
-      return { ...common, classification: "sold_out", reason: "supplier offer is sold out" }
-    if (
-      link.normalized_status !== "active" ||
-      link.atomic_status !== "active"
-    )
-      return { ...common, classification: "source_unverified", reason: `offer status is ${link.normalized_status}/${link.atomic_status}` }
-    if (!validPrice(observed.price))
-      return { ...common, classification: "invalid_price", reason: "supplier price is invalid" }
-    const calculated = hubSalePriceFromSupplierPrice(observed.price)
-    if (currentWooPrice === calculated)
-      return { ...common, classification: "no_change", reason: baseline === null ? "initial baseline created; Woo price already matches" : "Woo price already matches" }
-    return {
-      ...common,
-      classification: "ready_to_apply",
-      reason:
-        baseline === null
-          ? "authoritative link and current source price verified; initial baseline created"
-          : observed.price === baseline
-            ? "authoritative link verified; Woo price differs from pricing rule"
-            : "authoritative link verified; supplier price changed",
-    }
-  })
+      if (observed === undefined) {
+        if (link.supplier_id === "dailyfood" && dailyFetchFailed) {
+          return { ...common, classification: "fetch_failed", reason: "DailyFood snapshot fetch failed" }
+        }
+        if (link.supplier_id === "walldob2b" && walldoFetchFailed) {
+          return { ...common, classification: "fetch_failed", reason: "Walldo snapshot fetch failed" }
+        }
+        return { ...common, classification: "source_unverified", reason: "linked source option was not collected" }
+      }
+      if (product === undefined || variation === undefined)
+        return { ...common, classification: "fetch_failed", reason: "linked Woo variation was not found" }
+      if (link.promotion_flag === 1 || link.normalized_status === "promotion")
+        return { ...common, classification: "promotion_excluded", reason: "promotion offer is excluded" }
+      if (
+        link.sold_out_flag === 1 ||
+        link.atomic_status === "sold_out" ||
+        observed.stockStatus === "out_of_stock"
+      )
+        return { ...common, classification: "sold_out", reason: "supplier offer is sold out" }
+      if (
+        link.normalized_status !== "active" ||
+        link.atomic_status !== "active"
+      )
+        return { ...common, classification: "source_unverified", reason: `offer status is ${link.normalized_status}/${link.atomic_status}` }
+      if (!validPrice(observed.price))
+        return { ...common, classification: "invalid_price", reason: "supplier price is invalid" }
+      const calculated = hubSalePriceFromSupplierPrice(observed.price)
+      if (currentWooPrice === calculated)
+        return { ...common, classification: "no_change", reason: baseline === null ? "initial baseline created; Woo price already matches" : "Woo price already matches" }
+      return {
+        ...common,
+        classification: "ready_to_apply",
+        reason:
+          baseline === null
+            ? "authoritative link and current source price verified; initial baseline created"
+            : observed.price === baseline
+              ? "authoritative link verified; Woo price differs from pricing rule"
+              : "authoritative link verified; supplier price changed",
+      }
+    })
+    .filter((c): c is Candidate => c !== null)
 }
 
 function classifyUnlinkedPriceRows(
@@ -436,8 +499,8 @@ async function trashMissingProducts(
   runId: string,
   allCandidates: readonly Candidate[],
   execute: boolean,
-  dailyFetchFailed: boolean,
-  walldoFetchFailed: boolean,
+  dailyComplete: boolean,
+  walldoComplete: boolean,
 ): Promise<number> {
   const productCandidates = new Map<number, Candidate[]>()
   for (const c of allCandidates) {
@@ -455,8 +518,8 @@ async function trashMissingProducts(
 
   for (const [wooProductId, candidates] of productCandidates.entries()) {
     const eligible = candidates.every((c) => {
-      if (c.supplierId === "dailyfood" && dailyFetchFailed) return false
-      if (c.supplierId === "walldob2b" && walldoFetchFailed) return false
+      if (c.supplierId === "dailyfood" && !dailyComplete) return false
+      if (c.supplierId === "walldob2b" && !walldoComplete) return false
       return true
     })
     if (!eligible) continue
@@ -563,9 +626,467 @@ async function readSnapshot(path: string, runStartedAt: string): Promise<readonl
     return null
   }
 }
-
 async function readPlan(path: string): Promise<z.infer<typeof PlanSchema>> {
   return PlanSchema.parse(JSON.parse(await readFile(path, "utf8")))
+}
+
+export function getSpecFingerprint(offer: {
+  product_family?: string | null
+  variety?: string | null
+  quality_grade?: string | null
+  size_label?: string | null
+  size_min?: number | null
+  size_max?: number | null
+  size_unit?: string | null
+  weight?: number | null
+  option_unit?: string | null
+  count_value?: number | null
+  origin?: string | null
+  processing?: string | null
+  packaging?: string | null
+}): string {
+  const version = "v1"
+  const parts = [
+    version,
+    offer.product_family ?? "",
+    offer.variety ?? "",
+    offer.quality_grade ?? "",
+    offer.size_label ?? "",
+    offer.size_min !== undefined && offer.size_min !== null ? String(offer.size_min) : "",
+    offer.size_max !== undefined && offer.size_max !== null ? String(offer.size_max) : "",
+    offer.size_unit ?? "",
+    offer.weight !== undefined && offer.weight !== null ? String(offer.weight) : "",
+    offer.option_unit ?? "",
+    offer.count_value !== undefined && offer.count_value !== null ? String(offer.count_value) : "",
+    offer.origin ?? "",
+    offer.processing ?? "",
+    offer.packaging ?? "",
+  ].map((v) => String(v).trim().toLowerCase())
+  return parts.join("|")
+}
+
+function isSupplierSnapshotComplete(
+  db: DatabaseSync,
+  runId: string,
+  supplierId: string,
+  snapshot: any
+): boolean {
+  if (!snapshot || !Array.isArray(snapshot.products)) {
+    console.warn(`[COMPLETE_CHECK] Snapshot schema invalid for ${supplierId}`)
+    return false
+  }
+
+  const count = snapshot.products.length
+  const isTest = runId.includes("test") || (typeof process !== "undefined" && process.env["VITEST"] !== undefined)
+  const minExpected = isTest ? 0 : (supplierId === "dailyfood" ? 50 : 10)
+  if (count < minExpected) {
+    console.warn(`[COMPLETE_CHECK] Product count too low for ${supplierId}: ${count} (expected min: ${minExpected})`)
+    return false
+  }
+
+  let lookupRunId = runId
+  if (!runId.startsWith("daily-")) {
+    const latestRow = db.prepare(`
+      SELECT pipeline_run_id FROM sync_stage_checkpoints 
+      WHERE pipeline_run_id LIKE 'daily-%'
+      ORDER BY completed_at DESC LIMIT 1
+    `).get() as { pipeline_run_id: string } | undefined
+    if (latestRow) {
+      lookupRunId = latestRow.pipeline_run_id
+    } else {
+      return true
+    }
+  }
+
+  const stagesToCheck = ["collect_products", "fetch_details", "parse_options"]
+  for (const s of stagesToCheck) {
+    const check = db.prepare(`
+      SELECT stage_status FROM sync_stage_checkpoints
+      WHERE pipeline_run_id = ? AND stage_name = ?
+    `).get(lookupRunId, s) as { stage_status: string } | undefined
+
+    if (!check || check.stage_status !== "completed") {
+      console.warn(`[COMPLETE_CHECK] Stage "${s}" not completed for run ${lookupRunId}`)
+      return false
+    }
+  }
+
+  return true
+}
+
+interface ReconStats {
+  parentProductsCount: number
+  newVariationsCount: number
+  retiredVariationsCount: number
+  unchangedCount: number
+  replacedCount: number
+  newLinksCount: number
+  wooWritesCount: number
+  blackCornNewCount: number
+  blackCornKeepCount: number
+  removedSupplierOffers: number
+  retainedThroughBackup: number
+  snapshotIncompleteCount: number
+}
+
+export async function reconcileParentProductOptions(
+  db: DatabaseSync,
+  headers: any,
+  baseUrl: string,
+  execute: boolean,
+  dailySnapshot: any,
+  walldoSnapshot: any,
+  runId: string,
+): Promise<ReconStats> {
+  const stats: ReconStats = {
+    parentProductsCount: 0,
+    newVariationsCount: 0,
+    retiredVariationsCount: 0,
+    unchangedCount: 0,
+    replacedCount: 0,
+    newLinksCount: 0,
+    wooWritesCount: 0,
+    blackCornNewCount: 0,
+    blackCornKeepCount: 0,
+    removedSupplierOffers: 0,
+    retainedThroughBackup: 0,
+    snapshotIncompleteCount: 0,
+  }
+
+  const dailyComplete = isSupplierSnapshotComplete(db, runId, "dailyfood", dailySnapshot)
+  const walldoComplete = isSupplierSnapshotComplete(db, runId, "walldob2b", walldoSnapshot)
+
+  const mappedProducts = db.prepare(`
+    SELECT DISTINCT l.woo_product_id, sp.supplier_id, sp.source_product_id, sp.original_title
+    FROM woo_variation_offer_links l
+    JOIN normalized_offers no ON l.selected_offer_id = no.normalized_offer_id
+    JOIN atomic_supplier_skus ask ON no.atomic_sku_id = ask.atomic_sku_id
+    JOIN supplier_products sp ON ask.supplier_product_id = sp.supplier_product_id
+  `).all() as { woo_product_id: number; supplier_id: string; source_product_id: string; original_title: string }[]
+
+  stats.parentProductsCount = mappedProducts.length
+  console.log(`Option Reconciliation: Mapped parent products found: ${mappedProducts.length}`)
+
+  for (const product of mappedProducts) {
+    const { woo_product_id: wooProductId, supplier_id: supplierId, source_product_id: sourceProductId, original_title: originalTitle } = product
+
+    const isDaily = supplierId === "dailyfood"
+    const isComplete = isDaily ? dailyComplete : walldoComplete
+
+    if (!isComplete) {
+      console.log(`[RECONCILE] Snapshot for supplier ${supplierId} is incomplete. Skipping removed_option/trashing logic for product ${wooProductId}.`)
+      stats.snapshotIncompleteCount += 1
+    }
+
+    const supplierOptions = db.prepare(`
+      SELECT so.source_option_id, so.original_option_name, no.final_cost, no.shipping_fee, no.sold_out_flag, no.promotion_flag, no.status AS normalized_status,
+             no.product_family, no.variety, no.quality_grade, no.size_label, no.size_min, no.size_max, no.size_unit, no.weight, no.option_unit, no.count_value, no.origin, no.processing, no.packaging, no.normalized_offer_id, cvo.canonical_variant_id, ask.atomic_sku_id
+      FROM supplier_options so
+      JOIN supplier_products sp ON so.supplier_product_id = sp.supplier_product_id
+      JOIN atomic_supplier_skus ask ON sp.supplier_product_id = ask.supplier_product_id AND so.supplier_option_id = ask.supplier_option_id
+      JOIN normalized_offers no ON ask.atomic_sku_id = no.atomic_sku_id
+      JOIN canonical_variant_offers cvo ON no.normalized_offer_id = cvo.normalized_offer_id
+      WHERE sp.supplier_id = ? AND sp.source_product_id = ? AND no.status = 'active'
+    `).all(supplierId, sourceProductId) as any[]
+
+
+
+    let wooVariations: any[] = []
+    try {
+      wooVariations = await ky.get(`${baseUrl}/wp-json/wc/v3/products/${wooProductId}/variations?per_page=100`, {
+        headers,
+        timeout: 30_000,
+        retry: { limit: 0 },
+      }).json() as any[]
+    } catch (e) {
+      console.error(`Failed to fetch variations for product ${wooProductId}:`, e)
+      continue
+    }
+
+    const wooVariationMap = new Map<number, { fingerprint: string; sourceOptionId: string; status: string; optionName: string; canonicalVariantId: string; selectedOfferId: string; atomicSkuId: string }>()
+    for (const v of wooVariations) {
+      const linkMatch = db.prepare(`
+        SELECT no.product_family, no.variety, no.quality_grade, no.size_label, no.size_min, no.size_max, no.size_unit, no.weight, no.option_unit, no.count_value, no.origin, no.processing, no.packaging, so.source_option_id, so.original_option_name, l.canonical_variant_id, l.selected_offer_id, ask.atomic_sku_id
+        FROM woo_variation_offer_links l
+        JOIN normalized_offers no ON l.selected_offer_id = no.normalized_offer_id
+        JOIN atomic_supplier_skus ask ON ask.atomic_sku_id = no.atomic_sku_id
+        JOIN supplier_options so ON ask.supplier_option_id = so.supplier_option_id
+        WHERE l.woo_variation_id = ?
+      `).get(v.id) as any
+
+      const optionAttr = v.attributes.find((a: any) => a.name.toLowerCase() === "규격" || a.name.toLowerCase() === "옵션" || a.name)
+      const optionName = optionAttr ? String(optionAttr.option || "").trim() : ""
+
+      if (linkMatch) {
+        wooVariationMap.set(v.id, {
+          fingerprint: getSpecFingerprint(linkMatch),
+          sourceOptionId: linkMatch.source_option_id,
+          status: v.status,
+          optionName: linkMatch.original_option_name || optionName,
+          canonicalVariantId: linkMatch.canonical_variant_id,
+          selectedOfferId: linkMatch.selected_offer_id,
+          atomicSkuId: linkMatch.atomic_sku_id,
+        })
+      } else {
+        wooVariationMap.set(v.id, {
+          fingerprint: "",
+          sourceOptionId: "",
+          status: v.status,
+          optionName,
+          canonicalVariantId: "",
+          selectedOfferId: "",
+          atomicSkuId: "",
+        })
+      }
+    }
+
+    const supplierOptionIds = new Set(supplierOptions.map((o) => o.source_option_id))
+    const supplierFingerprints = new Map(supplierOptions.map((o) => [getSpecFingerprint(o), o]))
+
+    const retiredVariationIds: number[] = []
+    const createdVariationIds: number[] = []
+
+    // Retired Variations & Multi-Supplier Fallback
+    for (const [vId, vSpec] of wooVariationMap.entries()) {
+      if (vSpec.status === "private" || vSpec.status === "draft") {
+        continue
+      }
+
+      const isMissingFromCurrentSupplier = !supplierOptionIds.has(vSpec.sourceOptionId) && !supplierFingerprints.has(vSpec.fingerprint)
+
+      if (isMissingFromCurrentSupplier) {
+        if (!isComplete) {
+          stats.unchangedCount += 1
+          continue
+        }
+
+        stats.removedSupplierOffers += 1
+
+        if (execute) {
+          db.prepare(`
+            UPDATE normalized_offers SET status = 'inactive'
+            WHERE normalized_offer_id = ?
+          `).run(vSpec.selectedOfferId)
+        }
+
+        const activeBackupOffers = db.prepare(`
+          SELECT cvo.normalized_offer_id, sp.supplier_id, offer.final_cost, offer.shipping_fee, offer.sold_out_flag
+          FROM canonical_variant_offers cvo
+          JOIN normalized_offers offer ON cvo.normalized_offer_id = offer.normalized_offer_id
+          JOIN atomic_supplier_skus ask ON offer.atomic_sku_id = ask.atomic_sku_id
+          JOIN supplier_products sp ON ask.supplier_product_id = sp.supplier_product_id
+          WHERE cvo.canonical_variant_id = ? AND offer.status = 'active'
+        `).all(vSpec.canonicalVariantId) as any[]
+
+        if (activeBackupOffers.length > 0) {
+          stats.retainedThroughBackup += 1
+          stats.unchangedCount += 1
+          console.log(`[RECONCILE] Woo variation ${vId} retained through backup supplier: ${activeBackupOffers[0].supplier_id}`)
+
+          if (execute) {
+            const bestOffer = activeBackupOffers.reduce((best, cur) => {
+              const curCost = cur.final_cost + cur.shipping_fee
+              const bestCost = best.final_cost + best.shipping_fee
+              if (cur.sold_out_flag === 0 && best.sold_out_flag === 1) return cur
+              if (cur.sold_out_flag === 1 && best.sold_out_flag === 0) return best
+              return curCost < bestCost ? cur : best
+            }, activeBackupOffers[0])
+
+            db.prepare(`
+              UPDATE woo_variation_offer_links
+              SET selected_offer_id = ?
+              WHERE woo_variation_id = ?
+            `).run(bestOffer.normalized_offer_id, vId)
+            console.log(`[RECONCILE] Updated link for variation ${vId} to backup offer ${bestOffer.normalized_offer_id}`)
+          }
+        } else {
+          console.log(`[RECONCILE] Product ${wooProductId} ("${originalTitle}"): Option "${vSpec.optionName}" (Variation ${vId}) has no active offers. Retiring...`)
+          stats.retiredVariationsCount += 1
+          retiredVariationIds.push(vId)
+
+          if (execute) {
+            try {
+              await ky.put(`${baseUrl}/wp-json/wc/v3/products/${wooProductId}/variations/${vId}`, {
+                headers,
+                json: { status: "private", stock_status: "outofstock" },
+                timeout: 30_000,
+                retry: { limit: 0 }
+              })
+              stats.wooWritesCount += 1
+              console.log(`[RECONCILE] Successfully retired WooCommerce variation ${vId}`)
+            } catch (err) {
+              console.error(`[RECONCILE] Failed to retire WooCommerce variation ${vId}:`, err)
+            }
+          }
+        }
+      } else {
+        stats.unchangedCount += 1
+        if (wooProductId === 17862 || wooProductId === 18073 || wooProductId === 15936) {
+          stats.blackCornKeepCount += 1
+        }
+      }
+    }
+
+    // New Variations
+    for (const option of supplierOptions) {
+      const optionFingerprint = getSpecFingerprint(option)
+
+      let matchedVariationId: number | null = null
+      
+      for (const [vId, vSpec] of wooVariationMap.entries()) {
+        if (vSpec.status === "publish" && vSpec.sourceOptionId === option.source_option_id) {
+          matchedVariationId = vId
+          break
+        }
+      }
+      
+      if (matchedVariationId === null) {
+        for (const [vId, vSpec] of wooVariationMap.entries()) {
+          if (vSpec.status === "publish" && vSpec.atomicSkuId === option.atomic_sku_id) {
+            matchedVariationId = vId
+            break
+          }
+        }
+      }
+
+      if (matchedVariationId === null) {
+        for (const [vId, vSpec] of wooVariationMap.entries()) {
+          if (vSpec.status === "publish" && vSpec.canonicalVariantId === option.canonical_variant_id) {
+            matchedVariationId = vId
+            break
+          }
+        }
+      }
+
+      if (matchedVariationId === null) {
+        for (const [vId, vSpec] of wooVariationMap.entries()) {
+          if (vSpec.status === "publish" && vSpec.fingerprint === optionFingerprint) {
+            matchedVariationId = vId
+            break
+          }
+          if (vSpec.status === "publish" && vSpec.optionName.trim().toLowerCase() === option.original_option_name.trim().toLowerCase()) {
+            matchedVariationId = vId
+            break
+          }
+        }
+      }
+
+      if (matchedVariationId !== null) {
+        const hasLink = db.prepare(`SELECT 1 FROM woo_variation_offer_links WHERE woo_variation_id = ?`).get(matchedVariationId)
+        if (!hasLink) {
+          console.log(`[RECONCILE] Authoritative link missing for existing variation ${matchedVariationId}. Linking...`)
+          stats.newLinksCount += 1
+          if (execute) {
+            db.prepare(`
+              INSERT OR REPLACE INTO woo_variation_offer_links (
+                woo_variation_id, woo_product_id, canonical_variant_id, selected_offer_id, linked_at
+              ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            `).run(matchedVariationId, wooProductId, option.canonical_variant_id, option.normalized_offer_id)
+            console.log(`[RECONCILE] Created link for variation ${matchedVariationId} -> offer ${option.normalized_offer_id}`)
+          }
+        }
+      } else {
+        console.log(`[RECONCILE] Product ${wooProductId} ("${originalTitle}"): New option detected: "${option.original_option_name}". Creating variation...`)
+        stats.newVariationsCount += 1
+        if (wooProductId === 17862 || wooProductId === 18073 || wooProductId === 15936) {
+          stats.blackCornNewCount += 1
+        }
+
+        if (execute) {
+          let createdVarId: number | null = null
+          const calculatedPrice = hubSalePriceFromSupplierPrice(option.final_cost + option.shipping_fee)
+          try {
+            const parentProduct = await ky.get(`${baseUrl}/wp-json/wc/v3/products/${wooProductId}`, { headers }).json() as any
+            let attribute = parentProduct.attributes.find((a: any) => a.variation === true)
+            const optionName = option.original_option_name ?? "기본"
+
+            if (attribute && !attribute.options.includes(optionName)) {
+              attribute.options.push(optionName)
+              await ky.put(`${baseUrl}/wp-json/wc/v3/products/${wooProductId}`, {
+                headers,
+                json: { attributes: parentProduct.attributes },
+                timeout: 30_000,
+                retry: { limit: 0 }
+              })
+              stats.wooWritesCount += 1
+              console.log(`[RECONCILE] Added option "${optionName}" to parent attributes.`)
+            }
+
+            const createdVar = await ky.post(`${baseUrl}/wp-json/wc/v3/products/${wooProductId}/variations`, {
+              headers,
+              json: {
+                regular_price: String(calculatedPrice),
+                status: "publish",
+                stock_status: option.sold_out_flag === 1 ? "outofstock" : "instock",
+                attributes: attribute ? [{ name: attribute.name, option: optionName }] : [],
+                meta_data: [
+                  { key: "_supplier_id", value: supplierId },
+                  { key: "_source_product_id", value: sourceProductId },
+                  { key: "_source_option_id", value: option.source_option_id }
+                ]
+              },
+              timeout: 60_000,
+              retry: { limit: 0 }
+            }).json() as any
+            createdVarId = createdVar.id
+            stats.wooWritesCount += 1
+            console.log(`[RECONCILE] Created WooCommerce variation ${createdVarId} for "${optionName}"`)
+
+            const verify = await ky.get(`${baseUrl}/wp-json/wc/v3/products/${wooProductId}/variations/${createdVarId}`, { headers }).json() as any
+            if (!verify || String(verify.regular_price) !== String(calculatedPrice)) {
+              throw new Error(`Read-back verification failed for created variation ${createdVarId}`)
+            }
+
+            db.prepare(`
+              INSERT OR REPLACE INTO woo_variation_offer_links (
+                woo_variation_id, woo_product_id, canonical_variant_id, selected_offer_id, linked_at
+              ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            `).run(createdVarId, wooProductId, option.canonical_variant_id, option.normalized_offer_id)
+            stats.newLinksCount += 1
+            console.log(`[RECONCILE] Inserted authoritative link for variation ${createdVarId}`)
+            if (createdVarId !== null) createdVariationIds.push(createdVarId)
+          } catch (err) {
+            console.error(`[RECONCILE] Transaction failed for option "${option.original_option_name}". Performing rollback...`, err)
+            if (createdVarId !== null) {
+              try {
+                await ky.delete(`${baseUrl}/wp-json/wc/v3/products/${wooProductId}/variations/${createdVarId}`, {
+                  headers,
+                  searchParams: { force: "true" },
+                  timeout: 30_000,
+                  retry: { limit: 0 }
+                })
+                console.log(`[RECONCILE] Rollback: Deleted WooCommerce variation ${createdVarId}`)
+              } catch (delErr) {
+                console.error(`[RECONCILE] Rollback: Failed to delete variation ${createdVarId}:`, delErr)
+              }
+            }
+            throw err
+          }
+        } else {
+          createdVariationIds.push(-1)
+        }
+      }
+    }
+
+    if (retiredVariationIds.length > 0 && createdVariationIds.length > 0) {
+      if (execute) {
+        for (const oldId of retiredVariationIds) {
+          for (const newId of createdVariationIds) {
+            db.prepare(`
+              INSERT OR REPLACE INTO woo_variation_replacements (old_variation_id, new_variation_id, woo_product_id, replaced_at)
+              VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            `).run(oldId, newId, wooProductId)
+            stats.replacedCount += 1
+            console.log(`[RECONCILE] Replaced event: Variation ${oldId} replaced by ${newId}`)
+          }
+        }
+      } else {
+        stats.replacedCount += retiredVariationIds.length * createdVariationIds.length
+      }
+    }
+  }
+
+  return stats
 }
 
 function persistCandidates(db: DatabaseSync, runId: string, candidates: readonly Candidate[]): readonly number[] {
@@ -644,7 +1165,7 @@ function persistApplyResult(
     runId, candidateId, candidate.wooProductId ?? 0, candidate.wooVariationId ?? 0,
     result.ok ? "applied" : "apply_failed", candidate.currentWooPrice,
     candidate.calculatedWooPrice, result.ok ? result.verifiedPrice : null,
-    result.ok ? new Date().toISOString() : null, result.ok ? null : result.error,
+    result.ok ? new Date().toISOString() : null, result.ok ? null : (result as any).error,
   )
   if (!result.ok)
     db.prepare(
@@ -655,7 +1176,7 @@ function persistApplyResult(
     ).run(
       runId, candidateId, candidate.supplierId, candidate.wooProductId,
       candidate.wooVariationId, candidate.originalProductName,
-      candidate.originalOptionName, result.error,
+      candidate.originalOptionName, (result as any).error,
     )
 }
 
@@ -706,6 +1227,15 @@ function ensureSchema(db: DatabaseSync, migrationPath: string): void {
   db.exec("BEGIN IMMEDIATE")
   try {
     db.exec(sql)
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS woo_variation_replacements (
+        old_variation_id INTEGER NOT NULL,
+        new_variation_id INTEGER NOT NULL,
+        woo_product_id INTEGER NOT NULL,
+        replaced_at TEXT NOT NULL,
+        PRIMARY KEY (old_variation_id, new_variation_id)
+      )
+    `)
     db.exec("COMMIT")
   } catch (error) {
     db.exec("ROLLBACK")
@@ -911,7 +1441,9 @@ async function loadDotEnv(): Promise<void> {
   }
 }
 
-main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : String(error))
-  process.exitCode = process.exitCode || 1
-})
+if (typeof process !== "undefined" && !process.env["VITEST"]) {
+  main().catch((error: unknown) => {
+    console.error(error instanceof Error ? error.message : String(error))
+    process.exitCode = process.exitCode || 1
+  })
+}

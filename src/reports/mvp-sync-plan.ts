@@ -33,6 +33,7 @@ const VariationSchema = z.object({
   id: z.number().int(),
   price: z.string().nullable().optional(),
   stock_status: z.string().nullable().optional(),
+  status: z.string().nullable().optional(),
   attributes: z.array(z.object({ name: z.string(), option: z.string().optional() })).default([]),
   meta_data: z.array(z.object({ key: z.string(), value: z.unknown() })).default([]),
 })
