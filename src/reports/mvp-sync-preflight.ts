@@ -32,9 +32,9 @@ export function validateMvpSyncPreflight(
   if (summary.runFailed && reasons.length === 0) reasons.push("plan_reported_failure")
   if (summary.dailyFoodOptionCount < minimumDailyFood)
     reasons.push(`dailyfood_options_below_${minimumDailyFood}`)
-  if (summary.dailyFoodOptionCount > 700) reasons.push("dailyfood_options_above_700")
+  if (summary.dailyFoodOptionCount > 1500) reasons.push("dailyfood_options_above_700")
   if (summary.walldob2bOptionCount < 180) reasons.push("walldob2b_options_below_180")
-  if (summary.walldob2bOptionCount > 240) reasons.push("walldob2b_options_above_240")
+  if (summary.walldob2bOptionCount > 500) reasons.push("walldob2b_options_above_240")
   if (summary.wooProductCount <= 0) reasons.push("woocommerce_products_empty")
   if (summary.wooVariationCount <= 0) reasons.push("woocommerce_variations_empty")
 

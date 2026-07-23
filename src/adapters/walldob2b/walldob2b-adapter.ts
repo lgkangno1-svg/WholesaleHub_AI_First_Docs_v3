@@ -136,6 +136,28 @@ export function parseWalldob2bDetailHtml(
   }))
 }
 
+export function parseWalldob2bProductAvailability(html: string): {
+  readonly soldOut: boolean
+  readonly evidence: readonly string[]
+} {
+  const evidence: string[] = []
+  const insufficientStock =
+    /상품의\s*재고가\s*부족하여\s*구매할\s*수\s*없습니다|재고\s*부족으로\s*구매할\s*수\s*없/iu.test(
+      stripTags(html),
+    )
+  if (insufficientStock) evidence.push("insufficient_stock_message")
+
+  const hasSoldOutBadge = /품절|sold\s*out/iu.test(stripTags(html))
+  if (hasSoldOutBadge) evidence.push("sold_out_badge")
+
+  const htmlWithoutOptions = html.replace(/<option\b[^>]*>[\s\S]*?<\/option>/giu, " ")
+  const productLevelSoldOut = /품절|sold\s*out/iu.test(stripTags(htmlWithoutOptions))
+  return {
+    soldOut: insufficientStock || productLevelSoldOut,
+    evidence,
+  }
+}
+
 function parseBasePrice(html: string): number {
   const hiddenPrice = /id=["']it_base_price["'][^>]*value=["']([0-9,]+)["']/iu.exec(html)
   if (hiddenPrice?.[1] !== undefined) {

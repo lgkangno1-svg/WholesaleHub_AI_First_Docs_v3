@@ -22,6 +22,7 @@ const DirectSiteProductSchema = z.object({
   productName: z.string(),
   pageNo: z.number().int().nonnegative().default(0),
   imageUrl: z.string().default(""),
+  detailImageUrls: z.array(z.string()).default([]),
   options: z.array(DirectSiteOptionSchema),
   raw: z.record(z.string(), z.unknown()).default({}),
 })
@@ -29,6 +30,7 @@ const DirectSiteResultSchema = z.object({
   crawledAt: z.string(),
   products: z.array(DirectSiteProductSchema),
   errors: z.array(z.string()).default([]),
+  paginationComplete: z.boolean(),
 })
 
 export type DailyFoodDirectSiteOption = z.infer<typeof DirectSiteOptionSchema>
@@ -70,6 +72,20 @@ export async function collectDailyFoodDirectSiteProducts(
   options: DailyFoodDirectSiteOptions,
 ): Promise<readonly CollectedProduct[]> {
   const result = await crawlDailyFoodDirectSite(options)
+  return collectDailyFoodProducts(result)
+}
+
+export async function collectDailyFoodDirectSiteSnapshot(
+  options: DailyFoodDirectSiteOptions,
+): Promise<{
+  readonly products: readonly CollectedProduct[]
+  readonly result: DailyFoodDirectSiteResult
+}> {
+  const result = await crawlDailyFoodDirectSite(options)
+  return { products: collectDailyFoodProducts(result), result }
+}
+
+function collectDailyFoodProducts(result: DailyFoodDirectSiteResult): readonly CollectedProduct[] {
   const products: CollectedProduct[] = []
   for (const product of result.products) {
     for (const option of product.options) {
@@ -143,6 +159,9 @@ async function ensureLoggedIn(page: Page, username: string, password: string): P
   else await page.keyboard.press("Enter")
   await page.waitForLoadState("networkidle", { timeout: 60_000 }).catch(() => undefined)
   await page.goto(DAILYFOOD_LIST_URL, { waitUntil: "domcontentloaded", timeout: 60_000 })
+  if (!page.url().includes("actpage=prt.list") || (await hasLoginFields(page))) {
+    throw new Error("dailyfood login verification failed")
+  }
 }
 
 async function hasLoginFields(page: Page): Promise<boolean> {
@@ -239,10 +258,22 @@ const CRAWL_DAILYFOOD_IN_BROWSER = `async ({ baseUrl, maxPages }) => {
     }
     return options;
   }
+  function detailImagesFromHtml(html) {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    return [...new Set(
+      [...doc.querySelectorAll('img')]
+        .map((image) => absoluteUrl(image.getAttribute('src') || image.getAttribute('data-src') || ''))
+        .filter(Boolean)
+    )];
+  }
+  let paginationComplete = false;
   for (let pageNo = 1; pageNo <= maxPages; pageNo += 1) {
     const url = baseUrl + '/partner/?mod=product/json&actpage=prt.list.proc&page=' + pageNo + '&order=&by=&searchval=';
     const rows = rowsFromListText(await fetchText(url), pageNo);
-    if (rows.length === 0) break;
+    if (rows.length === 0) {
+      paginationComplete = true;
+      break;
+    }
     for (let index = 0; index < rows.length; index += 1) {
       const row = rows[index];
       const sourceProductId = row.sourceProductId;
@@ -250,12 +281,14 @@ const CRAWL_DAILYFOOD_IN_BROWSER = `async ({ baseUrl, maxPages }) => {
       const imageUrl = row.imageUrl;
       try {
         const detailUrl = baseUrl + '/partner/?mod=product&actpage=prt.grp.detail.pop&pcode=' + encodeURIComponent(sourceProductId);
-        const options = optionsFromDetail(sourceProductId, productName, pageNo, imageUrl, await fetchText(detailUrl));
-        products.push({ sourceProductId, productName, pageNo, imageUrl, options, raw: row });
+        const detailHtml = await fetchText(detailUrl);
+        const options = optionsFromDetail(sourceProductId, productName, pageNo, imageUrl, detailHtml);
+        const detailImageUrls = detailImagesFromHtml(detailHtml);
+        products.push({ sourceProductId, productName, pageNo, imageUrl, detailImageUrls, options, raw: row });
       } catch (error) {
         errors.push(productName + ': ' + (error instanceof Error ? error.message : String(error)));
       }
     }
   }
-  return { crawledAt, products, errors };
+  return { crawledAt, products, errors, paginationComplete };
 }`

@@ -47,7 +47,7 @@ export class DailyFoodAtomicAdapter implements SupplierAtomicAdapter {
       imageUrl:
         unique([
           product.imageUrl,
-          ...product.detailImageUrls,
+          ...((product as any).detailImageUrls ?? []),
           ...product.options.map((option) => option.imageUrl),
         ])[0] ?? null,
       shippingFee: 0,

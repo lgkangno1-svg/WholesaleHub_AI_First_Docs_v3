@@ -265,12 +265,14 @@ function planRow(
   const selected = available[0] ?? null
   const selectedSalePrice = selected === null ? null : hubSalePriceFromSupplierPrice(selected.price)
   const matched = matchWoo(candidates, wooProducts)
-  const baselineSupplierPrice = matched.matchType === "hard_meta"
-    ? numberOrNull(metaValue(matched.variation?.meta_data ?? [], "_wholesalehub_supplier_price"))
-    : null
-  const sourcePriceChanged = selected === null || baselineSupplierPrice === null
-    ? null
-    : selected.price !== baselineSupplierPrice
+  const baselineSupplierPrice =
+    matched.matchType === "hard_meta"
+      ? numberOrNull(metaValue(matched.variation?.meta_data ?? [], "_wholesalehub_supplier_price"))
+      : null
+  const sourcePriceChanged =
+    selected === null || baselineSupplierPrice === null
+      ? null
+      : selected.price !== baselineSupplierPrice
   const currentSupplierId =
     metaValue(matched.variation?.meta_data ?? [], "_supplier_id") ||
     metaValue(matched.variation?.meta_data ?? [], "_wholesalehub_supplier_id")
@@ -465,12 +467,12 @@ function productGroupKey(value: string): string {
 }
 
 function optionKey(value: string): string {
-  const descriptors = [...value.matchAll(
-    /(?:^|[\s([{,\/])((?:왕특|특대|특|대|중|소))(?=$|[\s)\]},\/]|\d|개|과|입)/gu,
-  )].map((match) => cleanKey(match[1] ?? ""))
-  const measures = [...value.matchAll(/\d+(?:\.\d+)?\s*(?:kg|g|개입|개|팩|봉|박스|망|과|R)/giu)].map(
-    (match) => cleanKey(match[0] ?? ""),
-  )
+  const descriptors = [
+    ...value.matchAll(/(?:^|[\s([{,/])((?:왕특|특대|특|대|중|소))(?=$|[\s)\]},/]|\d|개|과|입)/gu),
+  ].map((match) => cleanKey(match[1] ?? ""))
+  const measures = [
+    ...value.matchAll(/\d+(?:\.\d+)?\s*(?:kg|g|개입|개|팩|봉|박스|망|과|R)/giu),
+  ].map((match) => cleanKey(match[0] ?? ""))
   const keys = [...new Set([...descriptors, ...measures].filter(Boolean))]
   return keys.length > 0 ? keys.join("|") : cleanKey(value)
 }
