@@ -34,7 +34,7 @@ export type Walldob2bStockSyncRow = Walldob2bStockTarget & {
 
 export function buildWalldob2bStockSyncRows(
   targets: readonly Walldob2bStockTarget[],
-  availabilityByProduct: ReadonlyMap<string, parseWalldob2bProductAvailability>,
+  availabilityByProduct: ReadonlyMap<string, parseparseWalldob2bProductAvailability>,
 ): readonly Walldob2bStockSyncRow[] {
   return targets.map((target) => {
     const availability = availabilityByProduct.get(target.sourceProductId) ?? {
@@ -146,19 +146,19 @@ function collectWalldob2bStockTargets(
 
 async function fetchAvailability(
   sourceProductIds: readonly string[],
-): Promise<ReadonlyMap<string, parseWalldob2bProductAvailability>> {
+): Promise<ReadonlyMap<string, parseparseWalldob2bProductAvailability>> {
   const login = {
     username: requiredEnv("WALLDOB2B_USERNAME"),
     password: requiredEnv("WALLDOB2B_PASSWORD"),
   }
-  const result = new Map<string, parseWalldob2bProductAvailability>()
+  const result = new Map<string, parseparseWalldob2bProductAvailability>()
   const queue = [...sourceProductIds]
   const workers = Array.from({ length: Math.min(5, queue.length) }, async () => {
     for (;;) {
       const sourceProductId = queue.shift()
       if (sourceProductId === undefined) return
       const html = await fetchWalldob2bDetailHtml(sourceProductId, login)
-      result.set(sourceProductId, parseparseWalldob2bProductAvailability(html))
+      result.set(sourceProductId, parseparseparseWalldob2bProductAvailability(html))
     }
   })
   await Promise.all(workers)
