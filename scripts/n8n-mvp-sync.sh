@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+export PATH="/home/tnfwod/projects/wholesalehub/node_modules/.bin:$PATH"
+
 set -Eeuo pipefail
 
 PROJECT_DIR="/home/tnfwod/projects/wholesalehub"
