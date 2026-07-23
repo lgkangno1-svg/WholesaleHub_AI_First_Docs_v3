@@ -1,0 +1,376 @@
+import { mkdir, readFile, writeFile } from "node:fs/promises"
+import { resolve } from "node:path"
+import ky from "ky"
+import { z } from "zod"
+
+const MetaSchema = z.object({ key: z.string(), value: z.unknown() })
+const ProductSchema = z.object({
+  id: z.number().int(),
+  name: z.string().default(""),
+  status: z.string().default(""),
+  description: z.string().default(""),
+  categories: z.array(z.object({ id: z.number().int(), name: z.string().default("") })).default([]),
+  meta_data: z.array(MetaSchema).default([]),
+})
+const ProductsSchema = z.array(ProductSchema)
+
+type Product = z.infer<typeof ProductSchema>
+type WooClient = { readonly baseUrl: string; readonly headers: Record<string, string> }
+type Options = { readonly execute: boolean; readonly limit: number | null; readonly force: boolean }
+type Row = {
+  readonly product_id: number
+  readonly product_name: string
+  readonly source_url: string
+  readonly source_kind: string
+  readonly before_description_length: number
+  readonly crawled_description_length: number
+  readonly action: string
+  readonly reason_korean: string
+}
+
+const REPORT_CSV = "reports/fafane-description-sync.csv"
+const REPORT_SUMMARY = "reports/fafane-description-sync-summary.md"
+const FAFA_BASE = "https://fafanedafane.imweb.me"
+
+async function main(): Promise<void> {
+  await loadDotEnv()
+  const options = parseArgs(process.argv.slice(2))
+  const client = wooClient({
+    baseUrl: readRequiredEnv("WOOCOMMERCE_BASE_URL"),
+    consumerKey: readRequiredEnv("WOOCOMMERCE_CONSUMER_KEY"),
+    consumerSecret: readRequiredEnv("WOOCOMMERCE_CONSUMER_SECRET"),
+  })
+  const products = (await fetchAllProducts(client)).filter(isGroupBuyProduct)
+  const rows: Row[] = []
+  let processed = 0
+  for (const product of products) {
+    if (options.limit !== null && processed >= options.limit) break
+    if (hasDeadlineText(product.name)) {
+      processed += 1
+      if (options.execute) await trashProduct(client, product.id)
+      rows.push(
+        row(
+          product,
+          sourceUrl(product)?.url ?? "",
+          "deadline_excluded",
+          0,
+          options.execute ? "deadline_trashed" : "deadline_skip",
+          "마감일이 적힌 imweb 공동구매 상품은 수집/노출 제외",
+        ),
+      )
+      continue
+    }
+    const source = sourceUrl(product)
+    if (!source) {
+      rows.push(row(product, "", "missing", 0, "skipped", "원본 URL 또는 _fafa_idx가 없어 보류"))
+      continue
+    }
+    processed += 1
+    const beforeLength = textLength(product.description)
+    if (!options.force && beforeLength > 0) {
+      rows.push(row(product, source.url, source.kind, 0, "skipped", "이미 상품 설명이 있어 보류"))
+      continue
+    }
+    try {
+      const html = await ky
+        .get(source.url, {
+          headers: { "user-agent": "Mozilla/5.0 WholesaleHub description crawler" },
+          timeout: 30_000,
+          retry: { limit: 1 },
+        })
+        .text()
+      const description = sanitizeDescription(extractDescription(html, source.kind))
+      const crawledLength = textLength(description)
+      if (crawledLength < 20) {
+        rows.push(
+          row(
+            product,
+            source.url,
+            source.kind,
+            crawledLength,
+            "skipped",
+            "원본 설명 본문을 충분히 추출하지 못함",
+          ),
+        )
+        continue
+      }
+      if (options.execute) await updateProductDescription(client, product.id, description)
+      rows.push(
+        row(
+          product,
+          source.url,
+          source.kind,
+          crawledLength,
+          options.execute ? "updated" : "dry_run",
+          options.execute ? "원본 설명을 WooCommerce 상품 설명에 반영" : "dry-run: 반영 가능",
+        ),
+      )
+    } catch (error) {
+      rows.push(
+        row(
+          product,
+          source.url,
+          source.kind,
+          0,
+          "failed",
+          error instanceof Error ? error.message : String(error),
+        ),
+      )
+    }
+  }
+  await writeReports(rows, products.length, options)
+  console.log(
+    JSON.stringify(
+      {
+        groupBuyProducts: products.length,
+        updated: rows.filter((item) => item.action === "updated").length,
+        dryRun: rows.filter((item) => item.action === "dry_run").length,
+        skipped: rows.filter((item) => item.action === "skipped").length,
+        failed: rows.filter((item) => item.action === "failed").length,
+        deadlineTrashed: rows.filter((item) => item.action === "deadline_trashed").length,
+        deadlineSkipped: rows.filter((item) => item.action === "deadline_skip").length,
+        reports: [REPORT_CSV, REPORT_SUMMARY],
+        wooCommerceChanged: options.execute,
+      },
+      null,
+      2,
+    ),
+  )
+}
+
+function wooClient(credentials: {
+  readonly baseUrl: string
+  readonly consumerKey: string
+  readonly consumerSecret: string
+}): WooClient {
+  return {
+    baseUrl: credentials.baseUrl.replace(/\/$/u, ""),
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${credentials.consumerKey}:${credentials.consumerSecret}`).toString("base64")}`,
+    },
+  }
+}
+
+async function fetchAllProducts(client: WooClient): Promise<readonly Product[]> {
+  const products: Product[] = []
+  for (let page = 1; ; page += 1) {
+    const batch = ProductsSchema.parse(
+      await ky
+        .get(`${client.baseUrl}/wp-json/wc/v3/products`, {
+          headers: client.headers,
+          searchParams: { per_page: "100", page: String(page), status: "any" },
+          timeout: 30_000,
+          retry: { limit: 1 },
+        })
+        .json(),
+    )
+    products.push(...batch)
+    if (batch.length < 100) break
+  }
+  return products
+}
+
+function isGroupBuyProduct(product: Product): boolean {
+  return product.categories.some((category) => category.name === "공동구매")
+}
+
+function sourceUrl(product: Product): { readonly url: string; readonly kind: string } | null {
+  const explicit = metaValue(product, "_fafane_source_url")
+  if (explicit.length > 0) {
+    return { url: explicit, kind: explicit.includes("bmode=view") ? "board" : "shop" }
+  }
+  const idx = metaValue(product, "_fafa_idx")
+  if (idx.length === 0) return null
+  return { url: `${FAFA_BASE}/shop_view/?idx=${encodeURIComponent(idx)}`, kind: "shop" }
+}
+
+function metaValue(product: Product, key: string): string {
+  const value = product.meta_data.find((item) => item.key === key)?.value
+  if (typeof value === "string") return value.trim()
+  if (typeof value === "number") return String(value)
+  return ""
+}
+
+function extractDescription(html: string, kind: string): string {
+  if (kind === "board") {
+    const board = extractDivInnerByClass(html, "board_txt_area")
+    if (board.length > 0) return board
+  }
+  const template = html.match(/<template\s+id=["']prodDetailPC["'][^>]*>([\s\S]*?)<\/template>/iu)
+  if (template?.[1]) return template[1]
+  const description = html.match(
+    /<meta[^>]+(?:name|property)=["'](?:description|og:description)["'][^>]+content=["']([^"']*)["'][^>]*>/iu,
+  )
+  return description?.[1] ?? ""
+}
+
+function extractDivInnerByClass(html: string, className: string): string {
+  const openMatch = new RegExp(`<div[^>]+class=["'][^"']*${className}[^"']*["'][^>]*>`, "iu").exec(
+    html,
+  )
+  if (!openMatch || openMatch.index === undefined) return ""
+  const start = openMatch.index
+  let depth = 0
+  const tagPattern = /<\/?div\b[^>]*>/giu
+  tagPattern.lastIndex = start
+  let match = tagPattern.exec(html)
+  while (match !== null) {
+    if (match[0].startsWith("</")) depth -= 1
+    else depth += 1
+    if (depth === 0) return html.slice(start + openMatch[0].length, match.index)
+    match = tagPattern.exec(html)
+  }
+  return ""
+}
+
+function hasDeadlineText(value: string): boolean {
+  return /마감\s*일|마감일/iu.test(value)
+}
+
+function sanitizeDescription(value: string): string {
+  return stripControlCharacters(
+    value.replace(/<script\b[\s\S]*?<\/script>/giu, "").replace(/<style\b[\s\S]*?<\/style>/giu, ""),
+  ).trim()
+}
+
+function stripControlCharacters(value: string): string {
+  return Array.from(value)
+    .filter((char) => {
+      const code = char.charCodeAt(0)
+      return code === 9 || code === 10 || code === 13 || code >= 32
+    })
+    .join("")
+}
+
+function textLength(html: string): number {
+  return html
+    .replace(/<[^>]*>/gu, " ")
+    .replace(/&nbsp;/giu, " ")
+    .replace(/\s+/gu, " ")
+    .trim().length
+}
+
+async function trashProduct(client: WooClient, productId: number): Promise<void> {
+  await ky.delete(`${client.baseUrl}/wp-json/wc/v3/products/${productId}`, {
+    headers: client.headers,
+    searchParams: { force: "false" },
+    timeout: 30_000,
+    retry: { limit: 1 },
+  })
+}
+
+async function updateProductDescription(
+  client: WooClient,
+  productId: number,
+  description: string,
+): Promise<void> {
+  await ky.put(`${client.baseUrl}/wp-json/wc/v3/products/${productId}`, {
+    headers: client.headers,
+    json: {
+      description,
+      catalog_visibility: "visible",
+      meta_data: [
+        { key: "_fafane_description_synced_at", value: new Date().toISOString() },
+        { key: "_fafane_description_source", value: "prodDetailPC_or_board_body" },
+      ],
+    },
+    timeout: 30_000,
+    retry: { limit: 1 },
+  })
+}
+
+function row(
+  product: Product,
+  sourceUrlValue: string,
+  sourceKind: string,
+  crawledLength: number,
+  action: string,
+  reason: string,
+): Row {
+  return {
+    product_id: product.id,
+    product_name: product.name,
+    source_url: sourceUrlValue,
+    source_kind: sourceKind,
+    before_description_length: textLength(product.description),
+    crawled_description_length: crawledLength,
+    action,
+    reason_korean: reason,
+  }
+}
+
+async function writeReports(rows: readonly Row[], total: number, options: Options): Promise<void> {
+  await mkdir("reports", { recursive: true })
+  const columns = [
+    "product_id",
+    "product_name",
+    "source_url",
+    "source_kind",
+    "before_description_length",
+    "crawled_description_length",
+    "action",
+    "reason_korean",
+  ] as const
+  const csv = [
+    columns.join(","),
+    ...rows.map((item) => columns.map((column) => csvCell(item[column])).join(",")),
+  ].join("\n")
+  await writeFile(resolve(REPORT_CSV), `\uFEFF${csv}\n`, "utf8")
+  const counts = countBy(rows.map((item) => item.action))
+  await writeFile(
+    resolve(REPORT_SUMMARY),
+    `# Fafane Description Sync Summary\n\n- total_groupbuy_products: ${total}\n- execute: ${options.execute}\n- force: ${options.force}\n- updated: ${counts["updated"] ?? 0}\n- dry_run: ${counts["dry_run"] ?? 0}\n- skipped: ${counts["skipped"] ?? 0}\n- failed: ${counts["failed"] ?? 0}\n- deadline_trashed: ${counts["deadline_trashed"] ?? 0}\n- deadline_skipped: ${counts["deadline_skip"] ?? 0}\n- generated_at: ${new Date().toISOString()}\n- changed_fields: post_content(description) and catalog_visibility only; product name, price, status, stock, image, options, orders unchanged.\n\n## Reports\n- ${REPORT_CSV}\n- ${REPORT_SUMMARY}\n`,
+    "utf8",
+  )
+}
+
+function csvCell(value: string | number): string {
+  const text = String(value).replace(/"/gu, '""')
+  return `"${text}"`
+}
+
+function countBy(values: readonly string[]): Record<string, number> {
+  const result: Record<string, number> = {}
+  for (const value of values) result[value] = (result[value] ?? 0) + 1
+  return result
+}
+
+function parseArgs(args: readonly string[]): Options {
+  const flags = new Set(args.filter((arg) => arg.startsWith("--")))
+  const valueAfter = (name: string): string | null => {
+    const index = args.indexOf(name)
+    if (index < 0) return null
+    return args[index + 1] ?? null
+  }
+  const limit = valueAfter("--limit")
+  return {
+    execute: flags.has("--execute"),
+    force: flags.has("--force"),
+    limit: limit === null ? null : Number.parseInt(limit, 10),
+  }
+}
+
+async function loadDotEnv(): Promise<void> {
+  try {
+    const env = await readFile(".env", "utf8")
+    for (const line of env.split(/\r?\n/u)) {
+      const match = /^([A-Z0-9_]+)=(.*)$/u.exec(line)
+      if (match?.[1] !== undefined && process.env[match[1]] === undefined)
+        process.env[match[1]] = match[2] ?? ""
+    }
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return
+    throw error
+  }
+}
+
+function readRequiredEnv(key: string): string {
+  const value = process.env[key]?.trim()
+  if (!value) throw new Error(`${key} is required`)
+  return value
+}
+
+main().catch((error: unknown) => {
+  console.error(error instanceof Error ? error.message : String(error))
+  process.exitCode = 1
+})

@@ -1,0 +1,468 @@
+<?php
+/**
+ * Telegram order notifications plus crawler-product and membership approvals.
+ * Loaded by avocadoss-performance.php; no credentials are stored in this file.
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
+function avocadoss_telegram_api_request( $method, array $body ) {
+    $token   = trim( (string) get_option( 'avocadoss_telegram_bot_token', '' ) );
+    $chat_id = trim( (string) get_option( 'avocadoss_telegram_chat_id', '' ) );
+
+    if ( '' === $token && defined( 'AVOCADOSS_TG_BOT_TOKEN' ) ) {
+        $token = trim( (string) AVOCADOSS_TG_BOT_TOKEN );
+    }
+    if ( '' === $chat_id && defined( 'AVOCADOSS_TG_CHAT_ID' ) ) {
+        $chat_id = trim( (string) AVOCADOSS_TG_CHAT_ID );
+    }
+
+    if ( '' === $token || '' === $chat_id || ! preg_match( '/^[0-9]+:[A-Za-z0-9_-]+$/', $token ) ) {
+        return false;
+    }
+
+    if ( ! isset( $body['chat_id'] ) && in_array( $method, array( 'sendMessage', 'editMessageText' ), true ) ) {
+        $body['chat_id'] = $chat_id;
+    }
+
+    $response = wp_remote_post( 'https://api.telegram.org/bot' . $token . '/' . $method, array(
+        'timeout' => 15,
+        'body'    => $body,
+    ) );
+
+    if ( is_wp_error( $response ) || 200 > wp_remote_retrieve_response_code( $response ) || 300 <= wp_remote_retrieve_response_code( $response ) ) {
+        return false;
+    }
+
+    $decoded = json_decode( wp_remote_retrieve_body( $response ), true );
+    return is_array( $decoded ) && ! empty( $decoded['ok'] ) ? $decoded['result'] : false;
+}
+
+/* Restore the existing order-notification path if an older deployed plugin file omitted it. */
+if ( ! function_exists( 'avocadoss_send_telegram_message' ) ) {
+    add_action( 'init', 'avocadoss_schedule_telegram_order_digest' );
+    add_action( 'woocommerce_new_order', 'avocadoss_handle_new_order_telegram_notice', 30, 1 );
+    add_action( 'avocadoss_telegram_hourly_order_digest', 'avocadoss_send_hourly_telegram_order_digest' );
+
+    function avocadoss_schedule_telegram_order_digest() {
+        if ( ! wp_next_scheduled( 'avocadoss_telegram_hourly_order_digest' ) ) {
+            wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', 'avocadoss_telegram_hourly_order_digest' );
+        }
+    }
+
+    function avocadoss_handle_new_order_telegram_notice( $order_id ) {
+        $order_id = absint( $order_id );
+        if ( ! $order_id ) {
+            return;
+        }
+        if ( 'hourly' === get_option( 'avocadoss_telegram_notice_mode', 'instant' ) ) {
+            avocadoss_queue_telegram_order_notice( $order_id );
+            return;
+        }
+        $order = wc_get_order( $order_id );
+        if ( ! $order || avocadoss_send_telegram_message( avocadoss_build_telegram_order_message( $order ) ) ) {
+            return;
+        }
+        avocadoss_queue_telegram_order_notice( $order_id );
+    }
+
+    function avocadoss_send_hourly_telegram_order_digest() {
+        $queue = get_option( 'avocadoss_telegram_order_queue', array() );
+        if ( ! is_array( $queue ) || empty( $queue ) ) {
+            return;
+        }
+        $messages = array();
+        foreach ( array_unique( array_map( 'absint', $queue ) ) as $order_id ) {
+            $order = wc_get_order( $order_id );
+            if ( $order ) {
+                $messages[] = avocadoss_build_telegram_order_message( $order );
+            }
+        }
+        if ( empty( $messages ) || avocadoss_send_telegram_message( "도매허브 주문 알림 모음\n\n" . implode( "\n\n---\n\n", $messages ) ) ) {
+            update_option( 'avocadoss_telegram_order_queue', array(), false );
+        }
+    }
+
+    function avocadoss_queue_telegram_order_notice( $order_id ) {
+        $queue = get_option( 'avocadoss_telegram_order_queue', array() );
+        $queue = is_array( $queue ) ? $queue : array();
+        $queue[] = absint( $order_id );
+        update_option( 'avocadoss_telegram_order_queue', array_values( array_unique( array_filter( $queue ) ) ), false );
+    }
+
+    function avocadoss_send_telegram_message( $message ) {
+        return false !== avocadoss_telegram_api_request( 'sendMessage', array(
+            'text' => wp_strip_all_tags( (string) $message ),
+        ) );
+    }
+
+    function avocadoss_build_telegram_order_message( WC_Order $order ) {
+        $lines = array(
+            '도매허브 새 주문이 들어왔습니다.',
+            '주문번호: #' . $order->get_order_number(),
+            '사업자명: ' . avocadoss_get_order_business_name_for_notice( $order ),
+            '주문 항목 옵션:',
+        );
+        foreach ( $order->get_items() as $item ) {
+            if ( $item instanceof WC_Order_Item_Product ) {
+                $lines[] = '- ' . avocadoss_get_order_item_option_summary_for_notice( $item ) . ' x ' . $item->get_quantity();
+            }
+        }
+        return implode( "\n", $lines );
+    }
+
+    function avocadoss_get_order_business_name_for_notice( WC_Order $order ) {
+        $candidates = array( $order->get_meta( '_avo_business_name', true ), $order->get_billing_company(), $order->get_formatted_billing_full_name() );
+        if ( $order->get_user_id() ) {
+            $candidates[] = get_user_meta( $order->get_user_id(), 'billing_company', true );
+            $candidates[] = get_user_meta( $order->get_user_id(), 'billing_first_name', true );
+        }
+        foreach ( $candidates as $candidate ) {
+            $candidate = trim( wp_strip_all_tags( (string) $candidate ) );
+            if ( '' !== $candidate ) {
+                return $candidate;
+            }
+        }
+        return '미확인';
+    }
+
+    function avocadoss_get_order_item_option_summary_for_notice( WC_Order_Item_Product $item ) {
+        $parts = array();
+        foreach ( $item->get_formatted_meta_data( '_' ) as $meta ) {
+            $key   = trim( wp_strip_all_tags( (string) $meta->display_key ) );
+            $value = trim( wp_strip_all_tags( (string) $meta->display_value ) );
+            if ( '' !== $value ) {
+                $parts[] = ( '' !== $key ? $key . ': ' : '' ) . $value;
+            }
+        }
+        return $item->get_name() . ( empty( $parts ) ? '' : ' / ' . implode( ', ', array_unique( $parts ) ) );
+    }
+}
+
+function avocadoss_telegram_callback_nonce_hash( $nonce ) {
+    return hash_hmac( 'sha256', (string) $nonce, wp_salt( 'nonce' ) );
+}
+
+function avocadoss_new_telegram_callback_nonce() {
+    return wp_generate_password( 12, false, false );
+}
+
+function avocadoss_send_telegram_approval_message( $text, array $buttons ) {
+    $result = avocadoss_telegram_api_request( 'sendMessage', array(
+        'text'         => (string) $text,
+        'reply_markup' => wp_json_encode( array( 'inline_keyboard' => $buttons ) ),
+    ) );
+    return is_array( $result ) && ! empty( $result['message_id'] ) ? absint( $result['message_id'] ) : 0;
+}
+
+function avocadoss_is_crawler_approval_product( $product_id ) {
+    return 'product' === get_post_type( $product_id )
+        && 'draft_candidate' === get_post_meta( $product_id, '_wholesalehub_mvp_created', true );
+}
+
+add_action( 'woocommerce_rest_insert_product_object', 'avocadoss_schedule_crawler_product_approval', 20, 3 );
+function avocadoss_schedule_crawler_product_approval( $product, $request, $creating ) {
+    if ( ! $creating || ! $product instanceof WC_Product || 'draft' !== $product->get_status() || ! avocadoss_is_crawler_approval_product( $product->get_id() ) ) {
+        return;
+    }
+    if ( get_post_meta( $product->get_id(), '_avocadoss_pa_notified', true ) || get_post_meta( $product->get_id(), '_avocadoss_pa_processed', true ) ) {
+        return;
+    }
+    if ( ! wp_next_scheduled( 'avocadoss_send_product_approval_request', array( $product->get_id() ) ) ) {
+        wp_schedule_single_event( time() + MINUTE_IN_SECONDS, 'avocadoss_send_product_approval_request', array( $product->get_id() ) );
+    }
+}
+
+add_action( 'avocadoss_send_product_approval_request', 'avocadoss_send_product_approval_request', 10, 1 );
+function avocadoss_send_product_approval_request( $product_id ) {
+    $product_id = absint( $product_id );
+    $product    = wc_get_product( $product_id );
+    if ( ! $product || 'draft' !== get_post_status( $product_id ) || ! avocadoss_is_crawler_approval_product( $product_id ) || get_post_meta( $product_id, '_avocadoss_pa_notified', true ) || get_post_meta( $product_id, '_avocadoss_pa_processed', true ) ) {
+        return false;
+    }
+    if ( ! add_post_meta( $product_id, '_avocadoss_pa_sending', current_time( 'mysql' ), true ) ) {
+        return false;
+    }
+
+    $nonce = avocadoss_new_telegram_callback_nonce();
+    update_post_meta( $product_id, '_avocadoss_pa_nonce', avocadoss_telegram_callback_nonce_hash( $nonce ) );
+    $categories = wp_get_post_terms( $product_id, 'product_cat', array( 'fields' => 'names' ) );
+    $created    = get_post_datetime( $product_id );
+    $edit_link  = admin_url( 'post.php?post=' . $product_id . '&action=edit' );
+    $lines      = array(
+        '신규 상품 등록 요청',
+        '상품명: ' . $product->get_name(),
+        '상품 ID: ' . $product_id,
+        'SKU: ' . ( $product->get_sku() ?: '-' ),
+        '카테고리: ' . ( is_wp_error( $categories ) || empty( $categories ) ? '-' : implode( ', ', $categories ) ),
+        '옵션 개수: ' . count( $product->get_children() ),
+        '생성 시각: ' . ( $created ? $created->format( 'Y-m-d H:i:s' ) : current_time( 'mysql' ) ),
+        '상품 편집: ' . $edit_link,
+    );
+    $message_id = avocadoss_send_telegram_approval_message( implode( "\n", $lines ), array(
+        array(
+            array( 'text' => '✅ 게시 승인', 'callback_data' => 'pa:' . $product_id . ':publish:' . $nonce ),
+            array( 'text' => '⏸ 임시글 유지', 'callback_data' => 'pa:' . $product_id . ':hold:' . $nonce ),
+        ),
+    ) );
+    delete_post_meta( $product_id, '_avocadoss_pa_sending' );
+    if ( ! $message_id ) {
+        delete_post_meta( $product_id, '_avocadoss_pa_nonce' );
+        error_log( 'AVO Telegram approval: product notification failed for product ' . $product_id );
+        return false;
+    }
+    update_post_meta( $product_id, '_avocadoss_pa_notified', current_time( 'mysql' ) );
+    update_post_meta( $product_id, '_avocadoss_pa_message_id', $message_id );
+    return true;
+}
+
+add_action( 'added_user_meta', 'avocadoss_sync_membership_status_meta', 10, 4 );
+add_action( 'updated_user_meta', 'avocadoss_sync_membership_status_meta', 10, 4 );
+function avocadoss_sync_membership_status_meta( $meta_id, $user_id, $meta_key, $meta_value ) {
+    if ( '_avo_approval_status' === $meta_key && in_array( $meta_value, array( 'pending', 'approved', 'rejected' ), true ) ) {
+        update_user_meta( $user_id, 'avocadoss_membership_status', $meta_value );
+    }
+}
+
+add_filter( 'wp_authenticate_user', 'avocadoss_block_membership_status_login', 100, 2 );
+function avocadoss_block_membership_status_login( $user, $password ) {
+    if ( is_wp_error( $user ) ) {
+        return $user;
+    }
+    $status = get_user_meta( $user->ID, 'avocadoss_membership_status', true );
+    if ( 'pending' === $status ) {
+        return new WP_Error( 'avocadoss_membership_pending', '회원가입 승인 대기 중입니다.' );
+    }
+    if ( 'rejected' === $status ) {
+        return new WP_Error( 'avocadoss_membership_rejected', '회원가입 승인이 거절되었습니다.' );
+    }
+    return $user;
+}
+
+function avocadoss_send_membership_approval_request( $user_id ) {
+    $user_id = absint( $user_id );
+    $user    = get_user_by( 'id', $user_id );
+    if ( ! $user || 'pending' !== get_user_meta( $user_id, 'avocadoss_membership_status', true ) || get_user_meta( $user_id, '_avocadoss_ua_processed', true ) ) {
+        return false;
+    }
+    if ( get_user_meta( $user_id, '_avocadoss_ua_notified', true ) || ! add_user_meta( $user_id, '_avocadoss_ua_sending', current_time( 'mysql' ), true ) ) {
+        return false;
+    }
+
+    $nonce = avocadoss_new_telegram_callback_nonce();
+    update_user_meta( $user_id, '_avocadoss_ua_nonce', avocadoss_telegram_callback_nonce_hash( $nonce ) );
+    $lines = array(
+        '가입 승인 요청',
+        '이름: ' . ( get_user_meta( $user_id, 'billing_first_name', true ) ?: $user->display_name ),
+        '사용자명: ' . $user->user_login,
+        '이메일: ' . $user->user_email,
+        '연락처: ' . ( get_user_meta( $user_id, 'billing_phone', true ) ?: '-' ),
+        '사업자등록번호: ' . ( get_user_meta( $user_id, '_avo_business_number', true ) ?: '-' ),
+        '신청 시각: ' . get_date_from_gmt( $user->user_registered, 'Y-m-d H:i:s' ),
+    );
+    $company = get_user_meta( $user_id, 'billing_company', true );
+    if ( '' !== trim( (string) $company ) ) {
+        array_splice( $lines, 5, 0, '업체명: ' . $company );
+    }
+    $message_id = avocadoss_send_telegram_approval_message( implode( "\n", $lines ), array(
+        array(
+            array( 'text' => '✅ 가입 승인', 'callback_data' => 'ua:' . $user_id . ':approve:' . $nonce ),
+            array( 'text' => '❌ 가입 거절', 'callback_data' => 'ua:' . $user_id . ':reject:' . $nonce ),
+        ),
+    ) );
+    delete_user_meta( $user_id, '_avocadoss_ua_sending' );
+    if ( ! $message_id ) {
+        delete_user_meta( $user_id, '_avocadoss_ua_nonce' );
+        error_log( 'AVO Telegram approval: membership notification failed for user ' . $user_id );
+        return false;
+    }
+    update_user_meta( $user_id, '_avocadoss_ua_notified', current_time( 'mysql' ) );
+    update_user_meta( $user_id, '_avocadoss_ua_message_id', $message_id );
+    return true;
+}
+
+function avocadoss_telegram_callback_authorized( $from_id, $chat_id ) {
+    $configured_chat = trim( (string) get_option( 'avocadoss_telegram_chat_id', '' ) );
+    if ( '' === $configured_chat && defined( 'AVOCADOSS_TG_CHAT_ID' ) ) {
+        $configured_chat = trim( (string) AVOCADOSS_TG_CHAT_ID );
+    }
+    $allowed_user    = trim( (string) get_option( 'avocadoss_telegram_allowed_user_id', $configured_chat ) );
+    return '' !== $configured_chat
+        && hash_equals( $configured_chat, (string) $chat_id )
+        && '' !== $allowed_user
+        && hash_equals( $allowed_user, (string) $from_id );
+}
+
+function avocadoss_process_telegram_callback( array $callback ) {
+    $data       = isset( $callback['data'] ) ? (string) $callback['data'] : '';
+    $from_id    = isset( $callback['from_id'] ) ? (string) $callback['from_id'] : '';
+    $chat_id    = isset( $callback['chat_id'] ) ? (string) $callback['chat_id'] : '';
+    $message_id = isset( $callback['message_id'] ) ? absint( $callback['message_id'] ) : 0;
+    $admin      = sanitize_text_field( isset( $callback['admin'] ) ? $callback['admin'] : $from_id );
+    if ( ! avocadoss_telegram_callback_authorized( $from_id, $chat_id ) ) {
+        return array( 'ok' => false, 'message' => '권한이 없습니다.' );
+    }
+    if ( ! preg_match( '/^(pa|ua):([1-9][0-9]*):(publish|hold|approve|reject):([A-Za-z0-9]{12})$/', $data, $matches ) ) {
+        return array( 'ok' => false, 'message' => '잘못된 요청입니다.' );
+    }
+    $type   = $matches[1];
+    $id     = absint( $matches[2] );
+    $action = $matches[3];
+    $nonce  = $matches[4];
+    if ( 'pa' === $type && in_array( $action, array( 'publish', 'hold' ), true ) ) {
+        return avocadoss_process_product_telegram_callback( $id, $action, $nonce, $message_id, $admin );
+    }
+    if ( 'ua' === $type && in_array( $action, array( 'approve', 'reject' ), true ) ) {
+        return avocadoss_process_user_telegram_callback( $id, $action, $nonce, $message_id, $admin );
+    }
+    return array( 'ok' => false, 'message' => '잘못된 요청입니다.' );
+}
+
+function avocadoss_process_product_telegram_callback( $product_id, $action, $nonce, $message_id, $admin ) {
+    $stored = get_post_meta( $product_id, '_avocadoss_pa_nonce', true );
+    if ( ! $stored || ! hash_equals( $stored, avocadoss_telegram_callback_nonce_hash( $nonce ) ) ) {
+        return array( 'ok' => false, 'message' => '만료되었거나 이미 처리된 요청입니다.' );
+    }
+    if ( ! get_post( $product_id ) || 'draft' !== get_post_status( $product_id ) || ! avocadoss_is_crawler_approval_product( $product_id ) || get_post_meta( $product_id, '_avocadoss_pa_processed', true ) ) {
+        return array( 'ok' => false, 'message' => '승인 가능한 draft 상품이 아닙니다.' );
+    }
+    if ( $message_id && absint( get_post_meta( $product_id, '_avocadoss_pa_message_id', true ) ) !== $message_id ) {
+        return array( 'ok' => false, 'message' => '원본 메시지가 일치하지 않습니다.' );
+    }
+    if ( ! add_post_meta( $product_id, '_avocadoss_pa_processing', current_time( 'mysql' ), true ) ) {
+        return array( 'ok' => false, 'message' => '이미 처리 중입니다.' );
+    }
+    if ( 'publish' === $action ) {
+        global $wpdb;
+        $updated = $wpdb->update(
+            $wpdb->posts,
+            array( 'post_status' => 'publish' ),
+            array( 'ID' => $product_id, 'post_status' => 'draft', 'post_type' => 'product' ),
+            array( '%s' ),
+            array( '%d', '%s', '%s' )
+        );
+        if ( 1 !== $updated ) {
+            delete_post_meta( $product_id, '_avocadoss_pa_processing' );
+            error_log( 'AVO Telegram approval: product publish failed for product ' . $product_id );
+            return array( 'ok' => false, 'message' => '게시 상태 변경에 실패했습니다.' );
+        }
+        clean_post_cache( $product_id );
+        if ( function_exists( 'wc_delete_product_transients' ) ) {
+            wc_delete_product_transients( $product_id );
+        }
+    }
+    $processed = current_time( 'mysql' );
+    update_post_meta( $product_id, '_avocadoss_pa_processed', 'publish' === $action ? 'published' : 'held' );
+    update_post_meta( $product_id, '_avocadoss_pa_processed_by', $admin );
+    update_post_meta( $product_id, '_avocadoss_pa_processed_at', $processed );
+    delete_post_meta( $product_id, '_avocadoss_pa_nonce' );
+    delete_post_meta( $product_id, '_avocadoss_pa_processing' );
+    $text = ( 'publish' === $action ? '게시 승인 완료' : '임시글 유지 결정' ) . ' · 상품 ID ' . $product_id . ' · 처리 관리자 ' . $admin . ' · 처리 시각 ' . $processed;
+    return array( 'ok' => true, 'message' => '처리했습니다.', 'text' => $text );
+}
+
+function avocadoss_process_user_telegram_callback( $user_id, $action, $nonce, $message_id, $admin ) {
+    $stored = get_user_meta( $user_id, '_avocadoss_ua_nonce', true );
+    if ( ! $stored || ! hash_equals( $stored, avocadoss_telegram_callback_nonce_hash( $nonce ) ) ) {
+        return array( 'ok' => false, 'message' => '만료되었거나 이미 처리된 요청입니다.' );
+    }
+    $user = get_user_by( 'id', $user_id );
+    if ( ! $user || 'pending' !== get_user_meta( $user_id, 'avocadoss_membership_status', true ) || get_user_meta( $user_id, '_avocadoss_ua_processed', true ) ) {
+        return array( 'ok' => false, 'message' => '승인 대기 중인 회원이 아닙니다.' );
+    }
+    if ( $message_id && absint( get_user_meta( $user_id, '_avocadoss_ua_message_id', true ) ) !== $message_id ) {
+        return array( 'ok' => false, 'message' => '원본 메시지가 일치하지 않습니다.' );
+    }
+    if ( ! add_user_meta( $user_id, '_avocadoss_ua_processing', current_time( 'mysql' ), true ) ) {
+        return array( 'ok' => false, 'message' => '이미 처리 중입니다.' );
+    }
+    $status = 'approve' === $action ? 'approved' : 'rejected';
+    update_user_meta( $user_id, 'avocadoss_membership_status', $status );
+    update_user_meta( $user_id, '_avo_approval_status', $status );
+    if ( 'approve' === $action ) {
+        $user->set_role( 'customer' );
+    }
+    $processed = current_time( 'mysql' );
+    update_user_meta( $user_id, '_avocadoss_ua_processed', $status );
+    update_user_meta( $user_id, '_avocadoss_ua_processed_by', $admin );
+    update_user_meta( $user_id, '_avocadoss_ua_processed_at', $processed );
+    delete_user_meta( $user_id, '_avocadoss_ua_nonce' );
+    delete_user_meta( $user_id, '_avocadoss_ua_processing' );
+    $text = ( 'approve' === $action ? '가입 승인 완료' : '가입 거절 완료' ) . ' · ' . $user->user_email . ' · 처리 관리자 ' . $admin . ' · 처리 시각 ' . $processed;
+    return array( 'ok' => true, 'message' => '처리했습니다.', 'text' => $text );
+}
+
+add_action( 'rest_api_init', 'avocadoss_register_telegram_callback_route' );
+function avocadoss_register_telegram_callback_route() {
+    register_rest_route( 'avocadoss/v1', '/telegram-callback', array(
+        'methods'             => WP_REST_Server::CREATABLE,
+        'callback'            => 'avocadoss_handle_telegram_webhook',
+        'permission_callback' => 'avocadoss_verify_telegram_webhook_secret',
+    ) );
+}
+
+function avocadoss_get_telegram_webhook_secret() {
+    $secret = (string) get_option( 'avocadoss_telegram_webhook_secret', '' );
+    if ( '' === $secret ) {
+        $secret = wp_generate_password( 40, false, false );
+        add_option( 'avocadoss_telegram_webhook_secret', $secret, '', false );
+        $secret = (string) get_option( 'avocadoss_telegram_webhook_secret', '' );
+    }
+    return $secret;
+}
+
+function avocadoss_verify_telegram_webhook_secret( WP_REST_Request $request ) {
+    $stored   = avocadoss_get_telegram_webhook_secret();
+    $provided = (string) $request->get_header( 'x-telegram-bot-api-secret-token' );
+    return '' !== $stored && '' !== $provided && hash_equals( $stored, $provided );
+}
+
+function avocadoss_handle_telegram_webhook( WP_REST_Request $request ) {
+    $update   = $request->get_json_params();
+    $callback = is_array( $update ) && isset( $update['callback_query'] ) && is_array( $update['callback_query'] ) ? $update['callback_query'] : null;
+    if ( ! $callback ) {
+        return new WP_REST_Response( array( 'ok' => true ), 200 );
+    }
+    $message    = isset( $callback['message'] ) && is_array( $callback['message'] ) ? $callback['message'] : array();
+    $chat       = isset( $message['chat'] ) && is_array( $message['chat'] ) ? $message['chat'] : array();
+    $from       = isset( $callback['from'] ) && is_array( $callback['from'] ) ? $callback['from'] : array();
+    $callback_id = isset( $callback['id'] ) ? sanitize_text_field( $callback['id'] ) : '';
+    $admin       = isset( $from['username'] ) ? $from['username'] : ( isset( $from['first_name'] ) ? $from['first_name'] : ( isset( $from['id'] ) ? $from['id'] : '' ) );
+    $result      = avocadoss_process_telegram_callback( array(
+        'data'       => isset( $callback['data'] ) ? $callback['data'] : '',
+        'from_id'    => isset( $from['id'] ) ? $from['id'] : '',
+        'chat_id'    => isset( $chat['id'] ) ? $chat['id'] : '',
+        'message_id' => isset( $message['message_id'] ) ? $message['message_id'] : 0,
+        'admin'      => $admin,
+    ) );
+    if ( '' !== $callback_id ) {
+        avocadoss_telegram_api_request( 'answerCallbackQuery', array(
+            'callback_query_id' => $callback_id,
+            'text'              => isset( $result['message'] ) ? $result['message'] : '처리하지 못했습니다.',
+            'show_alert'        => empty( $result['ok'] ) ? 'true' : 'false',
+        ) );
+    }
+    if ( ! empty( $result['ok'] ) && ! empty( $result['text'] ) && ! empty( $message['message_id'] ) ) {
+        avocadoss_telegram_api_request( 'editMessageText', array(
+            'chat_id'      => isset( $chat['id'] ) ? $chat['id'] : '',
+            'message_id'   => absint( $message['message_id'] ),
+            'text'         => $result['text'],
+            'reply_markup' => wp_json_encode( array( 'inline_keyboard' => array() ) ),
+        ) );
+    }
+    return new WP_REST_Response( array( 'ok' => true ), 200 );
+}
+
+function avocadoss_configure_telegram_webhook() {
+    $secret = avocadoss_get_telegram_webhook_secret();
+    if ( '' === $secret ) {
+        return false;
+    }
+    return false !== avocadoss_telegram_api_request( 'setWebhook', array(
+        'url'             => rest_url( 'avocadoss/v1/telegram-callback' ),
+        'secret_token'    => $secret,
+        'allowed_updates' => wp_json_encode( array( 'callback_query' ) ),
+    ) );
+}
