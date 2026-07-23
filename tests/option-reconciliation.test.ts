@@ -1,6 +1,7 @@
+// biome-ignore-all lint/suspicious/noExplicitAny: ky test doubles intentionally implement only the response methods exercised by each case.
 import { DatabaseSync } from "node:sqlite"
-import { describe, expect, it, vi, beforeEach } from "vitest"
 import ky from "ky"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import { reconcileParentProductOptions } from "../src/reports/linked-offer-price-sync-cli.js"
 
 vi.mock("ky", () => {
@@ -10,7 +11,7 @@ vi.mock("ky", () => {
       put: vi.fn(),
       post: vi.fn(),
       delete: vi.fn(),
-    }
+    },
   }
 })
 
@@ -44,17 +45,23 @@ describe("reconcileParentProductOptions", () => {
         atomic_sku_id TEXT NOT NULL,
         product_family TEXT,
         variety TEXT,
+        product_type TEXT,
+        peach_skin_type TEXT,
+        cultivation_method TEXT,
         quality_grade TEXT,
+        usage_grade TEXT,
         size_label TEXT,
         size_min REAL,
         size_max REAL,
         size_unit TEXT,
         weight REAL,
+        weight_basis TEXT,
         option_unit TEXT,
         count_value REAL,
         origin TEXT,
         processing TEXT,
         packaging TEXT,
+        package_type TEXT,
         status TEXT NOT NULL,
         final_cost INTEGER NOT NULL,
         shipping_fee INTEGER NOT NULL,
@@ -158,18 +165,16 @@ describe("reconcileParentProductOptions", () => {
         id: 18672,
         status: "publish",
         price: "13500",
-        attributes: [{ name: "규격", option: "사과즙 30팩" }]
-      }
+        attributes: [{ name: "규격", option: "사과즙 30팩" }],
+      },
     ]
     const mockParentProduct = {
       id: 18671,
-      attributes: [
-        { name: "규격", variation: true, options: ["사과즙 30팩"] }
-      ]
+      attributes: [{ name: "규격", variation: true, options: ["사과즙 30팩"] }],
     }
     const mockCreatedVariation = {
       id: 18676,
-      status: "publish"
+      status: "publish",
     }
 
     vi.spyOn(ky, "get").mockImplementation((url: any) => {
@@ -178,23 +183,49 @@ describe("reconcileParentProductOptions", () => {
           if (url.includes("/variations/18676")) return { id: 18676, regular_price: "19500" }
           if (url.includes("/variations")) return mockVariations
           return mockParentProduct
-        }
+        },
       } as any
     })
-    const spyPut = vi.spyOn(ky, "put").mockImplementation(() => ({ json: async () => ({}) } as any))
-    const spyPost = vi.spyOn(ky, "post").mockImplementation(() => ({ json: async () => mockCreatedVariation } as any))
+    const spyPut = vi.spyOn(ky, "put").mockImplementation(() => ({ json: async () => ({}) }) as any)
+    const spyPost = vi
+      .spyOn(ky, "post")
+      .mockImplementation(() => ({ json: async () => mockCreatedVariation }) as any)
 
     // 2. Run dry run (execute = false)
     const dailySnapshot = {
       createdAt: "2026-07-20T12:04:54.494Z",
+      collection: {
+        schemaVersion: "supplier-snapshot-v2" as const,
+        pipelineRunId: "daily-test-run",
+        authVerified: true as const,
+        paginationComplete: true as const,
+        detailFetchFailureCount: 0,
+        parseFailureCount: 0,
+        expectedProductCount: 1,
+        collectedProductCount: 1,
+        minimumExpectedProductCount: 1,
+        countWithinExpectedRange: true,
+      },
       products: [
-        { supplierId: "dailyfood", price: 15000, shippingFee: 2500, stockStatus: "in_stock", productUrl: "", rawJson: '{"sourceProductId":"18671","sourceOptionId":"50p"}' }
-      ]
+        {
+          supplierId: "dailyfood",
+          price: 15000,
+          shippingFee: 2500,
+          stockStatus: "in_stock",
+          productUrl: "",
+          rawJson: '{"sourceProductId":"18671","sourceOptionId":"50p"}',
+        },
+      ],
     }
     const walldoSnapshot = { createdAt: "2026-07-20T12:04:54.494Z", products: [] }
 
     const dryStats = await reconcileParentProductOptions(
-      db, {}, "https://example.com", false, dailySnapshot, walldoSnapshot, "daily-test-run"
+      db,
+      {},
+      "https://example.com",
+      false,
+      dailySnapshot,
+      walldoSnapshot,
     )
 
     expect(dryStats.parentProductsCount).toBe(1)
@@ -206,25 +237,40 @@ describe("reconcileParentProductOptions", () => {
 
     // 3. Run execution (execute = true)
     const runStats = await reconcileParentProductOptions(
-      db, {}, "https://example.com", true, dailySnapshot, walldoSnapshot, "daily-test-run"
+      db,
+      {},
+      "https://example.com",
+      true,
+      dailySnapshot,
+      walldoSnapshot,
     )
 
     expect(runStats.newVariationsCount).toBe(1)
     expect(runStats.retiredVariationsCount).toBe(1)
     expect(runStats.replacedCount).toBe(1)
-    expect(spyPut).toHaveBeenCalledWith(expect.stringContaining("/variations/18672"), expect.objectContaining({
-      json: { status: "private", stock_status: "outofstock" }
-    }))
-    expect(spyPost).toHaveBeenCalledWith(expect.stringContaining("/products/18671/variations"), expect.objectContaining({
-      json: expect.objectContaining({ regular_price: "19500" })
-    }))
+    expect(spyPut).toHaveBeenCalledWith(
+      expect.stringContaining("/variations/18672"),
+      expect.objectContaining({
+        json: { status: "private", stock_status: "outofstock" },
+      }),
+    )
+    expect(spyPost).toHaveBeenCalledWith(
+      expect.stringContaining("/products/18671/variations"),
+      expect.objectContaining({
+        json: expect.objectContaining({ regular_price: "19500" }),
+      }),
+    )
 
     // Verify DB states after execution
-    const newLink = db.prepare(`SELECT * FROM woo_variation_offer_links WHERE woo_variation_id = 18676`).get() as any
+    const newLink = db
+      .prepare(`SELECT * FROM woo_variation_offer_links WHERE woo_variation_id = 18676`)
+      .get() as any
     expect(newLink).toBeDefined()
     expect(newLink.selected_offer_id).toBe("no_50")
 
-    const replacement = db.prepare(`SELECT * FROM woo_variation_replacements WHERE old_variation_id = 18672`).get() as any
+    const replacement = db
+      .prepare(`SELECT * FROM woo_variation_replacements WHERE old_variation_id = 18672`)
+      .get() as any
     expect(replacement).toBeDefined()
     expect(replacement.new_variation_id).toBe(18676)
   })
@@ -292,25 +338,81 @@ describe("reconcileParentProductOptions", () => {
     }
 
     // WooCommerce mocks: variation is publish
-    vi.spyOn(ky, "get").mockImplementation(() => ({
-      json: async () => [
-        { id: 555, status: "publish", price: "12000", attributes: [{ name: "규격", option: "옵션1" }] }
-      ]
-    } as any))
-    const spyPut = vi.spyOn(ky, "put").mockImplementation(() => ({ json: async () => ({}) } as any))
+    vi.spyOn(ky, "get").mockImplementation(
+      () =>
+        ({
+          json: async () => [
+            {
+              id: 555,
+              status: "publish",
+              price: "12000",
+              attributes: [{ name: "규격", option: "옵션1" }],
+            },
+          ],
+        }) as any,
+    )
+    const spyPut = vi.spyOn(ky, "put").mockImplementation(() => ({ json: async () => ({}) }) as any)
 
     // dailyfood snapshot is complete but does NOT contain option 1 anymore.
     // walldob2b snapshot is complete and DOES contain option 1.
-    const dailySnapshot = { createdAt: "2026-07-20T12:04:54.494Z", products: [] } // empty products means disappeared
+    const dailySnapshot = {
+      createdAt: "2026-07-20T12:04:54.494Z",
+      collection: {
+        schemaVersion: "supplier-snapshot-v2" as const,
+        pipelineRunId: "daily-test-run",
+        authVerified: true as const,
+        paginationComplete: true as const,
+        detailFetchFailureCount: 0,
+        parseFailureCount: 0,
+        expectedProductCount: 1,
+        collectedProductCount: 1,
+        minimumExpectedProductCount: 1,
+        countWithinExpectedRange: true,
+      },
+      products: [
+        {
+          supplierId: "dailyfood",
+          price: 10000,
+          shippingFee: 0,
+          stockStatus: "in_stock",
+          productUrl: "",
+          rawJson: '{"sourceProductId":"unrelated","sourceOptionId":"unrelated"}',
+        },
+      ],
+    }
     const walldoSnapshot = {
       createdAt: "2026-07-20T12:04:54.494Z",
+      collection: {
+        schemaVersion: "supplier-snapshot-v2" as const,
+        pipelineRunId: "daily-test-run",
+        authVerified: true as const,
+        paginationComplete: true as const,
+        detailFetchFailureCount: 0,
+        parseFailureCount: 0,
+        expectedProductCount: 1,
+        collectedProductCount: 1,
+        minimumExpectedProductCount: 1,
+        countWithinExpectedRange: true,
+      },
       products: [
-        { supplierId: "walldob2b", price: 12000, shippingFee: 0, stockStatus: "in_stock", productUrl: "", rawJson: '{"sourceProductId":"999","sourceOptionId":"opt_1"}' }
-      ]
+        {
+          supplierId: "walldob2b",
+          price: 12000,
+          shippingFee: 0,
+          stockStatus: "in_stock",
+          productUrl: "",
+          rawJson: '{"sourceProductId":"999","sourceOptionId":"opt_1"}',
+        },
+      ],
     }
 
     const runStats = await reconcileParentProductOptions(
-      db, {}, "https://example.com", true, dailySnapshot, walldoSnapshot, "daily-test-run"
+      db,
+      {},
+      "https://example.com",
+      true,
+      dailySnapshot,
+      walldoSnapshot,
     )
 
     // Expected: variation 555 should NOT be retired, because Walldo has it active.
@@ -320,7 +422,9 @@ describe("reconcileParentProductOptions", () => {
     expect(spyPut).not.toHaveBeenCalled()
 
     // Authoritative link should be updated to Walldo offer
-    const link = db.prepare(`SELECT * FROM woo_variation_offer_links WHERE woo_variation_id = 555`).get() as any
+    const link = db
+      .prepare(`SELECT * FROM woo_variation_offer_links WHERE woo_variation_id = 555`)
+      .get() as any
     expect(link.selected_offer_id).toBe("no_wd")
   })
 })

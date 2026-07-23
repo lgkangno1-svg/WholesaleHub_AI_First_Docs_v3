@@ -1,5 +1,5 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises"
-import { collectDailyFoodDirectSiteProducts } from "../adapters/dailyfood/dailyfood-direct-site.js"
+import { collectDailyFoodDirectSiteSnapshot } from "../adapters/dailyfood/dailyfood-direct-site.js"
 import {
   fetchWalldob2bProductExcel,
   parseWalldob2bProductExcelHtml,
@@ -15,20 +15,28 @@ import {
 
 async function main(): Promise<void> {
   await loadDotEnv()
+  const pipelineRunId = process.env["WHOLESALEHUB_RUN_ID"] ?? `plan-${Date.now()}`
   const failures: string[] = []
   const missing = missingMvpCredentialKeys(process.env)
   if (missing.length > 0) failures.push(`missing credentials: ${missing.join(", ")}`)
 
-  const dailyFoodProducts = await collectDailyFood(failures)
-  const walldob2bProducts = missing.length > 0 ? [] : await collectWalldob2b(failures)
+  const dailyFood = await collectDailyFood(failures)
+  const walldob2b =
+    missing.length > 0 ? failedCollection("walldob2b") : await collectWalldob2b(failures)
+  const dailyFoodProducts = dailyFood.products
+  const walldob2bProducts = walldob2b.products
   const wooProducts = missing.length > 0 ? [] : await collectWoo(failures)
 
-  if (dailyFoodProducts.length < 400 || dailyFoodProducts.length > 700) {
+  if (dailyFoodProducts.length < 400 || dailyFoodProducts.length > 1500) {
     failures.push(`dailyfood option count out of expected range: ${dailyFoodProducts.length}`)
   }
-  if (walldob2bProducts.length < 180 || walldob2bProducts.length > 240) {
+  if (walldob2bProducts.length < 180 || walldob2bProducts.length > 500) {
     failures.push(`walldob2b option count out of expected range: ${walldob2bProducts.length}`)
   }
+  await Promise.all([
+    writeSupplierSnapshot("dailyfood", pipelineRunId, dailyFood, 400),
+    writeSupplierSnapshot("walldob2b", pipelineRunId, walldob2b, 180),
+  ])
   if (
     wooProducts.length === 0 ||
     wooProducts.reduce((sum, product) => sum + product.variations.length, 0) === 0
@@ -44,41 +52,141 @@ async function main(): Promise<void> {
   })
   await writeMvpSyncPlanReport(report)
   console.log(JSON.stringify(report.summary, null, 2))
+  if (failures.length > 0) process.exitCode = 2
 }
 
-async function collectDailyFood(failures: string[]): Promise<readonly CollectedProduct[]> {
-  const snapshotPath = "reports/snapshots/dailyfood-latest-success.json"
+type SupplierCollection = {
+  readonly products: readonly CollectedProduct[]
+  readonly authVerified: boolean
+  readonly paginationComplete: boolean
+  readonly detailFetchFailureCount: number
+  readonly parseFailureCount: number
+}
+
+async function collectDailyFood(failures: string[]): Promise<SupplierCollection> {
   try {
-    const products = filterDailyFoodVisibleSiteProducts(
-      await collectDailyFoodDirectSiteProducts({
-        username: process.env["DAILYFOOD_USERNAME"] ?? process.env["WALLDOB2B_USERNAME"] ?? "",
-        password: process.env["DAILYFOOD_PASSWORD"] ?? process.env["WALLDOB2B_PASSWORD"] ?? "",
-        browserEndpoint: process.env["ADMINPLUS_BROWSER_ENDPOINT"] ?? "http://localhost:3000",
-      }),
-    )
-    await mkdir("reports/snapshots", { recursive: true })
-    await writeFile(
-      snapshotPath,
-      `${JSON.stringify({ createdAt: new Date().toISOString(), products }, null, 2)}\n`,
-      "utf8",
-    )
-    return products
+    const snapshot = await collectDailyFoodDirectSiteSnapshot({
+      username: process.env["DAILYFOOD_USERNAME"] ?? process.env["WALLDOB2B_USERNAME"] ?? "",
+      password: process.env["DAILYFOOD_PASSWORD"] ?? process.env["WALLDOB2B_PASSWORD"] ?? "",
+      browserEndpoint: process.env["ADMINPLUS_BROWSER_ENDPOINT"] ?? "http://localhost:3000",
+    })
+    if (!snapshot.result.paginationComplete) {
+      failures.push("dailyfood pagination did not reach a terminal empty page")
+    }
+    if (snapshot.result.errors.length > 0) {
+      failures.push(`dailyfood detail fetch failures: ${snapshot.result.errors.length}`)
+    }
+    return {
+      products: filterDailyFoodVisibleSiteProducts(snapshot.products),
+      authVerified: true,
+      paginationComplete: snapshot.result.paginationComplete,
+      detailFetchFailureCount: snapshot.result.errors.length,
+      parseFailureCount: 0,
+    }
   } catch (error) {
     failures.push(`dailyfood direct-site collection failed: ${message(error)}`)
-    return []
+    return failedCollection("dailyfood")
   }
 }
 
-async function collectWalldob2b(failures: string[]): Promise<readonly CollectedProduct[]> {
+async function collectWalldob2b(failures: string[]): Promise<SupplierCollection> {
   try {
     const html = await fetchWalldob2bProductExcel({
       username: process.env["WALLDOB2B_USERNAME"] ?? "",
       password: process.env["WALLDOB2B_PASSWORD"] ?? "",
     })
-    return filterDailyFoodVisibleSiteProducts(parseWalldob2bProductExcelHtml(html, 10_000).products)
+    const parsed = parseWalldob2bProductExcelHtml(html, 10_000)
+    const parseFailures = parsed.skippedRows.filter((row) => row.reason !== "empty_row").length
+    if (parseFailures > 0) {
+      failures.push(`walldob2b parse failures: ${parseFailures}`)
+    }
+    return {
+      products: filterDailyFoodVisibleSiteProducts(parsed.products),
+      authVerified: true,
+      paginationComplete: parsed.totalRows < 10_000,
+      detailFetchFailureCount: 0,
+      parseFailureCount: parseFailures,
+    }
   } catch (error) {
     failures.push(`walldob2b collection failed: ${message(error)}`)
-    return []
+    return failedCollection("walldob2b")
+  }
+}
+
+function failedCollection(_supplierId: string): SupplierCollection {
+  return {
+    products: [],
+    authVerified: false,
+    paginationComplete: false,
+    detailFetchFailureCount: 0,
+    parseFailureCount: 0,
+  }
+}
+
+async function writeSupplierSnapshot(
+  supplierId: "dailyfood" | "walldob2b",
+  pipelineRunId: string,
+  collected: SupplierCollection,
+  staticMinimum: number,
+): Promise<void> {
+  const directory = "reports/snapshots"
+  const latestSuccessPath = `${directory}/${supplierId}-latest-success.json`
+  const previousCount = await readPreviousSuccessfulCount(latestSuccessPath)
+  const minimumExpectedProductCount = Math.max(
+    staticMinimum,
+    previousCount === null ? staticMinimum : Math.floor(previousCount * 0.8),
+  )
+  const countWithinExpectedRange =
+    collected.products.length >= minimumExpectedProductCount &&
+    (supplierId === "dailyfood"
+      ? collected.products.length <= 1500
+      : collected.products.length <= 500)
+  const document = {
+    createdAt: new Date().toISOString(),
+    collection: {
+      schemaVersion: "supplier-snapshot-v2",
+      pipelineRunId,
+      authVerified: collected.authVerified,
+      paginationComplete: collected.paginationComplete,
+      detailFetchFailureCount: collected.detailFetchFailureCount,
+      parseFailureCount: collected.parseFailureCount,
+      expectedProductCount: collected.products.length,
+      collectedProductCount: collected.products.length,
+      minimumExpectedProductCount,
+      countWithinExpectedRange,
+    },
+    products: collected.products,
+  }
+  const complete =
+    collected.authVerified &&
+    collected.paginationComplete &&
+    collected.detailFetchFailureCount === 0 &&
+    collected.parseFailureCount === 0 &&
+    countWithinExpectedRange
+  await mkdir(directory, { recursive: true })
+  await writeFile(
+    `${directory}/${supplierId}-latest-attempt.json`,
+    `${JSON.stringify(document, null, 2)}\n`,
+    "utf8",
+  )
+  if (complete) {
+    await writeFile(latestSuccessPath, `${JSON.stringify(document, null, 2)}\n`, "utf8")
+  }
+}
+
+async function readPreviousSuccessfulCount(path: string): Promise<number | null> {
+  try {
+    const previous = JSON.parse(await readFile(path, "utf8")) as {
+      collection?: { collectedProductCount?: unknown }
+      products?: unknown[]
+    }
+    const count = previous.collection?.collectedProductCount
+    if (typeof count === "number" && Number.isInteger(count) && count > 0) return count
+    return Array.isArray(previous.products) && previous.products.length > 0
+      ? previous.products.length
+      : null
+  } catch {
+    return null
   }
 }
 

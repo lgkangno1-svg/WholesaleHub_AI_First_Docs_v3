@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 PROJECT_DIR="/home/tnfwod/projects/wholesalehub"
 REPORT_DIR="$PROJECT_DIR/reports"
+DB_PATH="/home/tnfwod/avocadoss-wordpress/wp_data/wp-content/uploads/wholesalehub/wholesalehub.sqlite"
 PENDING_REPORT_DIR="$REPORT_DIR/price-sync-telegram-pending"
 LOCK_FILE="$REPORT_DIR/n8n-mvp-sync.lock"
 STAMP="$(TZ=Asia/Seoul date +%Y%m%d-%H%M)"
@@ -31,7 +32,7 @@ finish() {
       --run-id "$RUN_ID" --step "$CURRENT_STEP" \
       --out "$REPORT_DIR/mvp-price-change-telegram-report.json" >/dev/null 2>&1 || true
   fi
-  if [ "$PRICE_REPORT_SENT" -ne 1 ] && [ -s "$REPORT_DIR/mvp-price-change-telegram-report.json" ]; then
+  if [ "$DRY_RUN" != "1" ] && [ "$PRICE_REPORT_SENT" -ne 1 ] && [ -s "$REPORT_DIR/mvp-price-change-telegram-report.json" ]; then
     cp "$REPORT_DIR/mvp-price-change-telegram-report.json" "$PENDING_REPORT_DIR/$RUN_ID.json" >/dev/null 2>&1 || true
     if docker cp "$REPORT_DIR/mvp-price-change-telegram-report.json" avocadoss-wp:/tmp/mvp-price-change-telegram-report.json >/dev/null 2>&1 &&
       docker exec avocadoss-wp wp avocadoss telegram-price-report /tmp/mvp-price-change-telegram-report.json --allow-root >/dev/null 2>&1; then
@@ -42,22 +43,25 @@ finish() {
       node "$PROJECT_DIR/dist/reports/price-sync-mark-telegram-cli.js" --run-id "$RUN_ID" --status failed >/dev/null 2>&1 || true
       docker exec avocadoss-wp wp eval "avocadoss_send_telegram_message('⚠️ 도매Hub 동기화 실패 (run_id: $RUN_ID, 단계: $CURRENT_STEP, 코드: $code). 가격 동기화가 제대로 전송되지 않았습니다.');" --allow-root >/dev/null 2>&1 || true
     fi
-  elif [ "$code" -ne 0 ]; then
-    docker exec avocadoss-wp wp eval "avocadoss_send_telegram_message('⚠️ 도매Hub 동기화 실행 중 오류 발생 (run_id: $RUN_ID, 단계: $CURRENT_STEP, 에러코드: $code).');" --allow-root >/dev/null 2>&1 || true
+  elif [ "$DRY_RUN" != "1" ] && [ "$code" -ne 0 ] && [ "$PRICE_REPORT_SENT" -ne 1 ]; then
+    docker exec avocadoss-wp wp eval "avocadoss_send_telegram_message('🚨 도매Hub 가격 동기화 중단 (run_id: $RUN_ID, 단계: $CURRENT_STEP, 에러코드: $code).');" --allow-root >/dev/null 2>&1 || true
   fi
-  docker exec avocadoss-wp rm -f /tmp/mvp-price-change-telegram-report.json >/dev/null 2>&1 || true
+  if [ "$DRY_RUN" != "1" ]; then
+    docker exec avocadoss-wp rm -f /tmp/mvp-price-change-telegram-report.json >/dev/null 2>&1 || true
+  fi
   if [ "$code" -eq 0 ]; then status="completed"; fi
   printf 'WHOLESALEHUB_RESULT_JSON={"status":"%s","exit_code":%d,"step":"%s","run_id":"%s"}\n' \
     "$status" "$code" "$CURRENT_STEP" "$RUN_ID"
 }
 trap finish EXIT
 
-exec 9>"$LOCK_FILE"
+exec 9>>"$LOCK_FILE"
 if ! flock -n 9; then
   CURRENT_STEP="lock"
-  echo "[$(date -Is)] another n8n MVP sync run is already active"
+  echo "[$(date -Is)] another n8n MVP sync run is already active: $(head -n 1 "$LOCK_FILE" 2>/dev/null || true)"
   exit 75
 fi
+printf 'pid=%s run_id=%s acquired_at=%s\n' "$$" "$RUN_ID" "$(date -Is)" >"$LOCK_FILE"
 
 run_step() {
   CURRENT_STEP="$1"
@@ -85,6 +89,7 @@ retry_pending_price_reports() {
 
 echo "[$(date -Is)] n8n MVP sync started run_id=$RUN_ID"
 cd "$PROJECT_DIR"
+export WHOLESALEHUB_RUN_ID="$RUN_ID"
 RUN_HOUR="${WHOLESALEHUB_RUN_HOUR:-$(TZ=Asia/Seoul date +%H)}"
 echo "[$(date -Is)] run_hour=$RUN_HOUR dailyfood_mode=actual-site dry_run=$DRY_RUN destructive=$ALLOW_DESTRUCTIVE_SYNC stock_visibility=$ALLOW_STOCK_VISIBILITY_SYNC draft_create=$ALLOW_DRAFT_CREATE description_sync=$ALLOW_DESCRIPTION_SYNC category_sync=manual_only"
 
@@ -93,10 +98,24 @@ run_step retry_pending_price_reports retry_pending_price_reports
 run_step product_identity_preflight docker exec avocadoss-wp wp avocadoss verify-product-identities --allow-root
 run_step collect_and_plan node dist/reports/mvp-sync-plan-cli.js
 
+SYNC_DB_PATH="$DB_PATH"
+if [ "$DRY_RUN" = "1" ]; then
+  SYNC_DB_PATH="$REPORT_DIR/price-sync-dry-run-$RUN_ID.sqlite"
+  run_step copy_dry_run_database cp --reflink=auto "$DB_PATH" "$SYNC_DB_PATH"
+fi
+for stage in collect_products fetch_details parse_options; do
+  run_step "checkpoint_$stage" node dist/reports/pipeline-checkpoint-cli.js \
+    --db "$SYNC_DB_PATH" \
+    --run-id "$RUN_ID" \
+    --stage "$stage" \
+    --status completed \
+    --artifact "$REPORT_DIR/snapshots"
+done
+
 PRICE_SYNC_ARGS=(
   --run-id "$RUN_ID"
   --plan "$REPORT_DIR/mvp-sync-plan.json"
-  --db "/home/tnfwod/avocadoss-wordpress/wp_data/wp-content/uploads/wholesalehub/wholesalehub.sqlite"
+  --db "$SYNC_DB_PATH"
   --migration "$PROJECT_DIR/migrations/003_price_sync_pipeline.sql"
   --out "$REPORT_DIR/mvp-price-change-telegram-report.json"
 )
