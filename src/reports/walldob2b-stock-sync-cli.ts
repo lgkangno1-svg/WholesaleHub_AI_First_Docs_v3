@@ -4,7 +4,8 @@ import ky from "ky"
 import { z } from "zod"
 import {
   fetchWalldob2bDetailHtml,
-  parseWalldob2bProductAvailability
+  parseWalldob2bProductAvailability,
+  type Walldob2bProductAvailability
 } from "../adapters/walldob2b/walldob2b-adapter.js"
 import { fetchMvpWooCatalog } from "./mvp-sync-plan.js"
 
