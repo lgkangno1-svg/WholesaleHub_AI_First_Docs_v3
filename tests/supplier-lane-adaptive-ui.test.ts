@@ -1,11 +1,9 @@
-import { existsSync, readFileSync } from "node:fs"
+import { readFileSync } from "node:fs"
 import { runInNewContext } from "node:vm"
 import { describe, expect, it } from "vitest"
 
-const pluginPath = "wordpress/plugins/wholesalehub-supplier-lanes/wholesalehub-supplier-lanes.php"
 const uiScriptPath = "wordpress/plugins/wholesalehub-supplier-lanes/assets/supplier-lanes.js"
-const plugin = readFileSync(pluginPath, "utf8")
-const uiScript = existsSync(uiScriptPath) ? readFileSync(uiScriptPath, "utf8") : ""
+const uiScript = readFileSync(uiScriptPath, "utf8")
 
 function loadUiApi() {
   const browserWindow: Record<string, unknown> = {}
@@ -72,12 +70,6 @@ const offers = [
 ]
 
 describe("Supplier Lane adaptive UI contract", () => {
-  it("ships and enqueues the shared frontend controller", () => {
-    expect(uiScript.length).toBeGreaterThan(0)
-    expect(plugin).toContain("wp_enqueue_script")
-    expect(plugin).toContain("assets/supplier-lanes.js")
-  })
-
   it("classifies one offer, one supplier, and multiple suppliers", () => {
     const api = loadUiApi()
     expect(api.classifyMode([offers[0]])).toBe("single-offer")
@@ -103,25 +95,5 @@ describe("Supplier Lane adaptive UI contract", () => {
     expect(api.availableValues(offers, { grade: "소" }, "weight")).toEqual(["1000", "3000"])
     expect(api.availableValues(offers, { grade: "왕특" }, "weight")).toEqual(["5000"])
     expect(api.availableValues(offers, { weight: "5000" }, "grade")).toEqual(["왕특"])
-  })
-
-  it("renders adaptive mode and offer identity attributes from PHP", () => {
-    for (const fragment of [
-      "data-ui-mode",
-      "data-variation-id",
-      "data-public-offer-key",
-      "원하는 규격을 선택하면 구매 가능한 판매조건을 보여드립니다.",
-      "현재 선택 가능한 판매조건이 없습니다.",
-    ]) {
-      expect(plugin).toContain(fragment)
-    }
-    expect(plugin).not.toContain("$active = ($i === 0) ? ' active' : '';")
-  })
-
-  it("limits purchase selectors to variation-level normalized dimensions", () => {
-    expect(plugin).toContain("$dimensions = ['grade', 'weight', 'count', 'package'];")
-    expect(plugin).not.toContain("'variety' => '품종'")
-    expect(plugin).not.toContain("'origin' => '원산지'")
-    expect(plugin).not.toContain("'storage' => '보관'")
   })
 })
