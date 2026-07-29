@@ -1,0 +1,947 @@
+<?php
+
+defined('ABSPATH') || exit;
+
+@set_time_limit(0);
+ini_set('memory_limit', '1024M');
+
+$plan_path = getenv('WHOLESALEHUB_SYNC_PLAN');
+$result_path = getenv('WHOLESALEHUB_SYNC_RESULT');
+if (!is_string($plan_path) || $plan_path === '' || !is_string($result_path) || $result_path === '') {
+    WP_CLI::error('sync plan/result environment is required');
+}
+$plan = json_decode((string) file_get_contents($plan_path), true, 512, JSON_THROW_ON_ERROR);
+$groups = is_array($plan['groups'] ?? null) ? $plan['groups'] : [];
+if ($groups === []) {
+    WP_CLI::error('empty supplier catalog sync plan');
+}
+if (class_exists('WholesaleHub_Supplier_Lanes')) {
+    WholesaleHub_Supplier_Lanes::install_schema();
+}
+
+global $wpdb;
+$parent_table = $wpdb->prefix . 'supplier_lane_parent_links';
+$offer_table = $wpdb->prefix . 'supplier_lane_offers';
+$counts = [
+    'collected_products' => (int) (($plan['counts']['dailyProducts'] ?? 0) + ($plan['counts']['walldoProducts'] ?? 0)),
+    'images_found' => (int) ($plan['counts']['imagesFound'] ?? 0),
+    'walldo_images_collected' => (int) ($plan['counts']['walldoImages'] ?? 0),
+    'daily_images_collected' => (int) ($plan['counts']['dailyImages'] ?? 0),
+    'image_retry_needed' => (int) ($plan['counts']['imageRetryNeeded'] ?? 0),
+    'price_updated' => 0,
+    'stock_updated' => 0,
+    'variation_created' => 0,
+    'product_created' => 0,
+    'image_applied' => 0,
+    'walldo_image_applied' => 0,
+    'daily_image_applied' => 0,
+    'existing_image_kept' => 0,
+    'temporary_fallback_applied' => 0,
+    'image_review_required' => 0,
+    'image_failed' => 0,
+    'excluded' => 0,
+    'terminal_excluded' => 0,
+    'nectarine_excluded' => 0,
+    'legacy_parent_reconciled' => 0,
+    'missing_marked_out_of_stock' => 0,
+    'review_needed' => 0,
+    'failed' => 0,
+];
+$seen = [];
+$reviews = [];
+$touched_parents = [];
+$variation_price_changes = [];
+$exclusion_result = wh_sync_reconcile_terminal_exclusions(
+    is_array($plan['exclusions'] ?? null) ? $plan['exclusions'] : [],
+    $parent_table,
+    $offer_table
+);
+$counts['excluded'] = $exclusion_result['excluded'];
+$counts['terminal_excluded'] = $exclusion_result['terminal_excluded'];
+$counts['nectarine_excluded'] = $exclusion_result['nectarine_excluded'];
+
+foreach ($groups as $group) {
+    try {
+        $canonical_repair_parent = false;
+        $candidate_parent_ids = [];
+        foreach (($group['lanes'] ?? []) as $lane) {
+            $existing_parent = $wpdb->get_var(
+                $wpdb->prepare(
+                    "SELECT woo_parent_id FROM {$parent_table}
+                     WHERE supplier_id = %s AND source_product_id = %s AND status = 'approved'
+                     LIMIT 1",
+                    sanitize_key((string) $lane['supplierId']),
+                    sanitize_text_field((string) $lane['sourceProductId'])
+                )
+            );
+            if ($existing_parent !== null) {
+                $candidate_parent_ids[] = (int) $existing_parent;
+            }
+        }
+        $candidate_parent_ids = array_values(array_unique($candidate_parent_ids));
+        if ($candidate_parent_ids === []) {
+            $repair_parent_id = wh_sync_find_unique_repair_parent(
+                sanitize_text_field((string) ($group['displayName'] ?? ''))
+            );
+            if ($repair_parent_id > 0) {
+                $candidate_parent_ids[] = $repair_parent_id;
+                $canonical_repair_parent = true;
+                $counts['legacy_parent_reconciled']++;
+            }
+        }
+        if (count($candidate_parent_ids) > 1) {
+            $counts['review_needed']++;
+            $reviews[] = [
+                'reason' => 'existing_group_merge_ambiguous',
+                'group_key' => (string) $group['groupKey'],
+                'parent_ids' => $candidate_parent_ids,
+            ];
+            continue;
+        }
+        if ($candidate_parent_ids === []) {
+            $parent_id = wh_sync_create_parent($group);
+            $counts['product_created']++;
+        } else {
+            $parent_id = $candidate_parent_ids[0];
+        }
+        $touched_parents[$parent_id] = true;
+
+        foreach (($group['lanes'] ?? []) as $lane_code => $lane) {
+            $supplier_id = sanitize_key((string) $lane['supplierId']);
+            $source_product_id = sanitize_text_field((string) $lane['sourceProductId']);
+            $conflict = $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT id, supplier_id, source_product_id FROM {$parent_table}
+                     WHERE woo_parent_id = %d AND lane_code = %s LIMIT 1",
+                    $parent_id,
+                    $lane_code
+                ),
+                ARRAY_A
+            );
+            if (
+                is_array($conflict)
+                && (
+                    (string) $conflict['supplier_id'] !== $supplier_id
+                    || (string) $conflict['source_product_id'] !== $source_product_id
+                )
+            ) {
+                if (
+                    $canonical_repair_parent
+                    && (string) $conflict['supplier_id'] === $supplier_id
+                    && preg_match('/^(?:daily|walldo)_/i', (string) $conflict['source_product_id']) === 1
+                ) {
+                    $wpdb->update(
+                        $parent_table,
+                        [
+                            'source_product_id' => $source_product_id,
+                            'status' => 'approved',
+                            'approved_by' => 'catalog_sync_canonical_reconciliation',
+                            'approved_at' => current_time('mysql', true),
+                            'updated_at' => current_time('mysql', true),
+                        ],
+                        ['id' => (int) $conflict['id']]
+                    );
+                    $conflict['source_product_id'] = $source_product_id;
+                } else {
+                    $counts['review_needed']++;
+                    $reviews[] = [
+                        'reason' => 'parent_lane_conflict',
+                        'parent_id' => $parent_id,
+                        'lane' => $lane_code,
+                        'incoming_source_product_id' => $source_product_id,
+                    ];
+                    continue;
+                }
+            }
+            if (is_array($conflict)) {
+                $parent_link_id = (int) $conflict['id'];
+            } else {
+                $now = current_time('mysql', true);
+                $wpdb->insert($parent_table, [
+                    'woo_parent_id' => $parent_id,
+                    'supplier_id' => $supplier_id,
+                    'lane_code' => $lane_code,
+                    'source_product_id' => $source_product_id,
+                    'status' => 'approved',
+                    'approved_by' => 'catalog_sync',
+                    'approved_at' => $now,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
+                if ((int) $wpdb->insert_id <= 0) {
+                    throw new RuntimeException('parent link create failed: ' . $wpdb->last_error);
+                }
+                $parent_link_id = (int) $wpdb->insert_id;
+            }
+
+            foreach (($lane['options'] ?? []) as $option) {
+                $source_option_id = sanitize_text_field((string) $option['sourceOptionId']);
+                $identity = $supplier_id . '|' . $source_product_id . '|' . $source_option_id;
+                $seen[$identity] = true;
+                $existing = $wpdb->get_row(
+                    $wpdb->prepare(
+                        "SELECT * FROM {$offer_table}
+                         WHERE supplier_id = %s AND source_product_id = %s
+                           AND source_option_id = %s LIMIT 1",
+                        $supplier_id,
+                        $source_product_id,
+                        $source_option_id
+                    ),
+                    ARRAY_A
+                );
+                if (is_array($existing)) {
+                    $variation = wc_get_product((int) $existing['woo_variation_id']);
+                    if (!($variation instanceof WC_Product_Variation)) {
+                        $counts['failed']++;
+                        continue;
+                    }
+                    $new_price = (float) $option['salePrice'];
+                    $before_regular_price = (string) $variation->get_regular_price();
+                    $before_price = (string) $variation->get_price();
+                    $new_stock = ($option['stockStatus'] ?? '') === 'out_of_stock'
+                        ? 'outofstock'
+                        : 'instock';
+                    $price_changed = (
+                        (float) $variation->get_regular_price() !== $new_price
+                        || (float) $variation->get_price() !== $new_price
+                    );
+                    if ($price_changed) {
+                        $variation->set_regular_price(wc_format_decimal($new_price, 2));
+                        $variation->set_price(wc_format_decimal($new_price, 2));
+                        $counts['price_updated']++;
+                    }
+                    if ($variation->get_stock_status() !== $new_stock) {
+                        $variation->set_stock_status($new_stock);
+                        $counts['stock_updated']++;
+                    }
+                    $variation->update_meta_data(
+                        '_wh_source_id_type',
+                        sanitize_text_field((string) ($option['sourceIdType'] ?? 'authoritative'))
+                    );
+                    $variation->update_meta_data(
+                        '_wh_snapshot_hash',
+                        sanitize_text_field((string) $option['snapshotHash'])
+                    );
+                    $variation->update_meta_data(
+                        '_wh_hard_spec_fingerprint',
+                        sanitize_text_field((string) $option['hardSpecFingerprint'])
+                    );
+                    $variation->set_status('publish');
+                    $variation->save();
+                    if ($price_changed) {
+                        $verified_variation = wc_get_product($variation->get_id());
+                        if (
+                            !($verified_variation instanceof WC_Product_Variation)
+                            || (float) $verified_variation->get_regular_price() !== $new_price
+                            || (float) $verified_variation->get_price() !== $new_price
+                        ) {
+                            throw new RuntimeException(
+                                'variation price read-back verification failed: '
+                                . $variation->get_id()
+                            );
+                        }
+                        $variation_price_changes[] = [
+                            'variation_id' => (int) $variation->get_id(),
+                            'parent_id' => $parent_id,
+                            'before_regular_price' => $before_regular_price,
+                            'before_price' => $before_price,
+                            'after_regular_price' => (string) $verified_variation->get_regular_price(),
+                            'after_price' => (string) $verified_variation->get_price(),
+                            'verified' => true,
+                        ];
+                    }
+                    $wpdb->update(
+                        $offer_table,
+                        [
+                            'parent_link_id' => $parent_link_id,
+                            'woo_parent_id' => $parent_id,
+                            'public_option_label' => sanitize_text_field(
+                                (string) $option['publicOptionLabel']
+                            ),
+                            'source_cost' => (float) $option['sourceCost'],
+                            'source_shipping_cost' => (float) $option['shippingFee'],
+                            'landed_cost' => (float) $option['landedCost'],
+                            'sale_price' => $new_price,
+                            'stock_status' => $new_stock === 'instock'
+                                ? 'in_stock'
+                                : 'out_of_stock',
+                            'approval_status' => 'approved',
+                            'lifecycle_status' => 'active',
+                            'last_snapshot_hash' => (string) $option['snapshotHash'],
+                            'last_complete_run_id' => 'catalog-incremental-sync',
+                            'last_seen_at' => current_time('mysql', true),
+                            'missing_complete_count' => 0,
+                            'updated_at' => current_time('mysql', true),
+                        ],
+                        ['id' => (int) $existing['id']]
+                    );
+                } else {
+                    $created = wh_sync_create_variation_and_offer(
+                        $parent_id,
+                        $parent_link_id,
+                        $lane_code,
+                        $supplier_id,
+                        $source_product_id,
+                        $option,
+                        $offer_table
+                    );
+                    if ($created) {
+                        $counts['variation_created']++;
+                    } else {
+                        $counts['failed']++;
+                    }
+                }
+            }
+        }
+        $image_result = wh_sync_ensure_parent_image($parent_id, $group);
+        $image_status = (string) ($image_result['status'] ?? 'image_failed');
+        if (array_key_exists($image_status, $counts)) {
+            $counts[$image_status]++;
+        } else {
+            $counts['image_failed']++;
+        }
+        if ($image_status === 'image_applied') {
+            $source_type = (string) ($image_result['image_source_type'] ?? '');
+            if ($source_type === 'walldob2b_actual_product') {
+                $counts['walldo_image_applied']++;
+            } elseif ($source_type === 'dailyfood_actual_product') {
+                $counts['daily_image_applied']++;
+            }
+        }
+        if (in_array($image_status, ['image_review_required', 'image_failed'], true)) {
+            $reviews[] = [
+                'reason' => $image_status,
+                'parent_id' => $parent_id,
+                'product_name' => get_the_title($parent_id),
+                'error' => (string) ($image_result['error'] ?? ''),
+            ];
+        }
+    } catch (Throwable $error) {
+        $counts['failed']++;
+        $reviews[] = [
+            'reason' => 'sync_group_failed',
+            'group_key' => (string) ($group['groupKey'] ?? ''),
+            'error' => $error->getMessage(),
+        ];
+    }
+}
+
+$active_offers = $wpdb->get_results(
+    "SELECT id, supplier_id, source_product_id, source_option_id, woo_variation_id
+     FROM {$offer_table} WHERE lifecycle_status = 'active'",
+    ARRAY_A
+);
+foreach ($active_offers as $offer) {
+    $identity = implode('|', [
+        (string) $offer['supplier_id'],
+        (string) $offer['source_product_id'],
+        (string) $offer['source_option_id'],
+    ]);
+    if (isset($seen[$identity])) {
+        continue;
+    }
+    $variation = wc_get_product((int) $offer['woo_variation_id']);
+    if ($variation instanceof WC_Product_Variation) {
+        $variation->set_stock_status('outofstock');
+        $variation->save();
+    }
+    $wpdb->update(
+        $offer_table,
+        [
+            'stock_status' => 'out_of_stock',
+            'lifecycle_status' => 'inactive',
+            'missing_complete_count' => ((int) ($offer['missing_complete_count'] ?? 0)) + 1,
+            'updated_at' => current_time('mysql', true),
+        ],
+        ['id' => (int) $offer['id']]
+    );
+    $counts['missing_marked_out_of_stock']++;
+}
+
+foreach (array_keys($touched_parents) as $parent_id) {
+    wh_sync_refresh_parent_attributes((int) $parent_id, $offer_table);
+    WC_Product_Variable::sync((int) $parent_id);
+}
+wc_delete_product_transients();
+wp_cache_flush();
+$result = [
+    'status' => 'completed',
+    'completed_at' => gmdate('c'),
+    'counts' => $counts,
+    'reviews' => $reviews,
+    'variation_price_changes' => $variation_price_changes,
+];
+file_put_contents(
+    $result_path,
+    wp_json_encode($result, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . PHP_EOL
+);
+WP_CLI::log(wp_json_encode($result));
+
+function wh_sync_should_exclude_title(string $title): bool
+{
+    $excluded = ['가성비', '부사 사과', '부사사과', '부사', '피자두', '예치금', '포인트 충전'];
+    foreach ($excluded as $kw) {
+        if (mb_strpos($title, $kw) !== false) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function wh_sync_reconcile_terminal_exclusions(
+    array $exclusions,
+    string $parent_table,
+    string $offer_table
+): array {
+    global $wpdb;
+    $targets = [];
+    foreach ($exclusions as $entry) {
+        $reason = sanitize_key((string) ($entry['reason'] ?? ''));
+        if (!in_array($reason, ['terminal_excluded', 'nectarine_family_excluded'], true)) {
+            continue;
+        }
+        $supplier_id = sanitize_key((string) ($entry['supplier'] ?? ''));
+        $source_product_id = sanitize_text_field((string) ($entry['sourceProductId'] ?? ''));
+        if ($supplier_id === '' || $source_product_id === '') {
+            continue;
+        }
+        $targets[$supplier_id . '|' . $source_product_id] = [
+            'supplier_id' => $supplier_id,
+            'source_product_id' => $source_product_id,
+            'reason' => $reason,
+        ];
+    }
+    $product_ids = get_posts([
+        'post_type' => 'product',
+        'post_status' => ['publish', 'private', 'draft', 'pending'],
+        'numberposts' => -1,
+        'fields' => 'ids',
+        's' => '가성비',
+        'meta_query' => [[
+            'key' => '_wh_supplier_lane_mode',
+            'value' => '1',
+        ]],
+    ]);
+    foreach ($product_ids as $product_id) {
+        if (mb_strpos((string) get_the_title($product_id), '가성비') !== false) {
+            $targets['woo|' . (int) $product_id] = [
+                'woo_parent_id' => (int) $product_id,
+                'reason' => 'terminal_excluded',
+            ];
+        }
+    }
+    $counts = ['excluded' => 0, 'terminal_excluded' => 0, 'nectarine_excluded' => 0];
+    $handled = [];
+    foreach ($targets as $target) {
+        $parent_ids = [];
+        if (isset($target['woo_parent_id'])) {
+            $parent_ids[] = (int) $target['woo_parent_id'];
+        } else {
+            $parent_ids = array_map(
+                'intval',
+                $wpdb->get_col(
+                    $wpdb->prepare(
+                        "SELECT woo_parent_id FROM {$parent_table}
+                         WHERE supplier_id = %s AND source_product_id = %s",
+                        $target['supplier_id'],
+                        $target['source_product_id']
+                    )
+                )
+            );
+        }
+        foreach (array_unique($parent_ids) as $parent_id) {
+            if ($parent_id <= 0 || isset($handled[$parent_id])) {
+                continue;
+            }
+            $handled[$parent_id] = true;
+            $reason = (string) $target['reason'];
+            $product = wc_get_product($parent_id);
+            if ($product instanceof WC_Product) {
+                $product->set_status('private');
+                $product->set_catalog_visibility('hidden');
+                $product->update_meta_data('_wh_terminal_excluded', '1');
+                $product->update_meta_data('_wh_terminal_exclusion_reason', $reason);
+                $product->save();
+            }
+            foreach (wc_get_products([
+                'type' => 'variation',
+                'parent' => $parent_id,
+                'limit' => -1,
+                'status' => ['publish', 'private'],
+            ]) as $variation) {
+                if (!($variation instanceof WC_Product_Variation)) {
+                    continue;
+                }
+                $variation->set_status('private');
+                $variation->set_stock_status('outofstock');
+                $variation->save();
+            }
+            $wpdb->update(
+                $parent_table,
+                ['status' => 'terminal_excluded', 'updated_at' => current_time('mysql', true)],
+                ['woo_parent_id' => $parent_id]
+            );
+            $wpdb->update(
+                $offer_table,
+                [
+                    'approval_status' => 'rejected',
+                    'lifecycle_status' => 'terminal',
+                    'stock_status' => 'out_of_stock',
+                    'updated_at' => current_time('mysql', true),
+                ],
+                ['woo_parent_id' => $parent_id]
+            );
+            $counts['excluded']++;
+            if ($reason === 'terminal_excluded') {
+                $counts['terminal_excluded']++;
+            } else {
+                $counts['nectarine_excluded']++;
+            }
+        }
+    }
+    return $counts;
+}
+
+function wh_sync_find_unique_repair_parent(string $display_name): int
+{
+    $canonical = wh_sync_canonical_product_name($display_name);
+    if ($canonical === '') {
+        return 0;
+    }
+    $matches = [];
+    $ids = get_posts([
+        'post_type' => 'product',
+        'post_status' => ['publish', 'private', 'draft', 'pending'],
+        'numberposts' => -1,
+        'fields' => 'ids',
+        'meta_query' => [[
+            'key' => '_wh_supplier_lane_mode',
+            'value' => '1',
+        ]],
+    ]);
+    foreach ($ids as $id) {
+        $id = (int) $id;
+        if (get_post_meta($id, '_wh_terminal_excluded', true) === '1') {
+            continue;
+        }
+        $thumbnail_id = (int) get_post_thumbnail_id($id);
+        $thumbnail_url = $thumbnail_id > 0 ? (string) wp_get_attachment_url($thumbnail_id) : '';
+        $needs_repair = (
+            $thumbnail_id <= 0
+            || $thumbnail_id === 2905
+            || !wp_attachment_is_image($thumbnail_id)
+            || wh_sync_forbidden_image_url($thumbnail_url)
+            || get_post_meta($id, '_wholesalehub_temporary_fallback', true) === '1'
+        );
+        if (
+            $needs_repair
+            && wh_sync_canonical_product_name((string) get_the_title($id)) === $canonical
+        ) {
+            $matches[] = $id;
+        }
+    }
+    return count($matches) === 1 ? (int) $matches[0] : 0;
+}
+
+function wh_sync_canonical_product_name(string $value): string
+{
+    $value = html_entity_decode(wp_strip_all_tags($value), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    if (class_exists('Normalizer')) {
+        $value = Normalizer::normalize($value, Normalizer::FORM_KC) ?: $value;
+    }
+    $value = mb_strtolower($value, 'UTF-8');
+    $value = preg_replace('/\[[^\]]*\]/u', ' ', $value) ?? $value;
+    $value = preg_replace('/\([^)]*(?:\d|kg|g|개|입|팩|봉|박스|과|통)[^)]*\)/iu', ' ', $value) ?? $value;
+    $value = preg_replace(
+        '/\d+(?:\.\d+)?\s*(?:kg|g|개입|개|팩|봉|박스|망|과|통|마리)\s*(?:내외|이상|이하)?/iu',
+        ' ',
+        $value
+    ) ?? $value;
+    $value = preg_replace(
+        '/특가|초특가|추천|프리미엄|한정|무료배송|택배|대리발송|산지직송|당일출고|햇|국산|국내산|가성비|유명호텔|맛돌이|해썹/u',
+        ' ',
+        $value
+    ) ?? $value;
+    return preg_replace('/[^가-힣a-z0-9]/u', '', $value) ?? '';
+}
+
+function wh_sync_ensure_parent_image(int $parent_id, array $group): array
+{
+    global $wpdb;
+    $current_id = (int) get_post_thumbnail_id($parent_id);
+    $incoming_type = sanitize_key((string) ($group['image_source_type'] ?? ''));
+    $incoming_hash = sanitize_text_field((string) ($group['image_content_hash'] ?? ''));
+    $image_url = esc_url_raw((string) ($group['source_image_url'] ?? ''), ['https']);
+    $state = wh_sync_current_image_state($parent_id, $current_id, $incoming_type, $incoming_hash);
+    if ($state === 'keep') {
+        return ['status' => 'existing_image_kept'];
+    }
+    if (
+        $image_url === ''
+        || ($group['image_validation_status'] ?? '') !== 'valid'
+        || $incoming_hash === ''
+        || (int) ($group['image_width'] ?? 0) < 300
+        || (int) ($group['image_height'] ?? 0) < 300
+        || wh_sync_forbidden_image_url($image_url)
+    ) {
+        if ($state === 'replace' && $current_id > 0) {
+            delete_post_thumbnail($parent_id);
+        }
+        update_post_meta($parent_id, '_wholesalehub_image_validation_status', 'review_required');
+        return ['status' => 'image_review_required', 'error' => 'validated supplier image missing'];
+    }
+    $attachment_id = (int) $wpdb->get_var(
+        $wpdb->prepare(
+            "SELECT post_id FROM {$wpdb->postmeta}
+             WHERE (meta_key = '_wholesalehub_image_content_hash' AND meta_value = %s)
+                OR (meta_key = '_wholesalehub_source_image_url' AND meta_value = %s)
+             ORDER BY post_id ASC LIMIT 1",
+            $incoming_hash,
+            $image_url
+        )
+    );
+    $created = false;
+    if ($attachment_id <= 0 || !wp_attachment_is_image($attachment_id)) {
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        require_once ABSPATH . 'wp-admin/includes/media.php';
+        require_once ABSPATH . 'wp-admin/includes/image.php';
+        $imported = media_sideload_image(
+            $image_url,
+            $parent_id,
+            get_the_title($parent_id),
+            'id'
+        );
+        if (is_wp_error($imported)) {
+            update_post_meta($parent_id, '_wholesalehub_image_validation_status', 'failed');
+            return [
+                'status' => 'image_failed',
+                'error' => sanitize_text_field($imported->get_error_message()),
+            ];
+        }
+        $attachment_id = (int) $imported;
+        $created = true;
+    }
+    $file = get_attached_file($attachment_id);
+    $metadata = wp_get_attachment_metadata($attachment_id);
+    $actual_hash = is_string($file) && is_file($file) ? hash_file('sha256', $file) : '';
+    if (
+        !is_array($metadata)
+        || (int) ($metadata['width'] ?? 0) < 300
+        || (int) ($metadata['height'] ?? 0) < 300
+        || !hash_equals($incoming_hash, (string) $actual_hash)
+    ) {
+        if ($created) {
+            wp_delete_attachment($attachment_id, true);
+        }
+        update_post_meta($parent_id, '_wholesalehub_image_validation_status', 'failed');
+        return ['status' => 'image_failed', 'error' => 'downloaded image verification failed'];
+    }
+    $previous_id = $current_id;
+    if (!set_post_thumbnail($parent_id, $attachment_id)) {
+        if ($created) {
+            wp_delete_attachment($attachment_id, true);
+        }
+        return ['status' => 'image_failed', 'error' => 'set_post_thumbnail failed'];
+    }
+    update_post_meta($attachment_id, '_wholesalehub_source_image_url', $image_url);
+    update_post_meta($attachment_id, '_wholesalehub_image_content_hash', $incoming_hash);
+    update_post_meta($attachment_id, '_wholesalehub_image_source_type', $incoming_type);
+    update_post_meta($attachment_id, '_wholesalehub_image_collected_at', (string) ($group['image_collected_at'] ?? gmdate('c')));
+    update_post_meta($attachment_id, '_wholesalehub_image_source_product_name', get_the_title($parent_id));
+    update_post_meta($parent_id, '_wholesalehub_source_image_url', $image_url);
+    update_post_meta($parent_id, '_wholesalehub_image_content_hash', $incoming_hash);
+    update_post_meta($parent_id, '_wholesalehub_image_source_type', $incoming_type);
+    update_post_meta($parent_id, '_wholesalehub_image_collected_at', (string) ($group['image_collected_at'] ?? gmdate('c')));
+    update_post_meta($parent_id, '_wholesalehub_image_validation_status', 'valid');
+    update_post_meta($parent_id, '_wholesalehub_temporary_fallback', '0');
+    update_post_meta($parent_id, '_wholesalehub_thumbnail_synced_at', gmdate('c'));
+    if ((int) get_post_thumbnail_id($parent_id) !== $attachment_id) {
+        if ($previous_id > 0) {
+            set_post_thumbnail($parent_id, $previous_id);
+        } else {
+            delete_post_thumbnail($parent_id);
+        }
+        if ($created) {
+            wp_delete_attachment($attachment_id, true);
+        }
+        return ['status' => 'image_failed', 'error' => 'thumbnail read-back verification failed'];
+    }
+    return [
+        'status' => 'image_applied',
+        'attachment_id' => $attachment_id,
+        'image_source_type' => $incoming_type,
+    ];
+}
+
+function wh_sync_current_image_state(
+    int $parent_id,
+    int $attachment_id,
+    string $incoming_type,
+    string $incoming_hash
+): string {
+    if ($attachment_id <= 0 || $attachment_id === 2905 || !wp_attachment_is_image($attachment_id)) {
+        return 'replace';
+    }
+    $url = (string) wp_get_attachment_url($attachment_id);
+    if ($url === '' || wh_sync_forbidden_image_url($url)) {
+        return 'replace';
+    }
+    if (
+        get_post_meta($parent_id, '_wholesalehub_temporary_fallback', true) === '1'
+        || get_post_meta($attachment_id, '_wholesalehub_temporary_fallback', true) === '1'
+    ) {
+        return 'replace';
+    }
+    $current_type = sanitize_key((string) get_post_meta(
+        $attachment_id,
+        '_wholesalehub_image_source_type',
+        true
+    ));
+    $current_hash = sanitize_text_field((string) get_post_meta(
+        $attachment_id,
+        '_wholesalehub_image_content_hash',
+        true
+    ));
+    if ($current_type === '') {
+        return 'keep';
+    }
+    if ($current_hash !== '' && $incoming_hash !== '' && hash_equals($current_hash, $incoming_hash)) {
+        return 'keep';
+    }
+    if ($current_type === 'walldob2b_actual_product') {
+        return 'keep';
+    }
+    if ($current_type === 'dailyfood_actual_product' && $incoming_type !== 'walldob2b_actual_product') {
+        return 'keep';
+    }
+    return 'replace';
+}
+
+function wh_sync_forbidden_image_url(string $url): bool
+{
+    $value = strtolower(rawurldecode($url));
+    return preg_match(
+        '/(?:adminplus[_-](?:600|common)|no[_-]?(?:image|img|photo)|placeholder|default[_-]?(?:image|img)|logo|banner|icon|common|basket|button)/i',
+        $value
+    ) === 1;
+}
+
+function wh_sync_determine_categories(string $title): array
+{
+    // Dual category targets (가공식품 + 공동구매)
+    $both_targets = ['양념목살', '제육볶음', '콩물', '박포갈비', '소곱창', '국민과자', '리포'];
+    foreach ($both_targets as $t) {
+        if (mb_strpos($title, $t) !== false) {
+            return ['가공식품', '공동구매'];
+        }
+    }
+
+    // Processed food indicators (김치, 젓갈, 액젓, 무침, 식해, 만두 등) MUST be ONLY 가공식품
+    $processed_overrides = ['김치', '겉절이', '양념', '젓갈', '낙지젓', '가리비젓', '갈치쌈젓', '멍게젓', '명란젓', '오징어젓', '창난젓', '청어알', '액젓', '멸치액젓', '무침', '가오리', '회무침', '식해', '밀키트', '납작만두', '과자'];
+    foreach ($processed_overrides as $po) {
+        if (mb_strpos($title, $po) !== false) {
+            return ['가공식품'];
+        }
+    }
+
+    static $cat_rules = [
+        '농산물' => ['과일', '채소', '곡물', '버섯', '나물', '쌀', '감자', '고구마', '옥수수', '수박', '참외', '복숭아', '포도', '사과', '배', '감귤', '양파', '마늘', '배추', '무', '당근', '콩', '자두', '살구', '체리', '토마토', '대추', '참다래', '키위', '멜론', '메론', '단감', '곶감', '한라봉', '천혜향', '레드향', '황금향', '귤', '오렌지', '배추', '무우', '파', '상추', '깻잎', '시금치', '부추', '호박', '가지', '오이', '고추', '파프리카', '피망', '우엉', '연근', '더덕', '도라지', '생강', '취나물', '고사리', '곤드레', '느타리', '팽이', '새송이', '표고', '양송이', '현미', '찹쌀', '보리', '조', '수수', '팥', '녹두', '밤', '잣', '호두', '땅콩', '자몽', '아보카도', '샤인머스켓', '거봉', '용과', '새싹삼', '마카다미아'],
+        '수산물' => ['생선', '해산물', '어패류', '건어물', '오징어', '문어', '새우', '전복', '조개', '굴', '고등어', '갈치', '멸치', '김', '미역', '다시마', '톳', '모자반', '낙지', '쭈꾸미', '주꾸미', '갑오징어', '한치', '게', '대게', '홍게', '킹크랩', '랍스터', '바지락', '홍합', '꼬막', '재첩', '가리비', '소라', '멍게', '해삼', '개불', '성게', '명태', '동태', '생태', '황태', '코다리', '노가리', '가자미', '삼치', '꽁치', '임연수', '조기', '굴비', '옥돔', '민어', '농어', '우럭', '광어', '참돔', '돌돔', '감성돔', '연어', '송어', '장어', '아구', '아구찜', '아게', '쥐포', '오징어채', '진미채', '대구', '대구탕', '명란'],
+        '축산물' => ['소고기', '돼지고기', '닭고기', '계란', '한우', '육우', '돈육', '삼겹살', '목살', '갈비', '등심', '안심', '채끝', '양지', '사골', '우족', '도가니', '차돌박이', '우삼겹', '대패삼겹', '항정살', '가브리살', '갈매기살', '돼지갈비', '족발', '보쌈', '편육', '닭', '토종닭', '오리', '오리고기', '염소', '양고기', '양갈비', '달걀', '유정란', '메추리알', '뒷고기', '흑돼지', '구운란'],
+        '가공식품' => ['반찬', '소스', '주스', '음료', '떡', '만두', '냉동', '조리', '가공', '절임', '포장', '장류', '고추장', '된장', '간장', '쌈장', '식초', '기름', '참기름', '들기름', '식용유', '카레', '짜장', '스프', '국', '탕', '찌개', '전골', '밀키트', '간편식', '육가공', '햄', '소시지', '베이컨', '돈까스', '치킨', '너겟', '어묵', '맛살', '면', '국수', '냉면', '쫄면', '우동', '라면', '당면', '통조림', '캔', '잼', '청', '엑기스', '즙', '차', '커피', '시럽', '빵', '쿠키', '스낵', '부각', '부침개', '전', '튀김', '두유', '요거트', '치즈', '버터', '마카다미아'],
+        '공동구매' => ['공동구매', '공구']
+    ];
+
+    $matched = [];
+    foreach ($cat_rules as $cat_name => $keywords) {
+        foreach ($keywords as $kw) {
+            if (mb_strpos($title, $kw) !== false) {
+                $matched[] = $cat_name;
+                break;
+            }
+        }
+    }
+    return !empty($matched) ? array_values(array_unique($matched)) : ['가공식품'];
+}
+
+function wh_sync_create_parent(array $group): int
+{
+    $name = sanitize_text_field((string) $group['displayName']);
+    $product = new WC_Product_Variable();
+    $product->set_name($name);
+    $product->set_status('private');
+    $product->set_catalog_visibility('visible');
+    $product->set_description(
+        '<p>선택한 옵션과 수량에 따라 주문할 수 있습니다. 옵션별로 나누어 배송될 수 있습니다.</p>'
+    );
+    $product->set_short_description('<p>신선 상품 옵션을 선택해 주문하세요.</p>');
+    $product->update_meta_data('_wh_supplier_lane_mode', '1');
+    $product->update_meta_data(
+        '_wholesalehub_product_group_key',
+        sanitize_text_field((string) $group['groupKey'])
+    );
+    $id = $product->save();
+    if ($id <= 0) {
+        throw new RuntimeException('new parent create failed');
+    }
+
+    try {
+        $cats = wh_sync_determine_categories($name);
+        if (!empty($cats)) {
+            wp_set_object_terms($id, $cats, 'product_cat', false);
+        } else {
+            wp_set_object_terms($id, ['미분류'], 'product_cat', false);
+            if (function_exists('avocadoss_send_telegram_message')) {
+                @avocadoss_send_telegram_message("도매Hub 신규 상품 카테고리 미분류 배정: [{$id}] {$name}");
+            }
+        }
+    } catch (Throwable $t) {
+        wp_set_object_terms($id, ['미분류'], 'product_cat', false);
+    }
+
+    return $id;
+}
+
+function wh_sync_create_variation_and_offer(
+    int $parent_id,
+    int $parent_link_id,
+    string $lane_code,
+    string $supplier_id,
+    string $source_product_id,
+    array $option,
+    string $offer_table
+): bool {
+    global $wpdb;
+    $source_option_id = sanitize_text_field((string) $option['sourceOptionId']);
+    $public_label = sanitize_text_field((string) $option['publicOptionLabel']);
+    $sale_price = (float) $option['salePrice'];
+    $stock_status = ($option['stockStatus'] ?? '') === 'out_of_stock'
+        ? 'outofstock'
+        : 'instock';
+    $variation = new WC_Product_Variation();
+    $variation->set_parent_id($parent_id);
+    $variation->set_status('private');
+    $variation->set_regular_price(wc_format_decimal($sale_price, 2));
+    $variation->set_price(wc_format_decimal($sale_price, 2));
+    $variation->set_manage_stock(false);
+    $variation->set_stock_status($stock_status);
+    $variation->set_attributes([
+        sanitize_title('출고구분') => $lane_code === 'A' ? 'A사' : 'B사',
+        sanitize_title('구매옵션') => $public_label,
+    ]);
+    $variation->set_sku(
+        'WH-' . strtoupper(substr(hash('sha256', implode('|', [
+            $supplier_id,
+            $source_product_id,
+            $source_option_id,
+        ])), 0, 20))
+    );
+    $variation->update_meta_data('_wh_internal_supplier_id', $supplier_id);
+    $variation->update_meta_data('_wh_source_product_id', $source_product_id);
+    $variation->update_meta_data('_wh_source_option_id', $source_option_id);
+    $variation->update_meta_data(
+        '_wh_source_id_type',
+        sanitize_text_field((string) ($option['sourceIdType'] ?? 'authoritative'))
+    );
+    $variation->update_meta_data(
+        '_wh_snapshot_hash',
+        sanitize_text_field((string) $option['snapshotHash'])
+    );
+    $variation->update_meta_data(
+        '_wh_hard_spec_fingerprint',
+        sanitize_text_field((string) $option['hardSpecFingerprint'])
+    );
+    $variation_id = $variation->save();
+    if ($variation_id <= 0) {
+        return false;
+    }
+    $now = current_time('mysql', true);
+    $public_offer_key = hash(
+        'sha256',
+        implode('|', [
+            'wholesalehub',
+            $supplier_id,
+            $source_product_id,
+            $source_option_id,
+            $variation_id,
+        ])
+    );
+    $inserted = $wpdb->insert($offer_table, [
+        'parent_link_id' => $parent_link_id,
+        'supplier_id' => $supplier_id,
+        'lane_code' => $lane_code,
+        'source_product_id' => $source_product_id,
+        'source_option_id' => $source_option_id,
+        'atomic_supplier_sku_id' => hash(
+            'sha256',
+            $supplier_id . '|' . $source_product_id . '|' . $source_option_id
+        ),
+        'woo_parent_id' => $parent_id,
+        'woo_variation_id' => $variation_id,
+        'public_offer_key' => $public_offer_key,
+        'public_option_label' => $public_label,
+        'option_label_raw' => $public_label,
+        'hard_spec_fingerprint' => (string) $option['hardSpecFingerprint'],
+        'source_cost' => (float) $option['sourceCost'],
+        'source_shipping_cost' => (float) $option['shippingFee'],
+        'landed_cost' => (float) $option['landedCost'],
+        'sale_price' => $sale_price,
+        'stock_status' => $stock_status === 'instock' ? 'in_stock' : 'out_of_stock',
+        'approval_status' => 'approved',
+        'lifecycle_status' => 'active',
+        'last_snapshot_hash' => (string) $option['snapshotHash'],
+        'last_complete_run_id' => 'catalog-incremental-sync',
+        'last_seen_at' => $now,
+        'missing_complete_count' => 0,
+        'created_at' => $now,
+        'updated_at' => $now,
+    ]);
+    if ($inserted !== 1) {
+        wp_delete_post($variation_id, true);
+        return false;
+    }
+    update_post_meta($variation_id, '_wh_lane_offer_id', (string) $wpdb->insert_id);
+    $variation->set_status('publish');
+    $variation->save();
+    return true;
+}
+
+function wh_sync_refresh_parent_attributes(int $parent_id, string $offer_table): void
+{
+    global $wpdb;
+    $rows = $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT lane_code, public_option_label FROM {$offer_table}
+             WHERE woo_parent_id = %d AND approval_status = 'approved'
+               AND lifecycle_status = 'active' ORDER BY lane_code, public_option_label",
+            $parent_id
+        ),
+        ARRAY_A
+    );
+    $lane_labels = [];
+    $option_labels = [];
+    foreach ($rows as $row) {
+        $lane_labels[] = $row['lane_code'] === 'A' ? 'A사' : 'B사';
+        $option_labels[] = sanitize_text_field((string) $row['public_option_label']);
+    }
+    $product = wc_get_product($parent_id);
+    if (!($product instanceof WC_Product_Variable) || $option_labels === []) {
+        return;
+    }
+    $lane_attribute = new WC_Product_Attribute();
+    $lane_attribute->set_name('출고구분');
+    $lane_attribute->set_options(array_values(array_unique($lane_labels)));
+    $lane_attribute->set_position(0);
+    $lane_attribute->set_visible(true);
+    $lane_attribute->set_variation(true);
+    $option_attribute = new WC_Product_Attribute();
+    $option_attribute->set_name('구매옵션');
+    $option_attribute->set_options(array_values(array_unique($option_labels)));
+    $option_attribute->set_position(1);
+    $option_attribute->set_visible(true);
+    $option_attribute->set_variation(true);
+    $product->set_attributes([$lane_attribute, $option_attribute]);
+    $image_id = (int) get_post_thumbnail_id($parent_id);
+    $product->set_status($image_id > 0 && $image_id !== 2905 ? 'publish' : 'private');
+    $product->save();
+}
