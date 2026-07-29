@@ -10,6 +10,13 @@ if (dryRunTitleIndex >= 0) {
   process.exit(0)
 }
 
+const dryRunSourceIndex = process.argv.indexOf("--dry-run-source-label")
+if (dryRunSourceIndex >= 0) {
+  const sourceOptionLabel = sourceLabel(process.argv[dryRunSourceIndex + 1] ?? "")
+  console.log(JSON.stringify(sourceSpecFields(sourceOptionLabel)))
+  process.exit(0)
+}
+
 const directory = "reports/rebuild"
 const daily = JSON.parse(await readFile(`${directory}/dailyfood-catalog-snapshot.json`, "utf8"))
 const walldo = JSON.parse(await readFile(`${directory}/walldob2b-catalog-snapshot.json`, "utf8"))
@@ -80,28 +87,30 @@ const validGroups = []
 for (const group of groups) {
   const lanes = {}
   for (const [lane, source] of Object.entries(group.lanes)) {
-    const uniqueLabels = new Set()
+    const uniqueOptionIds = new Set()
     const options = []
     for (const option of source.options) {
-      const label = publicOptionLabel(option.optionName)
-      const key = clean(label)
-      if (!label || uniqueLabels.has(key)) {
+      const sourceOptionLabel = sourceLabel(option.optionName)
+      const label = publicOptionLabel(sourceOptionLabel)
+      const sourceOptionId = String(option.sourceOptionId)
+      if (!label || uniqueOptionIds.has(sourceOptionId)) {
         exclusions.push({
           supplier: source.supplierId,
           sourceProductId: source.sourceProductId,
           sourceOptionId: option.sourceOptionId,
           url: option.detailUrl ?? source.detailUrl,
-          reason: !label ? "public_option_label_empty" : "duplicate_public_option_label",
+          reason: !label ? "public_option_label_empty" : "duplicate_source_option_id",
         })
         continue
       }
-      uniqueLabels.add(key)
+      uniqueOptionIds.add(sourceOptionId)
       const shippingFee = numericShippingFee(option)
       const sourceCost = numericSourcePrice(option)
       const landedCost = sourceCost + shippingFee
       options.push({
-        sourceOptionId: String(option.sourceOptionId),
+        sourceOptionId,
         sourceIdType: option.sourceIdType,
+        ...sourceSpecFields(sourceOptionLabel),
         publicOptionLabel: label,
         sourceCost,
         shippingFee,
@@ -284,6 +293,34 @@ function publicOptionLabel(value) {
     .replace(/\s+/gu, " ")
     .trim()
     .slice(0, 180)
+}
+
+function sourceLabel(value) {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .replace(/\s+/gu, " ")
+    .trim()
+    .slice(0, 500)
+}
+
+function sourceSpecFields(sourceOptionLabel) {
+  const size = sourceOptionLabel.match(
+    /(왕특과|왕특품|왕특|특대과|특대|특품|특과|꼬마과|꼬마|중대과|중소과|소과|소품|중과|중품|대과|대품|소|중|대|특)/u,
+  )
+  const weight = sourceOptionLabel.match(/[\d.]+\s*(?:kg|킬로|키로|g|그램)/iu)
+  const count = sourceOptionLabel.match(
+    /[\d.]+(?:\s*[~\-–]\s*[\d.]+)?\s*(?:개입|개|입|과수?|송이|수)(?:\s*(?:내외|전후|이상|이하))?/u,
+  )
+  const packaging = sourceOptionLabel.match(/(박스포함|박스|팩|봉|망)/u)
+  return {
+    sourceOptionLabel,
+    sourceOptionName: sourceOptionLabel,
+    sourceSpecNote: sourceOptionLabel.match(/\([^)]*\)/gu)?.join(" ") ?? "",
+    sourceSizeLabel: size?.[1] ?? "",
+    sourceWeightLabel: weight?.[0] ?? "",
+    sourceCountLabel: count?.[0] ?? "",
+    sourcePackageLabel: packaging?.[1] ?? "",
+  }
 }
 
 function canonicalProductKey(value) {

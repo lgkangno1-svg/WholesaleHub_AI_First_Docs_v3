@@ -298,30 +298,50 @@ final class WholesaleHub_Supplier_Lanes
             }
         }
 
-        if (preg_match('/([\d\.]+)\s*(개입|개|입|과)/u', $raw_label, $m)) {
+        if (preg_match(
+            '/([\d\.]+)(?:\s*[~\-–]\s*[\d\.]+)?\s*(개입|개|입|과수?|송이|수)(?:\s*(?:내외|전후|이상|이하))?/u',
+            $raw_label,
+            $m
+        )) {
             $count_val = (int) $m[1];
             $unit_raw = $m[2];
-            $count_unit = ($unit_raw === '개입' || $unit_raw === '입') ? '개' : $unit_raw;
+            if ($unit_raw === '개입' || $unit_raw === '입') {
+                $count_unit = '개';
+            } elseif ($unit_raw === '과수') {
+                $count_unit = '과';
+            } else {
+                $count_unit = $unit_raw;
+            }
         }
 
-        if (preg_match('/(왕특|특대과|특대|특A품|특A|특품|대과|중과|중품|중소|소과|꼬마|가정용|선물용|정품|못난이|프리미엄)/u', $raw_label, $m)) {
+        if (preg_match(
+            '/(왕특과|왕특품|왕특|특대과|특대|특A품|특A|특품|특과|꼬마과|꼬마|중대과|중대|중소과|중소|소과|소품|중과|중품|대과|대품|선물용|정품|못난이|프리미엄)/u',
+            $raw_label,
+            $m
+        )) {
             $g = $m[1];
-            if (in_array($g, ['특품', '특A품', '특A'], true)) {
-                $grade_size = '특품';
-            } elseif (in_array($g, ['왕특', '특대과', '특대'], true)) {
+            if (in_array($g, ['왕특과', '왕특품', '왕특', '특대과', '특대'], true)) {
                 $grade_size = '왕특';
-            } elseif ($g === '대과') {
+            } elseif (in_array($g, ['특품', '특과', '특A품', '특A'], true)) {
+                $grade_size = '특';
+            } elseif (in_array($g, ['꼬마과', '꼬마'], true)) {
+                $grade_size = '꼬마';
+            } elseif (in_array($g, ['중대과', '중대'], true)) {
+                $grade_size = '중대';
+            } elseif (in_array($g, ['중소과', '중소'], true)) {
+                $grade_size = '중소';
+            } elseif (in_array($g, ['대과', '대품'], true)) {
                 $grade_size = '대';
-            } elseif (in_array($g, ['중과', '중품', '중소'], true)) {
+            } elseif (in_array($g, ['중과', '중품'], true)) {
                 $grade_size = '중';
-            } elseif (in_array($g, ['소과', '꼬마'], true)) {
+            } elseif (in_array($g, ['소과', '소품'], true)) {
                 $grade_size = '소';
             } else {
                 $grade_size = $g;
             }
         } elseif (preg_match('/(?:^|[\s\(\)\[\]\,])(특|대|중|소)(?:$|[\s\(\)\[\]\,])/u', $raw_label, $m)) {
             $g = $m[1];
-            if ($g === '특') $grade_size = '특품';
+            if ($g === '특') $grade_size = '특';
             elseif ($g === '대') $grade_size = '대';
             elseif ($g === '중') $grade_size = '중';
             elseif ($g === '소') $grade_size = '소';
@@ -383,7 +403,7 @@ final class WholesaleHub_Supplier_Lanes
 
         $offers = $wpdb->get_results(
             $wpdb->prepare(
-                "SELECT woo_variation_id, public_offer_key, public_option_label
+                "SELECT woo_variation_id, public_offer_key, public_option_label, option_label_raw
                  FROM {$offers_table}
                  WHERE woo_parent_id = %d
                    AND approval_status = 'approved'
@@ -413,7 +433,7 @@ final class WholesaleHub_Supplier_Lanes
                 continue;
             }
 
-            $label = (string) $offer['public_option_label'];
+            $label = trim((string) ($offer['option_label_raw'] ?: $offer['public_option_label']));
             $parsed = self::parse_spec_label($label);
             $hash = hash('sha256', $label);
             $auto_json = wp_json_encode($parsed);
@@ -757,33 +777,46 @@ final class WholesaleHub_Supplier_Lanes
                 continue;
             }
             $price = (float) $offer['price'];
+            $source_label = sanitize_text_field(
+                (string) ($offer['source_label'] ?: $offer['label'])
+            );
             $weight_val = $spec['weight_val'] !== null ? (float) $spec['weight_val'] : null;
             $weight_unit = (string) ($spec['weight_unit'] ?? 'kg');
             $weight_g = null;
-            $weight_label = '';
             if ($weight_val !== null) {
                 $weight_g = $weight_unit === 'g' ? $weight_val : $weight_val * 1000;
-                $weight_label = self::format_spec_number($weight_val) . $weight_unit;
             }
             $count_val = $spec['count_val'] !== null ? (int) $spec['count_val'] : null;
-            $count_label = $count_val !== null
-                ? $count_val . (string) ($spec['count_unit'] ?? '개')
-                : '';
             $normalized = [
                 'grade' => sanitize_text_field((string) ($spec['grade_size'] ?? '')),
                 'weight' => $weight_g !== null ? self::format_spec_number($weight_g) : '',
                 'count' => $count_val !== null ? (string) $count_val : '',
                 'package' => sanitize_text_field((string) ($spec['packaging'] ?? '')),
             ];
-            $spec_label_parts = array_values(array_filter([
-                $normalized['grade'],
-                $weight_label,
-                $count_label,
-                $normalized['package'],
-            ], static fn(string $value): bool => $value !== ''));
-            $spec_label = $spec_label_parts !== []
-                ? implode(' ', $spec_label_parts)
-                : sanitize_text_field((string) ($spec['comparison_group'] ?? $offer['label']));
+            $display = [
+                'grade' => $normalized['grade'],
+                'weight' => $weight_val !== null
+                    ? self::format_spec_number($weight_val) . $weight_unit
+                    : '',
+                'count' => $count_val !== null
+                    ? $count_val . (string) ($spec['count_unit'] ?? '개')
+                    : '',
+                'package' => $normalized['package'],
+            ];
+            if (preg_match(
+                '/[\d\.]+(?:\s*[~\-–]\s*[\d\.]+)?\s*(?:개입|개|입|과수?|송이|수)(?:\s*(?:내외|전후|이상|이하))?/u',
+                $source_label,
+                $count_match
+            )) {
+                $display['count'] = $count_match[0];
+            }
+            if (preg_match(
+                '/(왕특과|왕특품|왕특|특대과|특대|특품|특과|꼬마과|꼬마|중대과|중소과|소과|소품|중과|중품|대과|대품)/u',
+                $source_label,
+                $grade_match
+            )) {
+                $display['grade'] = $grade_match[1];
+            }
 
             $unit_price_str = null;
             if ($weight_g !== null && $weight_g > 0) {
@@ -796,7 +829,8 @@ final class WholesaleHub_Supplier_Lanes
 
             $spec_offers[] = array_merge($offer, [
                 'normalized' => $normalized,
-                'spec_label' => $spec_label,
+                'display' => $display,
+                'spec_label' => $source_label,
                 'unit_price_str' => $unit_price_str,
             ]);
         }
@@ -816,6 +850,9 @@ final class WholesaleHub_Supplier_Lanes
         echo '<section class="wh-supplier-lanes wh-option-a-ui" id="wh-option-a-sec-' . $parent_id . '" ';
         echo 'data-ui-mode="' . esc_attr($mode) . '" data-dimensions="';
         echo esc_attr(wp_json_encode($dimensions)) . '">';
+        if ($mode !== 'single-offer') {
+            echo '<div class="wh-spec-heading">';
+        }
         if ($mode === 'single-supplier') {
             echo '<h2>규격 선택</h2>';
         } elseif ($mode === 'multi-supplier') {
@@ -823,22 +860,45 @@ final class WholesaleHub_Supplier_Lanes
         } else {
             echo '<h2 class="screen-reader-text">구매 옵션</h2>';
         }
+        if ($mode !== 'single-offer') {
+            echo '<button type="button" class="wh-selection-reset">선택 초기화</button></div>';
+        }
         echo '<p class="wh-lane-dispatch" id="' . esc_attr($description_id) . '">' . esc_html(self::DISPATCH_NOTICE) . '</p>';
 
         if ($mode === 'single-supplier') {
             $select_id = 'wh-spec-dropdown-' . $parent_id;
             echo '<div class="wh-spec-dropdown-wrap">';
-            echo '<label for="' . esc_attr($select_id) . '">규격 선택</label>';
-            echo '<select class="wh-spec-dropdown" id="' . esc_attr($select_id) . '">';
-            echo '<option value="">규격을 선택하세요</option>';
-            foreach ($spec_offers as $offer) {
-                $plain_price = wp_strip_all_tags(wc_price((float) $offer['price']));
-                echo '<option value="' . esc_attr($offer['key']) . '" ';
-                echo 'data-variation-id="' . (int) $offer['variation_id'] . '" ';
-                echo 'data-public-offer-key="' . esc_attr($offer['key']) . '">';
-                echo esc_html($offer['spec_label'] . ' — ' . $plain_price) . '</option>';
+            if (count($spec_offers) >= 15) {
+                $listbox_id = $select_id . '-listbox';
+                echo '<span class="wh-spec-picker-label">규격 선택</span>';
+                echo '<button type="button" class="wh-spec-listbox-toggle" aria-haspopup="listbox" ';
+                echo 'aria-expanded="false" aria-controls="' . esc_attr($listbox_id) . '">';
+                echo '<span>규격을 선택하세요</span></button>';
+                echo '<ul class="wh-spec-listbox" id="' . esc_attr($listbox_id) . '" role="listbox" hidden>';
+                foreach ($spec_offers as $offer) {
+                    $plain_price = wp_strip_all_tags(wc_price((float) $offer['price']));
+                    $option_text = $offer['spec_label'] . ' — ' . $plain_price;
+                    echo '<li role="option" tabindex="-1" aria-selected="false" ';
+                    echo 'data-offer-key="' . esc_attr($offer['key']) . '" ';
+                    echo 'data-variation-id="' . (int) $offer['variation_id'] . '" ';
+                    echo 'data-label="' . esc_attr($option_text) . '">';
+                    echo esc_html($option_text) . '</li>';
+                }
+                echo '</ul>';
+            } else {
+                echo '<label for="' . esc_attr($select_id) . '">규격 선택</label>';
+                echo '<select class="wh-spec-dropdown" id="' . esc_attr($select_id) . '">';
+                echo '<option value="">규격을 선택하세요</option>';
+                foreach ($spec_offers as $offer) {
+                    $plain_price = wp_strip_all_tags(wc_price((float) $offer['price']));
+                    echo '<option value="' . esc_attr($offer['key']) . '" ';
+                    echo 'data-variation-id="' . (int) $offer['variation_id'] . '" ';
+                    echo 'data-public-offer-key="' . esc_attr($offer['key']) . '">';
+                    echo esc_html($offer['spec_label'] . ' — ' . $plain_price) . '</option>';
+                }
+                echo '</select>';
             }
-            echo '</select></div>';
+            echo '</div>';
         } elseif ($mode === 'multi-supplier' && $dimensions !== []) {
             $dimension_labels = [
                 'grade' => '크기/등급',
@@ -848,7 +908,7 @@ final class WholesaleHub_Supplier_Lanes
             ];
             echo '<div class="wh-spec-filters">';
             foreach ($dimensions as $dimension) {
-                echo '<fieldset class="wh-spec-filter-group" data-dimension="' . esc_attr($dimension) . '">';
+                echo '<fieldset class="wh-spec-filter-group" data-dimension="' . esc_attr($dimension) . '" hidden>';
                 echo '<legend>' . esc_html($dimension_labels[$dimension]) . '</legend><div class="wh-pills">';
                 foreach (self::dimension_options($spec_offers, $dimension) as $value => $label) {
                     echo '<button type="button" class="wh-spec-pill" data-dim="' . esc_attr($dimension) . '" ';
@@ -868,7 +928,9 @@ final class WholesaleHub_Supplier_Lanes
             self::render_spec_offer_card($offer, $parent_id, $description_id, $mode === 'single-offer');
         }
         echo '</div>';
-        echo '<template class="wh-empty-message">현재 선택 가능한 판매조건이 없습니다.</template>';
+        if (array_filter($spec_offers, static fn(array $offer): bool => $offer['normalized']['grade'] !== '')) {
+            echo '<p class="wh-grade-substitution-notice">※ 선택하신 규격이 품절될 경우, 동일 중량 기준 상위 규격(더 큰 사이즈) 상품으로 변경되어 발송될 수 있습니다.</p>';
+        }
         echo '<p class="wh-lane-split-notice">' . esc_html(self::SPLIT_NOTICE) . '</p>';
         echo '</section>';
     }
@@ -922,10 +984,10 @@ final class WholesaleHub_Supplier_Lanes
     {
         $dimensions = ['grade', 'weight', 'count', 'package'];
         return array_values(array_filter($dimensions, static function (string $dimension) use ($offers): bool {
-            $values = array_unique(array_map(
+            $values = array_unique(array_filter(array_map(
                 static fn(array $offer): string => (string) ($offer['normalized'][$dimension] ?? ''),
                 $offers
-            ));
+            ), static fn(string $value): bool => $value !== ''));
             return count($values) > 1;
         }));
     }
@@ -939,7 +1001,9 @@ final class WholesaleHub_Supplier_Lanes
                 continue;
             }
             if ($value === '') {
-                $options[$value] = '해당 없음';
+                continue;
+            } elseif (!empty($offer['display'][$dimension])) {
+                $options[$value] = (string) $offer['display'][$dimension];
             } elseif ($dimension === 'weight') {
                 $grams = (float) $value;
                 $options[$value] = $grams >= 1000
@@ -963,7 +1027,17 @@ final class WholesaleHub_Supplier_Lanes
 
     public static function sort_normalized_spec_offers(array $a, array $b): int
     {
-        $grade_order = ['소' => 10, '중' => 20, '대' => 30, '특' => 40, '특품' => 40, '왕특' => 50];
+        $grade_order = [
+            '꼬마' => 5,
+            '소' => 10,
+            '중소' => 15,
+            '중' => 20,
+            '중대' => 25,
+            '대' => 30,
+            '특' => 40,
+            '특품' => 40,
+            '왕특' => 50,
+        ];
         $grade_a = (string) ($a['normalized']['grade'] ?? '');
         $grade_b = (string) ($b['normalized']['grade'] ?? '');
         $rank_a = $grade_order[$grade_a] ?? 999;
@@ -1363,7 +1437,9 @@ final class WholesaleHub_Supplier_Lanes
         $parent_links = $wpdb->prefix . 'supplier_lane_parent_links';
         $rows = $wpdb->get_results(
             $wpdb->prepare(
-                "SELECT o.lane_code, o.woo_variation_id, o.public_offer_key, o.public_option_label
+                "SELECT o.lane_code, o.woo_variation_id, o.public_offer_key,
+                        o.public_option_label, o.option_label_raw,
+                        o.source_product_id, o.source_option_id
                  FROM {$offers} o
                  INNER JOIN {$parent_links} p
                    ON p.id = o.parent_link_id
@@ -1391,6 +1467,11 @@ final class WholesaleHub_Supplier_Lanes
                 'variation_id' => (int) $row['woo_variation_id'],
                 'key' => (string) $row['public_offer_key'],
                 'label' => sanitize_text_field((string) $row['public_option_label']),
+                'source_label' => sanitize_text_field(
+                    (string) ($row['option_label_raw'] ?: $row['public_option_label'])
+                ),
+                'source_product_id' => (string) $row['source_product_id'],
+                'source_option_id' => (string) $row['source_option_id'],
                 'price' => (float) $variation->get_price(),
             ];
         }, is_array($rows) ? $rows : [])));
@@ -1443,7 +1524,7 @@ final class WholesaleHub_Supplier_Lanes
     {
         $l = trim($label);
         // 왕특 계열 (Check FIRST so '왕특' is not matched by '특')
-        if (preg_match('/(왕특과|왕특|특대과|특대|특A품|특A)/u', $l)) {
+        if (preg_match('/(왕특과|왕특품|왕특|특대과|특대|특A품|특A)/u', $l)) {
             return 50;
         }
         // 특 계열
@@ -1452,16 +1533,25 @@ final class WholesaleHub_Supplier_Lanes
                 return 40;
             }
         }
+        if (preg_match('/(중대과|중대)/u', $l)) {
+            return 25;
+        }
         // 대 계열
         if (preg_match('/(대과|대품|대)/u', $l)) {
             return 30;
         }
+        if (preg_match('/(중소과|중소)/u', $l)) {
+            return 15;
+        }
         // 중 계열
-        if (preg_match('/(중과|중품|중소|중)/u', $l)) {
+        if (preg_match('/(중과|중품|중)/u', $l)) {
             return 20;
         }
+        if (preg_match('/(꼬마과|꼬마)/u', $l)) {
+            return 5;
+        }
         // 소 계열
-        if (preg_match('/(소과|꼬마|소)/u', $l)) {
+        if (preg_match('/(소과|소품|소)/u', $l)) {
             return 10;
         }
         return 999;
@@ -1480,7 +1570,7 @@ final class WholesaleHub_Supplier_Lanes
 
     public static function extract_count_val(string $label): float
     {
-        if (preg_match('/([\d\.]+)\s*(개입|개|입|과)/u', $label, $m)) {
+        if (preg_match('/([\d\.]+)(?:\s*[~\-–]\s*[\d\.]+)?\s*(개입|개|입|과수?|송이|수)/u', $label, $m)) {
             return (float) $m[1];
         }
         return 999999.0;

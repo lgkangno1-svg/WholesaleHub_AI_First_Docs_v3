@@ -230,6 +230,7 @@ foreach ($groups as $group) {
                         '_wh_hard_spec_fingerprint',
                         sanitize_text_field((string) $option['hardSpecFingerprint'])
                     );
+                    wh_sync_source_spec_meta($variation, $option);
                     $variation->set_status('publish');
                     $variation->save();
                     if ($price_changed) {
@@ -261,6 +262,9 @@ foreach ($groups as $group) {
                             'woo_parent_id' => $parent_id,
                             'public_option_label' => sanitize_text_field(
                                 (string) $option['publicOptionLabel']
+                            ),
+                            'option_label_raw' => sanitize_text_field(
+                                (string) ($option['sourceOptionLabel'] ?? $option['publicOptionLabel'])
                             ),
                             'source_cost' => (float) $option['sourceCost'],
                             'source_shipping_cost' => (float) $option['shippingFee'],
@@ -954,6 +958,7 @@ function wh_sync_create_variation_and_offer(
         '_wh_hard_spec_fingerprint',
         sanitize_text_field((string) $option['hardSpecFingerprint'])
     );
+    wh_sync_source_spec_meta($variation, $option);
     $variation_id = $variation->save();
     if ($variation_id <= 0) {
         return false;
@@ -983,7 +988,9 @@ function wh_sync_create_variation_and_offer(
         'woo_variation_id' => $variation_id,
         'public_offer_key' => $public_offer_key,
         'public_option_label' => $public_label,
-        'option_label_raw' => $public_label,
+        'option_label_raw' => sanitize_text_field(
+            (string) ($option['sourceOptionLabel'] ?? $option['publicOptionLabel'])
+        ),
         'hard_spec_fingerprint' => (string) $option['hardSpecFingerprint'],
         'source_cost' => (float) $option['sourceCost'],
         'source_shipping_cost' => (float) $option['shippingFee'],
@@ -1007,6 +1014,25 @@ function wh_sync_create_variation_and_offer(
     $variation->set_status('publish');
     $variation->save();
     return true;
+}
+
+function wh_sync_source_spec_meta(WC_Product_Variation $variation, array $option): void
+{
+    $fields = [
+        '_wh_source_option_label' => 'sourceOptionLabel',
+        '_wh_source_option_name' => 'sourceOptionName',
+        '_wh_source_spec_note' => 'sourceSpecNote',
+        '_wh_source_size_label' => 'sourceSizeLabel',
+        '_wh_source_weight_label' => 'sourceWeightLabel',
+        '_wh_source_count_label' => 'sourceCountLabel',
+        '_wh_source_package_label' => 'sourcePackageLabel',
+    ];
+    foreach ($fields as $meta_key => $option_key) {
+        $variation->update_meta_data(
+            $meta_key,
+            sanitize_text_field((string) ($option[$option_key] ?? ''))
+        );
+    }
 }
 
 function wh_sync_refresh_parent_attributes(int $parent_id, string $offer_table): void

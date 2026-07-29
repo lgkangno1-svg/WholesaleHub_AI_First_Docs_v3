@@ -55,6 +55,23 @@
   color: #111827;
 }
 
+.wh-spec-heading {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.wh-selection-reset {
+  background: transparent;
+  border: 0;
+  color: #1d4ed8;
+  cursor: pointer;
+  min-block-size: 44px;
+  padding: 0.5rem;
+  text-decoration: underline;
+}
+
 .wh-option-a-ui [hidden] {
   display: none;
 }
@@ -80,6 +97,47 @@
   inline-size: 100%;
   min-block-size: 44px;
   padding-inline: 0.875rem;
+}
+
+.wh-spec-picker-label {
+  color: #374151;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.wh-spec-listbox-toggle {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  color: #111827;
+  min-block-size: 44px;
+  padding: 0.75rem 0.875rem;
+  text-align: left;
+}
+
+.wh-spec-listbox {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  list-style: none;
+  margin: 0;
+  max-block-size: 360px;
+  overflow-y: auto;
+  padding: 0.35rem;
+}
+
+.wh-spec-listbox [role="option"] {
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 0.7rem 0.75rem;
+}
+
+.wh-spec-listbox [role="option"]:hover,
+.wh-spec-listbox [role="option"]:focus,
+.wh-spec-listbox [role="option"][aria-selected="true"] {
+  background: #eff6ff;
+  color: #1d4ed8;
+  outline: none;
 }
 
 .wh-spec-filters {
@@ -156,6 +214,12 @@
   color: #4b5563;
   margin-block: 1rem;
   padding: 1rem;
+}
+
+.wh-grade-substitution-notice {
+  color: #4b5563;
+  font-size: 0.875rem;
+  margin-block: 1rem;
 }
 
 .wh-condition-card {
@@ -300,6 +364,9 @@
   }
   .wh-spec-filter-group legend {
     float: none;
+  }
+  .wh-spec-heading {
+    align-items: flex-start;
   }
   .wh-condition-card.wh-compact-purchase {
     max-inline-size: none;
