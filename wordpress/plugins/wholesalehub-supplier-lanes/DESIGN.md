@@ -39,7 +39,9 @@ privacy-safe `판매조건 A/B` labels.
 
 Each selector state is derived from persisted normalized values supplied by
 PHP. The browser never parses the public label. Exact matching compares every
-rendered dimension. Dependent controls hide values incompatible with current
+rendered variation-level dimension: grade/size, weight, count, and packaging.
+Product-level metadata such as variety, origin, and storage never becomes a
+purchase selector. Dependent controls hide values incompatible with current
 other selections and clear a selection when it becomes invalid.
 
 ## Interaction and accessibility

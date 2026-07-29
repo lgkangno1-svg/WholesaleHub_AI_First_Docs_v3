@@ -774,9 +774,6 @@ final class WholesaleHub_Supplier_Lanes
                 'weight' => $weight_g !== null ? self::format_spec_number($weight_g) : '',
                 'count' => $count_val !== null ? (string) $count_val : '',
                 'package' => sanitize_text_field((string) ($spec['packaging'] ?? '')),
-                'variety' => sanitize_text_field((string) ($spec['variety'] ?? '')),
-                'origin' => sanitize_text_field((string) ($spec['origin'] ?? '')),
-                'storage' => sanitize_text_field((string) ($spec['storage_type'] ?? '')),
             ];
             $spec_label_parts = array_values(array_filter([
                 $normalized['grade'],
@@ -848,9 +845,6 @@ final class WholesaleHub_Supplier_Lanes
                 'weight' => '중량',
                 'count' => '개수',
                 'package' => '포장',
-                'variety' => '품종',
-                'origin' => '원산지',
-                'storage' => '보관',
             ];
             echo '<div class="wh-spec-filters">';
             foreach ($dimensions as $dimension) {
@@ -926,7 +920,7 @@ final class WholesaleHub_Supplier_Lanes
 
     private static function varying_spec_dimensions(array $offers): array
     {
-        $dimensions = ['grade', 'weight', 'count', 'package', 'variety', 'origin', 'storage'];
+        $dimensions = ['grade', 'weight', 'count', 'package'];
         return array_values(array_filter($dimensions, static function (string $dimension) use ($offers): bool {
             $values = array_unique(array_map(
                 static fn(array $offer): string => (string) ($offer['normalized'][$dimension] ?? ''),

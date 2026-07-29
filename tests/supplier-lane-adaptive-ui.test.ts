@@ -117,4 +117,11 @@ describe("Supplier Lane adaptive UI contract", () => {
     }
     expect(plugin).not.toContain("$active = ($i === 0) ? ' active' : '';")
   })
+
+  it("limits purchase selectors to variation-level normalized dimensions", () => {
+    expect(plugin).toContain("$dimensions = ['grade', 'weight', 'count', 'package'];")
+    expect(plugin).not.toContain("'variety' => '품종'")
+    expect(plugin).not.toContain("'origin' => '원산지'")
+    expect(plugin).not.toContain("'storage' => '보관'")
+  })
 })
