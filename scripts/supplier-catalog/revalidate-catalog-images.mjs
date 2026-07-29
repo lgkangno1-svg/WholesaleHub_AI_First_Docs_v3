@@ -1,4 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises"
+import { dirname, join } from "node:path"
 import { chromium } from "playwright-core"
 import { validateSourceImageCandidates } from "../../dist/reports/product-thumbnail-integrity.js"
 
@@ -11,9 +12,35 @@ for (const line of (await readFile(".env", "utf8")).split(/\r?\n/u)) {
 
 const path = process.argv[2] ?? "reports/rebuild/dailyfood-catalog-snapshot.json"
 const snapshot = JSON.parse(await readFile(path, "utf8"))
-const missingCandidateProducts = (snapshot.products ?? []).filter(
+const reportDirectory = dirname(path)
+const syncResult = await readJson(join(reportDirectory, "catalog-sync-result.json"), {})
+const retryStatePath = join(reportDirectory, "source-image-retry-state.json")
+const retryState = await readJson(retryStatePath, { products: {} })
+const requiredKeys = new Set(
+  (syncResult.image_retry_required_products ?? []).map(productKey).filter(Boolean),
+)
+const unavailableRows = new Map(
+  (syncResult.source_image_unavailable_products ?? [])
+    .map((row) => [productKey(row), row])
+    .filter(([key]) => Boolean(key)),
+)
+const now = new Date()
+const retryProducts = (snapshot.products ?? []).filter((product) => {
+  if (
+    product.image_validation_status === "valid" &&
+    String(product.source_image_url ?? "").length > 0
+  ) {
+    delete retryState.products[productKey(product)]
+    return false
+  }
+  const key = productKey(product)
+  if (requiredKeys.has(key) || !unavailableRows.has(key)) return true
+  const policy = retryState.products[key] ?? unavailableRows.get(key)
+  const recheckAfter = Date.parse(policy?.next_check_at ?? policy?.recheck_after ?? "")
+  return !Number.isFinite(recheckAfter) || recheckAfter <= now.getTime()
+})
+const missingCandidateProducts = retryProducts.filter(
   (product) =>
-    product.image_validation_status !== "valid" &&
     (!Array.isArray(product.source_image_urls) || product.source_image_urls.length === 0) &&
     !product.source_image_url &&
     !product.imageUrl,
@@ -26,27 +53,29 @@ const discoveredImages =
     : new Map()
 let retried = 0
 let recovered = 0
-for (const product of snapshot.products ?? []) {
-  if (
-    product.image_validation_status === "valid" &&
-    String(product.source_image_url ?? "").length > 0
-  ) {
+for (const product of retryProducts) {
+  const key = productKey(product)
+  retried += 1
+  const candidates = [
+    ...(Array.isArray(product.source_image_urls) ? product.source_image_urls : []),
+    product.source_image_url ?? product.imageUrl ?? "",
+    ...(discoveredImages.get(String(product.sourceProductId)) ?? []),
+  ].filter(Boolean)
+  if (candidates.length === 0) {
+    scheduleUnavailableRecheck(retryState, key, now)
     continue
   }
-  const candidates = Array.isArray(product.source_image_urls)
-    ? product.source_image_urls
-    : [
-        product.source_image_url ?? product.imageUrl ?? "",
-        ...(discoveredImages.get(String(product.sourceProductId)) ?? []),
-      ].filter(Boolean)
-  if (candidates.length === 0) continue
-  retried += 1
   const image = await validateSourceImageCandidates(candidates, {
     sourceType: "dailyfood_actual_product",
     expectedHosts: ["dailyfood.adminplus.co.kr", "cdn.yourlove.co.kr"],
   })
   Object.assign(product, image, { imageUrl: image.source_image_url })
-  if (image.image_validation_status === "valid") recovered += 1
+  if (image.image_validation_status === "valid") {
+    recovered += 1
+    delete retryState.products[key]
+  } else if (unavailableRows.has(key)) {
+    scheduleUnavailableRecheck(retryState, key, now)
+  }
 }
 snapshot.imageRevalidatedAt = new Date().toISOString()
 snapshot.counts = {
@@ -59,10 +88,39 @@ snapshot.counts = {
   ).length,
   imageRetried: retried,
   imageRecovered: recovered,
+  imageRetrySkippedUnavailable:
+    unavailableRows.size -
+    retryProducts.filter((product) => unavailableRows.has(productKey(product))).length,
   imageCandidatesDiscovered: discoveredImages.size,
 }
 await writeFile(path, `${JSON.stringify(snapshot, null, 2)}\n`)
+retryState.updated_at = now.toISOString()
+await writeFile(retryStatePath, `${JSON.stringify(retryState, null, 2)}\n`)
 console.log(JSON.stringify({ path, retried, recovered }))
+
+function productKey(product) {
+  const supplierId = String(product.supplier_id ?? product.supplierId ?? "dailyfood")
+  const sourceProductId = String(product.source_product_id ?? product.sourceProductId ?? "")
+  return sourceProductId ? `${supplierId}|${sourceProductId}` : ""
+}
+
+function scheduleUnavailableRecheck(state, key, checkedAt) {
+  if (!key) return
+  state.products[key] = {
+    status: "unavailable",
+    last_checked_at: checkedAt.toISOString(),
+    next_check_at: new Date(checkedAt.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+  }
+}
+
+async function readJson(filePath, fallback) {
+  try {
+    return JSON.parse(await readFile(filePath, "utf8"))
+  } catch (error) {
+    if (error?.code === "ENOENT") return fallback
+    throw error
+  }
+}
 
 async function discoverDailyListImages(sourceProductIds) {
   const wanted = new Set(sourceProductIds)

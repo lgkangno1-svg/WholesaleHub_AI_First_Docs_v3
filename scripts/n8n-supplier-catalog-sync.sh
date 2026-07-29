@@ -119,8 +119,13 @@ telegram_message=$(node -e '
   const result = require(process.argv[1]);
   const syncMode = process.argv[2];
   const counts = result.counts ?? {};
+  const reviewRequired = (result.reviews ?? [])
+    .filter((row) => !["image_failed", "sync_group_failed"].includes(row.reason))
+    .slice(0, 20)
+    .map((row) => `[${row.parent_id ?? "?"}] ${row.product_name ?? row.group_key ?? "이름 없음"}`)
+    .join(", ");
   const failed = (result.reviews ?? [])
-    .filter((row) => ["image_failed", "image_review_required"].includes(row.reason))
+    .filter((row) => ["image_failed", "sync_group_failed"].includes(row.reason))
     .slice(0, 20)
     .map((row) => `[${row.parent_id ?? "?"}] ${row.product_name ?? row.group_key ?? "이름 없음"}`)
     .join(", ");
@@ -140,6 +145,7 @@ telegram_message=$(node -e '
     `무료 이미지 적용 0`,
     `AI 이미지 적용 0`,
     `이미지 재시도 필요 ${counts.image_retry_needed ?? 0}`,
+    `공급사 이미지 없음 ${counts.source_image_unavailable ?? 0}`,
     `이미지 실패 ${counts.image_failed ?? 0}`,
     `가성비 제외 ${counts.terminal_excluded ?? 0}`,
     `천도 계열 제외 ${counts.nectarine_excluded ?? 0}`,
@@ -147,6 +153,7 @@ telegram_message=$(node -e '
     `review_required ${(counts.image_review_required ?? 0) + (counts.review_needed ?? 0)}`,
     `실패 ${counts.failed ?? 0}`,
   ];
+  if (reviewRequired) lines.push(`review_required 상품 ${reviewRequired}`);
   if (failed) lines.push(`실패 상품 ${failed}`);
   process.stdout.write(lines.join("\n"));
 ' "$REPORT_DIR/catalog-sync-result.json" "$sync_mode")

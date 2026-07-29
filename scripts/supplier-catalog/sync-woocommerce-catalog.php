@@ -27,7 +27,9 @@ $counts = [
     'images_found' => (int) ($plan['counts']['imagesFound'] ?? 0),
     'walldo_images_collected' => (int) ($plan['counts']['walldoImages'] ?? 0),
     'daily_images_collected' => (int) ($plan['counts']['dailyImages'] ?? 0),
-    'image_retry_needed' => (int) ($plan['counts']['imageRetryNeeded'] ?? 0),
+    'image_retry_needed' => 0,
+    'image_retry_required' => 0,
+    'source_image_unavailable' => 0,
     'price_updated' => 0,
     'stock_updated' => 0,
     'variation_created' => 0,
@@ -49,6 +51,8 @@ $counts = [
 ];
 $seen = [];
 $reviews = [];
+$image_retry_required_products = [];
+$source_image_unavailable_products = [];
 $touched_parents = [];
 $variation_price_changes = [];
 $exclusion_result = wh_sync_reconcile_terminal_exclusions(
@@ -309,12 +313,22 @@ foreach ($groups as $group) {
             }
         }
         if (in_array($image_status, ['image_review_required', 'image_failed'], true)) {
+            $image_product = wh_sync_image_product_row($parent_id, $group, $image_result);
+            $counts['image_retry_required']++;
+            $image_retry_required_products[] = $image_product;
             $reviews[] = [
                 'reason' => $image_status,
                 'parent_id' => $parent_id,
                 'product_name' => get_the_title($parent_id),
                 'error' => (string) ($image_result['error'] ?? ''),
             ];
+        } elseif (($image_result['source_image_status'] ?? '') === 'unavailable') {
+            $counts['source_image_unavailable']++;
+            $source_image_unavailable_products[] = wh_sync_image_product_row(
+                $parent_id,
+                $group,
+                $image_result
+            );
         }
     } catch (Throwable $error) {
         $counts['failed']++;
@@ -364,11 +378,14 @@ foreach (array_keys($touched_parents) as $parent_id) {
 }
 wc_delete_product_transients();
 wp_cache_flush();
+$counts['image_retry_needed'] = $counts['image_retry_required'];
 $result = [
     'status' => 'completed',
     'completed_at' => gmdate('c'),
     'counts' => $counts,
     'reviews' => $reviews,
+    'image_retry_required_products' => $image_retry_required_products,
+    'source_image_unavailable_products' => $source_image_unavailable_products,
     'variation_price_changes' => $variation_price_changes,
 ];
 file_put_contents(
@@ -572,23 +589,60 @@ function wh_sync_ensure_parent_image(int $parent_id, array $group): array
     $incoming_type = sanitize_key((string) ($group['image_source_type'] ?? ''));
     $incoming_hash = sanitize_text_field((string) ($group['image_content_hash'] ?? ''));
     $image_url = esc_url_raw((string) ($group['source_image_url'] ?? ''), ['https']);
-    $state = wh_sync_current_image_state($parent_id, $current_id, $incoming_type, $incoming_hash);
+    $incoming_valid = (
+        $image_url !== ''
+        && ($group['image_validation_status'] ?? '') === 'valid'
+        && $incoming_hash !== ''
+        && (int) ($group['image_width'] ?? 0) >= 300
+        && (int) ($group['image_height'] ?? 0) >= 300
+        && !wh_sync_forbidden_image_url($image_url)
+    );
+    $state = wh_sync_current_image_state(
+        $parent_id,
+        $current_id,
+        $incoming_type,
+        $incoming_hash,
+        $incoming_valid
+    );
     if ($state === 'keep') {
-        return ['status' => 'existing_image_kept'];
+        if (!$incoming_valid) {
+            $recheck_after = (string) get_post_meta(
+                $parent_id,
+                '_wholesalehub_source_image_recheck_after',
+                true
+            );
+            if ($recheck_after === '') {
+                $recheck_after = gmdate('c', time() + (7 * DAY_IN_SECONDS));
+                update_post_meta(
+                    $parent_id,
+                    '_wholesalehub_source_image_recheck_after',
+                    $recheck_after
+                );
+            }
+            update_post_meta($parent_id, '_wholesalehub_source_image_status', 'unavailable');
+            update_post_meta($parent_id, '_wholesalehub_image_validation_status', 'valid');
+            return [
+                'status' => 'existing_image_kept',
+                'source_image_status' => 'unavailable',
+                'recheck_after' => $recheck_after,
+                'error' => 'validated supplier image unavailable; existing thumbnail kept',
+            ];
+        }
+        update_post_meta($parent_id, '_wholesalehub_source_image_status', 'available');
+        delete_post_meta($parent_id, '_wholesalehub_source_image_recheck_after');
+        return ['status' => 'existing_image_kept', 'source_image_status' => 'available'];
     }
-    if (
-        $image_url === ''
-        || ($group['image_validation_status'] ?? '') !== 'valid'
-        || $incoming_hash === ''
-        || (int) ($group['image_width'] ?? 0) < 300
-        || (int) ($group['image_height'] ?? 0) < 300
-        || wh_sync_forbidden_image_url($image_url)
-    ) {
+    if (!$incoming_valid) {
         if ($state === 'replace' && $current_id > 0) {
             delete_post_thumbnail($parent_id);
         }
+        update_post_meta($parent_id, '_wholesalehub_source_image_status', 'unavailable');
         update_post_meta($parent_id, '_wholesalehub_image_validation_status', 'review_required');
-        return ['status' => 'image_review_required', 'error' => 'validated supplier image missing'];
+        return [
+            'status' => 'image_review_required',
+            'source_image_status' => 'unavailable',
+            'error' => 'validated supplier image missing',
+        ];
     }
     $attachment_id = (int) $wpdb->get_var(
         $wpdb->prepare(
@@ -653,6 +707,8 @@ function wh_sync_ensure_parent_image(int $parent_id, array $group): array
     update_post_meta($parent_id, '_wholesalehub_image_source_type', $incoming_type);
     update_post_meta($parent_id, '_wholesalehub_image_collected_at', (string) ($group['image_collected_at'] ?? gmdate('c')));
     update_post_meta($parent_id, '_wholesalehub_image_validation_status', 'valid');
+    update_post_meta($parent_id, '_wholesalehub_source_image_status', 'available');
+    delete_post_meta($parent_id, '_wholesalehub_source_image_recheck_after');
     update_post_meta($parent_id, '_wholesalehub_temporary_fallback', '0');
     update_post_meta($parent_id, '_wholesalehub_thumbnail_synced_at', gmdate('c'));
     if ((int) get_post_thumbnail_id($parent_id) !== $attachment_id) {
@@ -677,7 +733,8 @@ function wh_sync_current_image_state(
     int $parent_id,
     int $attachment_id,
     string $incoming_type,
-    string $incoming_hash
+    string $incoming_hash,
+    bool $incoming_valid
 ): string {
     if ($attachment_id <= 0 || $attachment_id === 2905 || !wp_attachment_is_image($attachment_id)) {
         return 'replace';
@@ -702,6 +759,12 @@ function wh_sync_current_image_state(
         '_wholesalehub_image_content_hash',
         true
     ));
+    if (
+        $incoming_valid
+        && get_post_meta($parent_id, '_wholesalehub_source_image_status', true) === 'unavailable'
+    ) {
+        return 'replace';
+    }
     if ($current_type === '') {
         return 'keep';
     }
@@ -715,6 +778,46 @@ function wh_sync_current_image_state(
         return 'keep';
     }
     return 'replace';
+}
+
+function wh_sync_image_product_row(int $parent_id, array $group, array $image_result): array
+{
+    $lanes = array_values(is_array($group['lanes'] ?? null) ? $group['lanes'] : []);
+    $lane = is_array($lanes[0] ?? null) ? $lanes[0] : [];
+    return [
+        'parent_id' => $parent_id,
+        'product_name' => get_the_title($parent_id),
+        'supplier_id' => sanitize_key((string) ($lane['supplierId'] ?? '')),
+        'source_product_id' => sanitize_text_field((string) ($lane['sourceProductId'] ?? '')),
+        'thumbnail_id' => (int) get_post_thumbnail_id($parent_id),
+        'thumbnail_status' => wh_sync_current_thumbnail_status($parent_id),
+        'source_image_url' => esc_url_raw((string) ($group['source_image_url'] ?? ''), ['https']),
+        'source_image_status' => (string) ($image_result['source_image_status'] ?? ''),
+        'retry_reason' => (string) ($image_result['error'] ?? ''),
+        'recheck_after' => (string) ($image_result['recheck_after'] ?? ''),
+    ];
+}
+
+function wh_sync_current_thumbnail_status(int $parent_id): string
+{
+    $attachment_id = (int) get_post_thumbnail_id($parent_id);
+    if ($attachment_id <= 0) {
+        return 'missing';
+    }
+    if ($attachment_id === 2905 || !wp_attachment_is_image($attachment_id)) {
+        return 'placeholder_or_broken';
+    }
+    $url = (string) wp_get_attachment_url($attachment_id);
+    if ($url === '' || wh_sync_forbidden_image_url($url)) {
+        return 'placeholder_or_broken';
+    }
+    if (
+        get_post_meta($parent_id, '_wholesalehub_temporary_fallback', true) === '1'
+        || get_post_meta($attachment_id, '_wholesalehub_temporary_fallback', true) === '1'
+    ) {
+        return 'temporary_fallback';
+    }
+    return 'normal';
 }
 
 function wh_sync_forbidden_image_url(string $url): bool
