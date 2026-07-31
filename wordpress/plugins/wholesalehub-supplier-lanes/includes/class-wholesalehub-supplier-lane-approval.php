@@ -7,6 +7,7 @@ final class WholesaleHub_Supplier_Lane_Approval
     private const CALLBACK_PREFIX = 'slm';
     private const PENDING_STATUSES = ['pending_mapping', 'pending_option'];
     private static bool $schema_ready = false;
+    private static float $last_notification_time = 0.0;
 
     public static function boot(): void
     {
@@ -51,8 +52,7 @@ final class WholesaleHub_Supplier_Lane_Approval
               updated_at datetime NOT NULL,
               PRIMARY KEY  (id),
               UNIQUE KEY action_token (action_token),
-              UNIQUE KEY source_identity
-                (request_kind,supplier_id,source_product_id,source_option_id),
+              UNIQUE KEY source_identity (request_kind,supplier_id,source_product_id,source_option_id),
               KEY approval_status (status,request_kind,updated_at)
             ) {$charset};"
         );
@@ -478,10 +478,15 @@ final class WholesaleHub_Supplier_Lane_Approval
         if ($claimed !== 1) {
             return;
         }
+        $elapsed = microtime(true) - self::$last_notification_time;
+        if (self::$last_notification_time > 0 && $elapsed < 1.1) {
+            usleep((int) ((1.1 - $elapsed) * 1000000));
+        }
         $message_id = (int) avocadoss_send_telegram_approval_message(
             self::message_text($request),
             self::initial_buttons($request)
         );
+        self::$last_notification_time = microtime(true);
         if ($message_id <= 0) {
             $wpdb->update(
                 self::table(),
