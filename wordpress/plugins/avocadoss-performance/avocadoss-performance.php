@@ -3534,7 +3534,7 @@ add_filter( 'pre_get_document_title', 'avo_custom_homepage_title', 9999 );
 add_filter( 'rank_math/frontend/title', 'avo_custom_homepage_title', 9999 );
 function avo_custom_homepage_title( $title ) {
     if ( is_front_page() || is_home() ) {
-        return '도매허브 - 농축 수산물 가장 저렴하게 구매하는곳';
+        return '도매허브 | 여러 상품을 한곳에서';
     }
     return $title;
 }

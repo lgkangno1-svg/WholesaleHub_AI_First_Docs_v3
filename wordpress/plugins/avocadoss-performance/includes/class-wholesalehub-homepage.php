@@ -37,7 +37,7 @@ final class WholesaleHub_Homepage {
 
 	public static function defaults() {
 		return array(
-			'shipping_text'       => '전 상품 배송비 포함',
+			'shipping_text'       => '상품별 배송비는 상세페이지에서 확인',
 			'fulfillment_text'    => '결제 후 영업일 기준 1~2일 내 출고 예정',
 			'price_drop_days'     => 14,
 			'popular_days'        => 30,

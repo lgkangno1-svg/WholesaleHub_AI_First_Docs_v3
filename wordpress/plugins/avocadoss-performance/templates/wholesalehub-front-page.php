@@ -34,7 +34,7 @@ $render_cards = static function ( $ids, $badge = '' ) use ( $settings ) {
 				<h3><a href="<?php echo esc_url( get_permalink( $product_id ) ); ?>"><?php echo esc_html( $product->get_name() ); ?></a></h3>
 				<div class="whh-price"><?php echo wp_kses_post( $product->get_price_html() ); ?></div>
 				<ul class="whh-product-facts" aria-label="배송 안내">
-					<li><?php echo esc_html( preg_replace( '/^전 상품\s*/u', '', $settings['shipping_text'] ) ); ?></li>
+					<li><?php echo esc_html( $settings['shipping_text'] ); ?></li>
 					<li><?php echo esc_html( preg_replace( '/^결제 후\s*/u', '', $settings['fulfillment_text'] ) ); ?></li>
 				</ul>
 			</div>
