@@ -3538,6 +3538,14 @@ function avo_custom_homepage_title( $title ) {
     }
     return $title;
 }
+
+add_filter( 'rank_math/frontend/description', 'avo_custom_homepage_description', 9999 );
+function avo_custom_homepage_description( $desc ) {
+    if ( is_front_page() || is_home() ) {
+        return '농산물, 과일, 축산물, 가공식품, 수산물까지 다양한 도매 먹거리를 한 곳에서 확인하세요.';
+    }
+    return $desc;
+}
 // =========================================================================
 // SEO & Webmaster Tool Verification & Tracking Codes
 // =========================================================================
