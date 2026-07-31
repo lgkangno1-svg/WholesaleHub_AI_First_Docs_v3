@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises"
 import ExcelJS from "exceljs"
 import { chromium } from "playwright-core"
 import { validateSourceImageCandidates } from "../../dist/reports/product-thumbnail-integrity.js"
+import { sourceProductExclusions } from "./catalog-exclusions.mjs"
 
 for (const line of (await readFile(".env", "utf8")).split(/\r?\n/u)) {
   const match = /^([A-Z0-9_]+)=(.*)$/u.exec(line)
@@ -15,6 +16,8 @@ const username = process.env.DAILYFOOD_USERNAME ?? process.env.WALLDOB2B_USERNAM
 const password = process.env.DAILYFOOD_PASSWORD ?? process.env.WALLDOB2B_PASSWORD ?? ""
 const baseUrl = "https://dailyfood.adminplus.co.kr"
 const outputDirectory = "reports/rebuild"
+const sourceExclusions = sourceProductExclusions("dailyfood")
+const excludedSourceProductIds = new Set(sourceExclusions.map((rule) => rule.sourceProductId))
 await mkdir(outputDirectory, { recursive: true })
 let previousSnapshot = null
 try {
@@ -90,8 +93,10 @@ try {
       previousFailedPcodes,
       previousOptionImages,
       reuseSuccessfulDetails,
+      excludedSourceProductIds,
     }) => {
       const errors = []
+      const excludedSourceIdSet = new Set(excludedSourceProductIds)
       let lastRequestAt = 0
       const normalize = (value) =>
         String(value ?? "")
@@ -221,7 +226,7 @@ try {
           const sourceProductId = match?.[1]?.trim() ?? ""
           const document = new DOMParser().parseFromString(html, "text/html")
           const listName = normalize(document.querySelector(".pname")?.textContent ?? "")
-          if (sourceProductId && listName) {
+          if (sourceProductId && listName && !excludedSourceIdSet.has(sourceProductId)) {
             listGroups.push({
               sourceProductId,
               listName,
@@ -363,7 +368,9 @@ try {
     },
     {
       baseUrl,
-      pcodes: exportRows.map((row) => row.pcode),
+      pcodes: exportRows
+        .filter((row) => !excludedSourceProductIds.has(row.pcode))
+        .map((row) => row.pcode),
       previousFailedPcodes:
         previousSnapshot?.crawlErrors
           ?.filter((error) => error.kind === "product_detail")
@@ -390,16 +397,27 @@ try {
       reuseSuccessfulDetails:
         previousSnapshot?.source?.exportRowCount === exportRows.length &&
         previousSnapshot?.source?.individualDetailFailureCount === 0,
+      excludedSourceProductIds: [...excludedSourceProductIds],
     },
   )
 
-  const availableRows = new Map(exportRows.map((row) => [row.pcode, row]))
+  const eligibleExportRows = exportRows.filter((row) => !excludedSourceProductIds.has(row.pcode))
+  const availableRows = new Map(eligibleExportRows.map((row) => [row.pcode, row]))
   const exactIndex = indexRows(
-    exportRows,
+    eligibleExportRows,
     (row) => `${normalize(row.productName)}\u0000${row.price}`,
   )
-  const nameIndex = indexRows(exportRows, (row) => normalize(row.productName))
-  const exclusions = []
+  const nameIndex = indexRows(eligibleExportRows, (row) => normalize(row.productName))
+  const exclusions = sourceExclusions.map((rule) => ({
+    supplier: rule.supplierId,
+    sourceProductId: rule.sourceProductId,
+    sourceOptionId: rule.sourceProductId,
+    url:
+      `${baseUrl}/partner/?mod=product&actpage=prt.detail.pop&pcode=` +
+      encodeURIComponent(rule.sourceProductId),
+    reason: rule.reason,
+    rule: "source_identity",
+  }))
   const products = []
   for (const group of browserResult.groups) {
     if (String(group.productName ?? group.listName).includes("가성비")) {

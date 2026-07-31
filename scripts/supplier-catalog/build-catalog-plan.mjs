@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { DatabaseSync } from "node:sqlite"
+import { sourceProductExclusionReason } from "./catalog-exclusions.mjs"
 
 const dryRunTitleIndex = process.argv.indexOf("--dry-run-title")
 if (dryRunTitleIndex >= 0) {
@@ -14,6 +15,22 @@ const dryRunSourceIndex = process.argv.indexOf("--dry-run-source-label")
 if (dryRunSourceIndex >= 0) {
   const sourceOptionLabel = sourceLabel(process.argv[dryRunSourceIndex + 1] ?? "")
   console.log(JSON.stringify(sourceSpecFields(sourceOptionLabel)))
+  process.exit(0)
+}
+
+const dryRunSourceProductIndex = process.argv.indexOf("--dry-run-source-product")
+if (dryRunSourceProductIndex >= 0) {
+  const supplierId = process.argv[dryRunSourceProductIndex + 1] ?? ""
+  const sourceProductId = process.argv[dryRunSourceProductIndex + 2] ?? ""
+  const reason = sourceProductExclusionReason(supplierId, sourceProductId)
+  console.log(
+    JSON.stringify({
+      supplierId,
+      sourceProductId,
+      included: reason === null,
+      reason,
+    }),
+  )
   process.exit(0)
 }
 
@@ -201,7 +218,9 @@ console.log(JSON.stringify(plan.counts))
 
 function eligibleProducts(products, excluded, imageReviews, repeatedHashes) {
   return products.flatMap((product) => {
-    const reason = excludedReason(product.productName)
+    const reason =
+      sourceProductExclusionReason(product.supplierId, product.sourceProductId) ??
+      excludedReason(product.productName)
     if (reason) {
       excluded.push({
         supplier: product.supplierId,
