@@ -47,6 +47,8 @@ $counts = [
     'legacy_parent_reconciled' => 0,
     'missing_marked_out_of_stock' => 0,
     'review_needed' => 0,
+    'approval_pending_products' => 0,
+    'approval_pending_options' => 0,
     'failed' => 0,
 ];
 $seen = [];
@@ -66,9 +68,9 @@ $counts['nectarine_excluded'] = $exclusion_result['nectarine_excluded'];
 
 foreach ($groups as $group) {
     try {
-        $canonical_repair_parent = false;
         $candidate_parent_ids = [];
-        foreach (($group['lanes'] ?? []) as $lane) {
+        $mapped_lane_parents = [];
+        foreach (($group['lanes'] ?? []) as $lane_code => $lane) {
             $existing_parent = $wpdb->get_var(
                 $wpdb->prepare(
                     "SELECT woo_parent_id FROM {$parent_table}
@@ -80,18 +82,26 @@ foreach ($groups as $group) {
             );
             if ($existing_parent !== null) {
                 $candidate_parent_ids[] = (int) $existing_parent;
+                $mapped_lane_parents[$lane_code] = (int) $existing_parent;
             }
         }
         $candidate_parent_ids = array_values(array_unique($candidate_parent_ids));
         if ($candidate_parent_ids === []) {
-            $repair_parent_id = wh_sync_find_unique_repair_parent(
+            $approval_group = $group;
+            $approval_group['approvalCategories'] = wh_sync_determine_categories(
                 sanitize_text_field((string) ($group['displayName'] ?? ''))
             );
-            if ($repair_parent_id > 0) {
-                $candidate_parent_ids[] = $repair_parent_id;
-                $canonical_repair_parent = true;
-                $counts['legacy_parent_reconciled']++;
+            foreach (($group['lanes'] ?? []) as $lane_code => $lane) {
+                $status = WholesaleHub_Supplier_Lane_Approval::stage_product(
+                    $approval_group,
+                    (string) $lane_code,
+                    $lane
+                );
+                if (in_array($status, ['pending_mapping', 'on_hold'], true)) {
+                    $counts['approval_pending_products']++;
+                }
             }
+            continue;
         }
         if (count($candidate_parent_ids) > 1) {
             $counts['review_needed']++;
@@ -102,17 +112,38 @@ foreach ($groups as $group) {
             ];
             continue;
         }
-        if ($candidate_parent_ids === []) {
-            $parent_id = wh_sync_create_parent($group);
-            $counts['product_created']++;
-        } else {
-            $parent_id = $candidate_parent_ids[0];
-        }
+        $parent_id = $candidate_parent_ids[0];
         $touched_parents[$parent_id] = true;
 
         foreach (($group['lanes'] ?? []) as $lane_code => $lane) {
             $supplier_id = sanitize_key((string) $lane['supplierId']);
             $source_product_id = sanitize_text_field((string) $lane['sourceProductId']);
+            if (!isset($mapped_lane_parents[$lane_code])) {
+                $approval_group = $group;
+                $approval_group['approvalCategories'] = wh_sync_determine_categories(
+                    sanitize_text_field((string) ($group['displayName'] ?? ''))
+                );
+                $status = WholesaleHub_Supplier_Lane_Approval::stage_product(
+                    $approval_group,
+                    (string) $lane_code,
+                    $lane
+                );
+                if (in_array($status, ['pending_mapping', 'on_hold'], true)) {
+                    $counts['approval_pending_products']++;
+                }
+                continue;
+            }
+            if ((int) $mapped_lane_parents[$lane_code] !== $parent_id) {
+                $counts['review_needed']++;
+                $reviews[] = [
+                    'reason' => 'manual_mapping_parent_conflict',
+                    'parent_id' => $parent_id,
+                    'mapped_parent_id' => (int) $mapped_lane_parents[$lane_code],
+                    'lane' => $lane_code,
+                    'incoming_source_product_id' => $source_product_id,
+                ];
+                continue;
+            }
             $conflict = $wpdb->get_row(
                 $wpdb->prepare(
                     "SELECT id, supplier_id, source_product_id FROM {$parent_table}
@@ -129,54 +160,26 @@ foreach ($groups as $group) {
                     || (string) $conflict['source_product_id'] !== $source_product_id
                 )
             ) {
-                if (
-                    $canonical_repair_parent
-                    && (string) $conflict['supplier_id'] === $supplier_id
-                    && preg_match('/^(?:daily|walldo)_/i', (string) $conflict['source_product_id']) === 1
-                ) {
-                    $wpdb->update(
-                        $parent_table,
-                        [
-                            'source_product_id' => $source_product_id,
-                            'status' => 'approved',
-                            'approved_by' => 'catalog_sync_canonical_reconciliation',
-                            'approved_at' => current_time('mysql', true),
-                            'updated_at' => current_time('mysql', true),
-                        ],
-                        ['id' => (int) $conflict['id']]
-                    );
-                    $conflict['source_product_id'] = $source_product_id;
-                } else {
-                    $counts['review_needed']++;
-                    $reviews[] = [
-                        'reason' => 'parent_lane_conflict',
-                        'parent_id' => $parent_id,
-                        'lane' => $lane_code,
-                        'incoming_source_product_id' => $source_product_id,
-                    ];
-                    continue;
-                }
+                $counts['review_needed']++;
+                $reviews[] = [
+                    'reason' => 'parent_lane_conflict',
+                    'parent_id' => $parent_id,
+                    'lane' => $lane_code,
+                    'incoming_source_product_id' => $source_product_id,
+                ];
+                continue;
             }
-            if (is_array($conflict)) {
-                $parent_link_id = (int) $conflict['id'];
-            } else {
-                $now = current_time('mysql', true);
-                $wpdb->insert($parent_table, [
-                    'woo_parent_id' => $parent_id,
-                    'supplier_id' => $supplier_id,
-                    'lane_code' => $lane_code,
-                    'source_product_id' => $source_product_id,
-                    'status' => 'approved',
-                    'approved_by' => 'catalog_sync',
-                    'approved_at' => $now,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ]);
-                if ((int) $wpdb->insert_id <= 0) {
-                    throw new RuntimeException('parent link create failed: ' . $wpdb->last_error);
-                }
-                $parent_link_id = (int) $wpdb->insert_id;
+            if (!is_array($conflict)) {
+                $counts['review_needed']++;
+                $reviews[] = [
+                    'reason' => 'approved_mapping_disappeared',
+                    'parent_id' => $parent_id,
+                    'lane' => $lane_code,
+                    'incoming_source_product_id' => $source_product_id,
+                ];
+                continue;
             }
+            $parent_link_id = (int) $conflict['id'];
 
             foreach (($lane['options'] ?? []) as $option) {
                 $source_option_id = sanitize_text_field((string) $option['sourceOptionId']);
@@ -194,6 +197,17 @@ foreach ($groups as $group) {
                     ARRAY_A
                 );
                 if (is_array($existing)) {
+                    if ((string) $existing['approval_status'] !== 'approved') {
+                        if ((string) $existing['lifecycle_status'] !== 'terminal') {
+                            WholesaleHub_Supplier_Lane_Approval::stage_option(
+                                $parent_id,
+                                (string) $lane_code,
+                                $lane,
+                                $option
+                            );
+                        }
+                        continue;
+                    }
                     $variation = wc_get_product((int) $existing['woo_variation_id']);
                     if (!($variation instanceof WC_Product_Variation)) {
                         $counts['failed']++;
@@ -284,18 +298,15 @@ foreach ($groups as $group) {
                         ['id' => (int) $existing['id']]
                     );
                 } else {
-                    $created = wh_sync_create_variation_and_offer(
+                    $status = WholesaleHub_Supplier_Lane_Approval::stage_option(
                         $parent_id,
-                        $parent_link_id,
-                        $lane_code,
-                        $supplier_id,
-                        $source_product_id,
-                        $option,
-                        $offer_table
+                        (string) $lane_code,
+                        $lane,
+                        $option
                     );
-                    if ($created) {
-                        $counts['variation_created']++;
-                    } else {
+                    if (in_array($status, ['pending_option', 'on_hold'], true)) {
+                        $counts['approval_pending_options']++;
+                    } elseif ($status === 'failed' || $status === 'invalid') {
                         $counts['failed']++;
                     }
                 }
@@ -383,6 +394,9 @@ foreach (array_keys($touched_parents) as $parent_id) {
 wc_delete_product_transients();
 wp_cache_flush();
 $counts['image_retry_needed'] = $counts['image_retry_required'];
+$approval_counts = WholesaleHub_Supplier_Lane_Approval::pending_counts();
+$counts['approval_pending_products'] = (int) $approval_counts['products'];
+$counts['approval_pending_options'] = (int) $approval_counts['options'];
 $result = [
     'status' => 'completed',
     'completed_at' => gmdate('c'),
@@ -521,69 +535,6 @@ function wh_sync_reconcile_terminal_exclusions(
         }
     }
     return $counts;
-}
-
-function wh_sync_find_unique_repair_parent(string $display_name): int
-{
-    $canonical = wh_sync_canonical_product_name($display_name);
-    if ($canonical === '') {
-        return 0;
-    }
-    $matches = [];
-    $ids = get_posts([
-        'post_type' => 'product',
-        'post_status' => ['publish', 'private', 'draft', 'pending'],
-        'numberposts' => -1,
-        'fields' => 'ids',
-        'meta_query' => [[
-            'key' => '_wh_supplier_lane_mode',
-            'value' => '1',
-        ]],
-    ]);
-    foreach ($ids as $id) {
-        $id = (int) $id;
-        if (get_post_meta($id, '_wh_terminal_excluded', true) === '1') {
-            continue;
-        }
-        $thumbnail_id = (int) get_post_thumbnail_id($id);
-        $thumbnail_url = $thumbnail_id > 0 ? (string) wp_get_attachment_url($thumbnail_id) : '';
-        $needs_repair = (
-            $thumbnail_id <= 0
-            || $thumbnail_id === 2905
-            || !wp_attachment_is_image($thumbnail_id)
-            || wh_sync_forbidden_image_url($thumbnail_url)
-            || get_post_meta($id, '_wholesalehub_temporary_fallback', true) === '1'
-        );
-        if (
-            $needs_repair
-            && wh_sync_canonical_product_name((string) get_the_title($id)) === $canonical
-        ) {
-            $matches[] = $id;
-        }
-    }
-    return count($matches) === 1 ? (int) $matches[0] : 0;
-}
-
-function wh_sync_canonical_product_name(string $value): string
-{
-    $value = html_entity_decode(wp_strip_all_tags($value), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-    if (class_exists('Normalizer')) {
-        $value = Normalizer::normalize($value, Normalizer::FORM_KC) ?: $value;
-    }
-    $value = mb_strtolower($value, 'UTF-8');
-    $value = preg_replace('/\[[^\]]*\]/u', ' ', $value) ?? $value;
-    $value = preg_replace('/\([^)]*(?:\d|kg|g|개|입|팩|봉|박스|과|통)[^)]*\)/iu', ' ', $value) ?? $value;
-    $value = preg_replace(
-        '/\d+(?:\.\d+)?\s*(?:kg|g|개입|개|팩|봉|박스|망|과|통|마리)\s*(?:내외|이상|이하)?/iu',
-        ' ',
-        $value
-    ) ?? $value;
-    $value = preg_replace(
-        '/특가|초특가|추천|프리미엄|한정|무료배송|택배|대리발송|산지직송|당일출고|햇|국산|국내산|가성비|유명호텔|맛돌이|해썹/u',
-        ' ',
-        $value
-    ) ?? $value;
-    return preg_replace('/[^가-힣a-z0-9]/u', '', $value) ?? '';
 }
 
 function wh_sync_ensure_parent_image(int $parent_id, array $group): array
@@ -869,151 +820,6 @@ function wh_sync_determine_categories(string $title): array
         }
     }
     return !empty($matched) ? array_values(array_unique($matched)) : ['가공식품'];
-}
-
-function wh_sync_create_parent(array $group): int
-{
-    $name = sanitize_text_field((string) $group['displayName']);
-    $product = new WC_Product_Variable();
-    $product->set_name($name);
-    $product->set_status('private');
-    $product->set_catalog_visibility('visible');
-    $product->set_description(
-        '<p>선택한 옵션과 수량에 따라 주문할 수 있습니다. 옵션별로 나누어 배송될 수 있습니다.</p>'
-    );
-    $product->set_short_description('<p>신선 상품 옵션을 선택해 주문하세요.</p>');
-    $product->update_meta_data('_wh_supplier_lane_mode', '1');
-    $product->update_meta_data(
-        '_wholesalehub_product_group_key',
-        sanitize_text_field((string) $group['groupKey'])
-    );
-    $id = $product->save();
-    if ($id <= 0) {
-        throw new RuntimeException('new parent create failed');
-    }
-
-    try {
-        $cats = wh_sync_determine_categories($name);
-        if (!empty($cats)) {
-            wp_set_object_terms($id, $cats, 'product_cat', false);
-        } else {
-            wp_set_object_terms($id, ['미분류'], 'product_cat', false);
-            if (function_exists('avocadoss_send_telegram_message')) {
-                @avocadoss_send_telegram_message("도매Hub 신규 상품 카테고리 미분류 배정: [{$id}] {$name}");
-            }
-        }
-    } catch (Throwable $t) {
-        wp_set_object_terms($id, ['미분류'], 'product_cat', false);
-    }
-
-    return $id;
-}
-
-function wh_sync_create_variation_and_offer(
-    int $parent_id,
-    int $parent_link_id,
-    string $lane_code,
-    string $supplier_id,
-    string $source_product_id,
-    array $option,
-    string $offer_table
-): bool {
-    global $wpdb;
-    $source_option_id = sanitize_text_field((string) $option['sourceOptionId']);
-    $public_label = sanitize_text_field((string) $option['publicOptionLabel']);
-    $sale_price = (float) $option['salePrice'];
-    $stock_status = ($option['stockStatus'] ?? '') === 'out_of_stock'
-        ? 'outofstock'
-        : 'instock';
-    $variation = new WC_Product_Variation();
-    $variation->set_parent_id($parent_id);
-    $variation->set_status('private');
-    $variation->set_regular_price(wc_format_decimal($sale_price, 2));
-    $variation->set_price(wc_format_decimal($sale_price, 2));
-    $variation->set_manage_stock(false);
-    $variation->set_stock_status($stock_status);
-    $variation->set_attributes([
-        sanitize_title('출고구분') => $lane_code === 'A' ? 'A사' : 'B사',
-        sanitize_title('구매옵션') => $public_label,
-    ]);
-    $variation->set_sku(
-        'WH-' . strtoupper(substr(hash('sha256', implode('|', [
-            $supplier_id,
-            $source_product_id,
-            $source_option_id,
-        ])), 0, 20))
-    );
-    $variation->update_meta_data('_wh_internal_supplier_id', $supplier_id);
-    $variation->update_meta_data('_wh_source_product_id', $source_product_id);
-    $variation->update_meta_data('_wh_source_option_id', $source_option_id);
-    $variation->update_meta_data(
-        '_wh_source_id_type',
-        sanitize_text_field((string) ($option['sourceIdType'] ?? 'authoritative'))
-    );
-    $variation->update_meta_data(
-        '_wh_snapshot_hash',
-        sanitize_text_field((string) $option['snapshotHash'])
-    );
-    $variation->update_meta_data(
-        '_wh_hard_spec_fingerprint',
-        sanitize_text_field((string) $option['hardSpecFingerprint'])
-    );
-    wh_sync_source_spec_meta($variation, $option);
-    $variation_id = $variation->save();
-    if ($variation_id <= 0) {
-        return false;
-    }
-    $now = current_time('mysql', true);
-    $public_offer_key = hash(
-        'sha256',
-        implode('|', [
-            'wholesalehub',
-            $supplier_id,
-            $source_product_id,
-            $source_option_id,
-            $variation_id,
-        ])
-    );
-    $inserted = $wpdb->insert($offer_table, [
-        'parent_link_id' => $parent_link_id,
-        'supplier_id' => $supplier_id,
-        'lane_code' => $lane_code,
-        'source_product_id' => $source_product_id,
-        'source_option_id' => $source_option_id,
-        'atomic_supplier_sku_id' => hash(
-            'sha256',
-            $supplier_id . '|' . $source_product_id . '|' . $source_option_id
-        ),
-        'woo_parent_id' => $parent_id,
-        'woo_variation_id' => $variation_id,
-        'public_offer_key' => $public_offer_key,
-        'public_option_label' => $public_label,
-        'option_label_raw' => sanitize_text_field(
-            (string) ($option['sourceOptionLabel'] ?? $option['publicOptionLabel'])
-        ),
-        'hard_spec_fingerprint' => (string) $option['hardSpecFingerprint'],
-        'source_cost' => (float) $option['sourceCost'],
-        'source_shipping_cost' => (float) $option['shippingFee'],
-        'landed_cost' => (float) $option['landedCost'],
-        'sale_price' => $sale_price,
-        'stock_status' => $stock_status === 'instock' ? 'in_stock' : 'out_of_stock',
-        'approval_status' => 'approved',
-        'lifecycle_status' => 'active',
-        'last_snapshot_hash' => (string) $option['snapshotHash'],
-        'last_complete_run_id' => 'catalog-incremental-sync',
-        'last_seen_at' => $now,
-        'missing_complete_count' => 0,
-        'created_at' => $now,
-        'updated_at' => $now,
-    ]);
-    if ($inserted !== 1) {
-        wp_delete_post($variation_id, true);
-        return false;
-    }
-    update_post_meta($variation_id, '_wh_lane_offer_id', (string) $wpdb->insert_id);
-    $variation->set_status('publish');
-    $variation->save();
-    return true;
 }
 
 function wh_sync_source_spec_meta(WC_Product_Variation $variation, array $option): void

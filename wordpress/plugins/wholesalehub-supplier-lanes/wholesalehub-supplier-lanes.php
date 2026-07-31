@@ -2,16 +2,18 @@
 /**
  * Plugin Name: WholesaleHub Supplier Lanes
  * Description: Independent privacy-safe A/B supplier lane checkout and Option A spec mapping for approved Woo variations.
- * Version: 1.2.0
+ * Version: 1.3.0
  * Requires Plugins: woocommerce
  * Text Domain: wholesalehub-supplier-lanes
  */
 
 defined('ABSPATH') || exit;
 
+require_once __DIR__ . '/includes/class-wholesalehub-supplier-lane-approval.php';
+
 final class WholesaleHub_Supplier_Lanes
 {
-    private const SCHEMA_VERSION = '1.2.0';
+    private const SCHEMA_VERSION = '1.3.0';
     private const ASSET_VERSION = '1.3.0';
     private const SCHEMA_OPTION = 'wh_supplier_lane_schema_version';
     private const MODE_META = '_wh_supplier_lane_mode';
@@ -96,6 +98,7 @@ final class WholesaleHub_Supplier_Lanes
               updated_at datetime NOT NULL,
               PRIMARY KEY  (id),
               UNIQUE KEY woo_parent_lane (woo_parent_id,lane_code),
+              UNIQUE KEY source_identity (supplier_id,source_product_id),
               KEY approved_source (supplier_id,source_product_id,status)
             ) {$charset};"
         );
@@ -179,6 +182,7 @@ final class WholesaleHub_Supplier_Lanes
               KEY status (status)
             ) {$charset};"
         );
+        WholesaleHub_Supplier_Lane_Approval::install_schema();
         update_option(self::SCHEMA_OPTION, self::SCHEMA_VERSION);
     }
 
@@ -1702,3 +1706,4 @@ if (function_exists('register_activation_hook')) {
     register_activation_hook(__FILE__, [WholesaleHub_Supplier_Lanes::class, 'install_schema']);
 }
 WholesaleHub_Supplier_Lanes::boot();
+WholesaleHub_Supplier_Lane_Approval::boot();

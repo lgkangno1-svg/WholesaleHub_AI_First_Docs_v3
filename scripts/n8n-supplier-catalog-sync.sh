@@ -150,6 +150,8 @@ telegram_message=$(node -e '
     `가성비 제외 ${counts.terminal_excluded ?? 0}`,
     `천도 계열 제외 ${counts.nectarine_excluded ?? 0}`,
     `품절 ${counts.missing_marked_out_of_stock ?? 0}`,
+    `신규 상품 승인대기 ${counts.approval_pending_products ?? 0}`,
+    `신규 옵션 승인대기 ${counts.approval_pending_options ?? 0}`,
     `review_required ${(counts.image_review_required ?? 0) + (counts.review_needed ?? 0)}`,
     `실패 ${counts.failed ?? 0}`,
   ];

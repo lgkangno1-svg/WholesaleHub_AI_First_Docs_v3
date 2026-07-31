@@ -757,6 +757,10 @@ function avocadoss_process_telegram_callback( array $callback ) {
     if ( ! avocadoss_telegram_callback_authorized( $from_id, $chat_id ) ) {
         return array( 'ok' => false, 'message' => '권한이 없습니다.' );
     }
+    $external = apply_filters( 'avocadoss_process_telegram_callback', null, $callback );
+    if ( is_array( $external ) ) {
+        return $external;
+    }
     if ( ! preg_match( '/^(pa|ua):([1-9][0-9]*):(publish|hold|choose|c[1-9][0-9]*|approve|reject):([A-Za-z0-9]{12})$/', $data, $matches ) ) {
         return array( 'ok' => false, 'message' => '잘못된 요청입니다.' );
     }
