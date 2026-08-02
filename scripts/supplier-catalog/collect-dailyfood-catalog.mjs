@@ -179,7 +179,7 @@ try {
       const fetchText = async (url) => {
         let last = "unknown"
         for (let attempt = 1; attempt <= 3; attempt += 1) {
-          const waitMs = Math.max(0, 200 - (Date.now() - lastRequestAt))
+          const waitMs = Math.max(0, 1_000 - (Date.now() - lastRequestAt))
           if (waitMs > 0) {
             await new Promise((resolve) => setTimeout(resolve, waitMs))
           }
