@@ -281,6 +281,32 @@ try {
                 shipping: cells.at(-1) ?? "",
               })
             }
+            for (const item of document.querySelectorAll(".product_set_item")) {
+              const optionName = normalize(item.querySelector(".set_item_name")?.textContent ?? "")
+              const price = parseMoney(
+                item.querySelector(".set_meta_value.is_price")?.textContent ?? "",
+              )
+              if (!optionName || price <= 0) continue
+              const stockText = [
+                ...item.querySelectorAll(
+                  ".set_stock_badge, .set_stock_badge img[alt], img.set_stock_badge[alt]",
+                ),
+              ]
+                .map((node) => normalize(node.textContent || node.getAttribute("alt")))
+                .join(" ")
+              const shipping = [...item.querySelectorAll(".set_delivery_btn, span[class^=msg]")]
+                .map((node) => normalize(node.textContent))
+                .filter(Boolean)
+                .join(" ")
+              options.push({
+                optionName,
+                price,
+                stockStatus: /품절|판매중지|재고부족/u.test(stockText)
+                  ? "out_of_stock"
+                  : "in_stock",
+                shipping,
+              })
+            }
             const unique = []
             const seen = new Set()
             for (const option of options) {
@@ -574,7 +600,10 @@ try {
     supplier: "dailyfood",
     generatedAt: new Date().toISOString(),
     complete:
-      browserResult.paginationComplete && duplicateProductIds === 0 && duplicateOptionIds === 0,
+      browserResult.paginationComplete &&
+      browserResult.errors.length === 0 &&
+      duplicateProductIds === 0 &&
+      duplicateOptionIds === 0,
     source: {
       listGroupCount: browserResult.listGroupCount,
       exportRowCount: exportRows.length,

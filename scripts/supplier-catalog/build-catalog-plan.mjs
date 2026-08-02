@@ -328,9 +328,9 @@ function sourceSpecFields(sourceOptionLabel) {
   )
   const weight = sourceOptionLabel.match(/[\d.]+\s*(?:kg|킬로|키로|g|그램)/iu)
   const count = sourceOptionLabel.match(
-    /[\d.]+(?:\s*[~\-–]\s*[\d.]+)?\s*(?:개입|개|입|과수?|송이|수)(?:\s*(?:내외|전후|이상|이하))?/u,
+    /[\d.]+(?:\s*[~\-–]\s*[\d.]+)?\s*(?:개입|개|입|과수?|송이|수|통)(?:\s*(?:내외|전후|이상|이하))?/u,
   )
-  const packaging = sourceOptionLabel.match(/(박스포함|박스|팩|봉|망)/u)
+  const packaging = sourceOptionLabel.match(/(박스포함|박스|팩|봉|(?<![가-힣])망(?![가-힣]))/u)
   return {
     sourceOptionLabel,
     sourceOptionName: sourceOptionLabel,
