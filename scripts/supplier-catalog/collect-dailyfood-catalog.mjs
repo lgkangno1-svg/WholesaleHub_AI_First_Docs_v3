@@ -420,9 +420,7 @@ try {
           ]),
         ),
       ),
-      reuseSuccessfulDetails:
-        previousSnapshot?.source?.exportRowCount === exportRows.length &&
-        previousSnapshot?.source?.individualDetailFailureCount === 0,
+      reuseSuccessfulDetails: previousSnapshot?.source?.exportRowCount === exportRows.length,
       excludedSourceProductIds: [...excludedSourceProductIds],
     },
   )
