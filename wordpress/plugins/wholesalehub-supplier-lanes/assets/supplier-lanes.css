@@ -321,6 +321,57 @@
   min-block-size: 44px;
 }
 
+.wh-card-shipping-info {
+  background: #f9fafb;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.wh-shipping-row {
+  display: flex;
+  justify-content: space-between;
+  color: #374151;
+}
+
+.wh-shipping-label {
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.wh-shipping-value {
+  font-weight: 600;
+  color: #111827;
+}
+
+.wh-shipping-surcharge {
+  font-size: 0.8rem;
+  color: #d97706;
+  margin-top: 0.25rem;
+}
+
+.wh-card-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px dashed #e5e7eb;
+  padding-top: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.95rem;
+}
+
+.wh-total-label {
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.wh-total-amount {
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: #2563eb;
+}
+
 .wh-option-a-ui :focus-visible {
   outline: 3px solid #2563eb;
   outline-offset: 2px;

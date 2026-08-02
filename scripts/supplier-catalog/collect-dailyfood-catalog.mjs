@@ -471,14 +471,16 @@ try {
             ? nameCandidates
             : []
       const matched = candidates[0]
-      if (!matched) {
+        const rawShippingText = option.shipping || ""
+        const shippingPolicy = parseShippingPolicy(rawShippingText)
         options.push({
           sourceOptionId: deterministicOptionId(group.sourceProductId, option.optionName),
           sourceIdType: "deterministic_provider_payload",
           optionName: option.optionName,
           price: option.price,
           stockStatus: option.stockStatus,
-          shipping: option.shipping,
+          shipping: rawShippingText,
+          shipping_policy: shippingPolicy,
           taxStatus: "",
           origin: "",
           cutoff: "",
@@ -499,20 +501,23 @@ try {
         })
         continue
       }
-      options.push({
-        sourceOptionId: matched.pcode,
-        sourceIdType: "provider_value",
-        optionName: option.optionName,
-        price: option.price,
-        stockStatus: option.stockStatus,
-        shipping: option.shipping || matched.shipping,
-        taxStatus: matched.taxStatus,
-        origin: matched.origin,
-        cutoff: matched.cutoff,
-        detailUrl: detail.url,
-        imageCandidates: [...(detail.imageCandidates ?? []), ...(group.imageCandidates ?? [])],
-      })
-    }
+        const rawShippingText = option.shipping || matched.shipping || ""
+        const shippingPolicy = parseShippingPolicy(rawShippingText)
+        options.push({
+          sourceOptionId: matched.pcode,
+          sourceIdType: "provider_value",
+          optionName: option.optionName,
+          price: option.price,
+          stockStatus: option.stockStatus,
+          shipping: rawShippingText,
+          shipping_policy: shippingPolicy,
+          taxStatus: matched.taxStatus,
+          origin: matched.origin,
+          cutoff: matched.cutoff,
+          detailUrl: detail.url,
+          imageCandidates: [...(detail.imageCandidates ?? []), ...(group.imageCandidates ?? [])],
+        })
+      }
     if (options.length > 0) {
       const imageCandidates = [
         ...(group.imageCandidates ?? []),
@@ -579,6 +584,7 @@ try {
           price: row.price,
           stockStatus: "in_stock",
           shipping: row.shipping,
+          shipping_policy: parseShippingPolicy(row.shipping),
           taxStatus: row.taxStatus ?? "",
           origin: row.origin ?? "",
           cutoff: row.cutoff ?? "",
@@ -705,4 +711,114 @@ function duplicateCount(values) {
     else seen.add(value)
   }
   return duplicates
+}
+
+export function parseShippingPolicy(rawText, collectedAt = new Date().toISOString()) {
+  const text = String(rawText ?? "").trim()
+  if (!text) {
+    return {
+      shipping_policy_type: "unknown",
+      shipping_base_fee: 0,
+      shipping_tiers: [],
+      shipping_jeju_extra_fee: 0,
+      shipping_remote_extra_fee: 0,
+      shipping_raw_text: text,
+      shipping_source: "detail",
+      shipping_collected_at: collectedAt,
+      shipping_validation_status: "review_required",
+    }
+  }
+
+  let jejuFee = 0
+  const jejuMatch = /제주(?:도)?\s*[:\+]?\s*([0-9,]+)\s*원/u.exec(text)
+  if (jejuMatch?.[1]) {
+    jejuFee = Number(jejuMatch[1].replaceAll(",", ""))
+  }
+
+  let remoteFee = 0
+  const remoteMatch = /도서산간\s*[:\+]?\s*([0-9,]+)\s*원/u.exec(text)
+  if (remoteMatch?.[1]) {
+    remoteFee = Number(remoteMatch[1].replaceAll(",", ""))
+  }
+
+  const tierMatches = [...text.matchAll(/(\d+)\s*개\s*이상\s*~\s*(\d+)\s*개\s*미만\s*([0-9,]+)\s*원/gu)]
+  if (tierMatches.length > 0 || /수량별배송비/u.test(text)) {
+    const tiers = tierMatches.map((m) => ({
+      min_qty: Number(m[1]),
+      max_qty_exclusive: Number(m[2]),
+      fee: Number(m[3].replaceAll(",", "")),
+    }))
+
+    if (tiers.length > 0) {
+      return {
+        shipping_policy_type: "quantity_tiered",
+        shipping_base_fee: tiers[0].fee,
+        shipping_tiers: tiers,
+        shipping_jeju_extra_fee: jejuFee,
+        shipping_remote_extra_fee: remoteFee,
+        shipping_raw_text: text,
+        shipping_source: "detail",
+        shipping_collected_at: collectedAt,
+        shipping_validation_status: "valid",
+      }
+    }
+    if (/수량별배송비/u.test(text)) {
+      return {
+        shipping_policy_type: "unknown",
+        shipping_base_fee: 0,
+        shipping_tiers: [],
+        shipping_jeju_extra_fee: jejuFee,
+        shipping_remote_extra_fee: remoteFee,
+        shipping_raw_text: text,
+        shipping_source: "detail",
+        shipping_collected_at: collectedAt,
+        shipping_validation_status: "review_required",
+      }
+    }
+  }
+
+  if (/^무료|^무료배송|[\s\n]무료(?=[\s\n]|$)/u.test(text)) {
+    return {
+      shipping_policy_type: "free",
+      shipping_base_fee: 0,
+      shipping_tiers: [],
+      shipping_jeju_extra_fee: jejuFee,
+      shipping_remote_extra_fee: remoteFee,
+      shipping_raw_text: text,
+      shipping_source: "detail",
+      shipping_collected_at: collectedAt,
+      shipping_validation_status: "valid",
+    }
+  }
+
+  const textWithoutSurcharges = text
+    .replace(/제주(?:도)?\s*[:\+]?\s*[0-9,]+\s*원(?:\s*추가)?/gu, "")
+    .replace(/도서산간\s*[:\+]?\s*[0-9,]+\s*원(?:\s*추가)?/gu, "")
+  const fixedMatch = /(?:￦|배송비\s*)?([1-9][0-9,]*)\s*원/u.exec(textWithoutSurcharges)
+  if (fixedMatch?.[1]) {
+    const baseFee = Number(fixedMatch[1].replaceAll(",", ""))
+    return {
+      shipping_policy_type: "fixed",
+      shipping_base_fee: baseFee,
+      shipping_tiers: [],
+      shipping_jeju_extra_fee: jejuFee,
+      shipping_remote_extra_fee: remoteFee,
+      shipping_raw_text: text,
+      shipping_source: "detail",
+      shipping_collected_at: collectedAt,
+      shipping_validation_status: "valid",
+    }
+  }
+
+  return {
+    shipping_policy_type: "unknown",
+    shipping_base_fee: 0,
+    shipping_tiers: [],
+    shipping_jeju_extra_fee: jejuFee,
+    shipping_remote_extra_fee: remoteFee,
+    shipping_raw_text: text,
+    shipping_source: "detail",
+    shipping_collected_at: collectedAt,
+    shipping_validation_status: "review_required",
+  }
 }

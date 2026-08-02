@@ -73,17 +73,74 @@
   }
 
   function offerFromCard(card, dimensions) {
+    let tiers = []
+    try {
+      tiers = JSON.parse(card.dataset.shippingTiers || "[]")
+    } catch {
+      tiers = []
+    }
     const offer = {
       card,
       key: card.dataset.publicOfferKey || "",
       lane: card.dataset.lane || "",
       price: Number(card.dataset.price || 0),
       variationId: card.dataset.variationId || "",
+      shippingType: card.dataset.shippingType || "unknown",
+      shippingBaseFee: Number(card.dataset.shippingBaseFee || 0),
+      shippingTiers: tiers,
     }
     for (const dimension of dimensions) {
       offer[dimension] = card.dataset[dimension] || ""
     }
     return offer
+  }
+
+  function calculateCardTotal(offer, qty) {
+    let shipping = 0
+    if (offer.shippingType === 'free') {
+      shipping = 0
+    } else if (offer.shippingType === 'fixed') {
+      shipping = offer.shippingBaseFee
+    } else if (offer.shippingType === 'quantity_tiered') {
+      if (offer.shippingTiers && offer.shippingTiers.length > 0) {
+        let matchedFee = null
+        let stepSize = null
+        for (const tier of offer.shippingTiers) {
+          const min = Number(tier.min_qty || 0)
+          const maxExcl = Number(tier.max_qty_exclusive || 0)
+          const fee = Number(tier.fee ?? offer.shippingBaseFee)
+          if (maxExcl > 0 && qty >= min && qty < maxExcl) {
+            matchedFee = fee
+            break
+          }
+          if (maxExcl > 0 && stepSize === null) {
+            stepSize = maxExcl
+          }
+        }
+        if (matchedFee !== null) {
+          shipping = matchedFee
+        } else if (stepSize && stepSize > 0) {
+          shipping = Math.ceil(qty / stepSize) * offer.shippingBaseFee
+        } else {
+          shipping = offer.shippingBaseFee
+        }
+      } else {
+        shipping = offer.shippingBaseFee
+      }
+    } else {
+      shipping = offer.shippingBaseFee > 0 ? offer.shippingBaseFee : 3000
+    }
+
+    return (offer.price * qty) + shipping
+  }
+
+  function updateCardTotalDisplay(offer) {
+    const qtyInput = offer.card.querySelector('input[name="quantity"]')
+    const totalAmount = offer.card.querySelector('.wh-total-amount')
+    if (!qtyInput || !totalAmount) return
+    const qty = Math.max(1, parseInt(qtyInput.value || "1", 10))
+    const total = calculateCardTotal(offer, qty)
+    totalAmount.innerHTML = '<span class="woocommerce-Price-amount amount"><bdi>₩' + total.toLocaleString() + '</bdi></span>'
   }
 
   function setStatus(status, message) {
@@ -126,16 +183,19 @@
       matches[0].card.hidden = false
       enableCard(matches[0].card, true)
       matches[0].card.classList.add("wh-compact-purchase")
+      updateCardTotalDisplay(matches[0])
       root.dataset.selectedVariationId = matches[0].variationId
       root.dataset.selectedPublicOfferKey = matches[0].key
       return
     }
 
     results.classList.add("wh-comparison-grid")
-    const lowest = matches.reduce((best, offer) => (offer.price < best.price ? offer : best))
+    const totalCost = (offer) => calculateCardTotal(offer, 1)
+    const lowest = matches.reduce((best, offer) => (totalCost(offer) < totalCost(best) ? offer : best))
     for (const offer of matches) {
       offer.card.hidden = false
       enableCard(offer.card, true)
+      updateCardTotalDisplay(offer)
       if (offer === lowest) {
         offer.card.classList.add("is-lowest")
         const lowestBadge = offer.card.querySelector(".wh-badge-lowest")
@@ -327,6 +387,13 @@
     }
 
     const mode = root.dataset.uiMode || classifyMode(offers)
+    for (const offer of offers) {
+      const qtyInput = offer.card.querySelector('input[name="quantity"]')
+      if (qtyInput) {
+        qtyInput.addEventListener('input', () => updateCardTotalDisplay(offer))
+        qtyInput.addEventListener('change', () => updateCardTotalDisplay(offer))
+      }
+    }
     let resetSelection = () => undefined
     if (mode === "single-offer") {
       renderMatches(root, cards, offers.slice(0, 1), status)

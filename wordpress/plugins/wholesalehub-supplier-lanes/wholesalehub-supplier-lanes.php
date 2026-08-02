@@ -2,7 +2,7 @@
 /**
  * Plugin Name: WholesaleHub Supplier Lanes
  * Description: Independent privacy-safe A/B supplier lane checkout and Option A spec mapping for approved Woo variations.
- * Version: 1.3.0
+ * Version: 1.4.0
  * Requires Plugins: woocommerce
  * Text Domain: wholesalehub-supplier-lanes
  */
@@ -13,8 +13,8 @@ require_once __DIR__ . '/includes/class-wholesalehub-supplier-lane-approval.php'
 
 final class WholesaleHub_Supplier_Lanes
 {
-    private const SCHEMA_VERSION = '1.3.0';
-    private const ASSET_VERSION = '1.3.0';
+    private const SCHEMA_VERSION = '1.4.0';
+    private const ASSET_VERSION = '1.4.0';
     private const SCHEMA_OPTION = 'wh_supplier_lane_schema_version';
     private const MODE_META = '_wh_supplier_lane_mode';
     private const OFFER_KEY_FIELD = 'wh_public_offer_key';
@@ -29,6 +29,7 @@ final class WholesaleHub_Supplier_Lanes
         '_wh_sale_price_at_order',
         '_wh_snapshot_hash',
         '_wh_pipeline_run_id',
+        '_wh_shipping_snapshot',
     ];
 
     public static function boot(): void
@@ -42,6 +43,7 @@ final class WholesaleHub_Supplier_Lanes
         add_action('admin_init', [self::class, 'handle_admin_actions']);
         add_action('woocommerce_variable_add_to_cart', [self::class, 'maybe_render_lane_forms'], 1);
         add_action('wp_loaded', [self::class, 'handle_add_to_cart'], 20);
+        add_action('woocommerce_cart_calculate_fees', [self::class, 'calculate_supplier_shipping_fees'], 20);
         add_filter('woocommerce_add_cart_item_data', [self::class, 'preserve_cart_identity'], 10, 3);
         add_filter('woocommerce_get_item_data', [self::class, 'public_cart_item_data'], 10, 2);
         add_action(
@@ -128,6 +130,7 @@ final class WholesaleHub_Supplier_Lanes
               last_complete_run_id varchar(191) NOT NULL,
               last_seen_at datetime NOT NULL,
               missing_complete_count int unsigned NOT NULL DEFAULT 0,
+              shipping_policy_json longtext NULL,
               created_at datetime NOT NULL,
               updated_at datetime NOT NULL,
               PRIMARY KEY  (id),
@@ -949,11 +952,45 @@ final class WholesaleHub_Supplier_Lanes
         if ($visible) {
             $classes .= ' wh-compact-purchase';
         }
+
+        $policy = $offer['shipping_policy'] ?? null;
+        $sp_type = (string) ($policy['shipping_policy_type'] ?? 'unknown');
+        $base_fee = (float) ($policy['shipping_base_fee'] ?? 0);
+        $jeju_extra = (float) ($policy['shipping_jeju_extra_fee'] ?? 0);
+        $remote_extra = (float) ($policy['shipping_remote_extra_fee'] ?? 0);
+        $tiers = is_array($policy['shipping_tiers'] ?? null) ? $policy['shipping_tiers'] : [];
+
+        $sp_display = '무료배송';
+        if ($sp_type === 'free') {
+            $sp_display = '무료배송';
+        } elseif ($sp_type === 'fixed') {
+            $sp_display = number_format($base_fee) . '원';
+        } elseif ($sp_type === 'quantity_tiered') {
+            if (!empty($tiers)) {
+                $t = $tiers[0];
+                $sp_display = '수량별 배송비 (' . $t['min_qty'] . '~' . ($t['max_qty_exclusive'] - 1) . '개 ' . number_format($t['fee']) . '원)';
+            } else {
+                $sp_display = '수량별 배송비 (' . number_format($base_fee) . '원)';
+            }
+        } else {
+            $sp_display = '배송비 확인 필요';
+        }
+
+        $surcharge_str = '';
+        if ($jeju_extra > 0 || $remote_extra > 0) {
+            $surcharge_str = '제주 +' . number_format($jeju_extra) . '원 · 도서산간 +' . number_format($remote_extra) . '원';
+        }
+
+        $base_total = $offer['price'] + ($sp_type === 'free' ? 0 : $base_fee);
+
         echo '<article class="' . esc_attr($classes) . '" ';
         echo 'data-lane="' . esc_attr($offer['lane']) . '" ';
         echo 'data-price="' . esc_attr((string) $offer['price']) . '" ';
         echo 'data-variation-id="' . (int) $offer['variation_id'] . '" ';
         echo 'data-public-offer-key="' . esc_attr($offer['key']) . '" ';
+        echo 'data-shipping-type="' . esc_attr($sp_type) . '" ';
+        echo 'data-shipping-base-fee="' . esc_attr((string) $base_fee) . '" ';
+        echo 'data-shipping-tiers="' . esc_attr(wp_json_encode($tiers)) . '" ';
         foreach ($offer['normalized'] as $dimension => $value) {
             echo 'data-' . esc_attr($dimension) . '="' . esc_attr($value) . '" ';
         }
@@ -963,14 +1000,28 @@ final class WholesaleHub_Supplier_Lanes
         echo '>';
         echo '<div class="wh-card-header">';
         echo '<span class="wh-lane-badge">판매조건 ' . esc_html($offer['lane']) . '</span>';
-        echo '<span class="wh-badge-lowest" hidden>상품가격 최저</span>';
+        echo '<span class="wh-badge-lowest" hidden>최저가 (배송비 포함)</span>';
         echo '</div>';
         echo '<div class="wh-card-title">' . esc_html($offer['spec_label']) . '</div>';
         echo '<div class="wh-card-price-row"><span class="wh-price">' . wc_price($offer['price']) . '</span>';
         if (!empty($offer['unit_price_str'])) {
             echo '<span class="wh-unit-price">(' . esc_html($offer['unit_price_str']) . ')</span>';
         }
-        echo '</div><p class="wh-stock">재고 있음</p>';
+        echo '</div>';
+
+        echo '<div class="wh-card-shipping-info">';
+        echo '<div class="wh-shipping-row"><span class="wh-shipping-label">배송비:</span> <span class="wh-shipping-value">' . esc_html($sp_display) . '</span></div>';
+        if ($surcharge_str !== '') {
+            echo '<div class="wh-shipping-surcharge">' . esc_html($surcharge_str) . '</div>';
+        }
+        echo '</div>';
+
+        echo '<div class="wh-card-total-row">';
+        echo '<span class="wh-total-label">기본 예상합계:</span> ';
+        echo '<span class="wh-total-amount">' . wc_price($base_total) . '</span>';
+        echo '</div>';
+
+        echo '<p class="wh-stock">재고 있음</p>';
         echo '<form method="post" action="' . esc_url(home_url('/')) . '" class="wh-condition-form" ';
         echo 'aria-describedby="' . esc_attr($description_id) . '">';
         echo '<label for="qty-' . esc_attr($offer['key']) . '">수량</label>';
@@ -1197,12 +1248,208 @@ final class WholesaleHub_Supplier_Lanes
         }
         $item->add_meta_data('출고구분', $public['lane_label'], true);
         $item->add_meta_data('구매옵션', $public['option_label'], true);
+
+        $target_id = (int) ($values['variation_id'] ?? $values['product_id'] ?? 0);
+        if ($target_id > 0) {
+            $meta = self::get_variation_shipping_meta($target_id);
+            if (!empty($meta['policy'])) {
+                $item->add_meta_data('_wh_shipping_snapshot', wp_json_encode($meta['policy']), true);
+            }
+        }
+
         foreach (self::INTERNAL_META as $key) {
             $cart_key = substr($key, 1);
             if (array_key_exists($cart_key, $values)) {
                 $item->add_meta_data($key, $values[$cart_key], true);
             }
         }
+    }
+
+    public static function calculate_supplier_shipping_fees(): void
+    {
+        if (is_admin() && !defined('DOING_AJAX')) {
+            return;
+        }
+        if (function_exists('remove_action')) {
+            remove_action('woocommerce_cart_calculate_fees', 'avocadoss_add_jeju_island_shipping_fee', 20);
+        }
+        if (!function_exists('WC') || WC()->cart === null || WC()->cart->is_empty()) {
+            return;
+        }
+
+        $customer = WC()->customer;
+        $postcode = $customer ? (string) $customer->get_shipping_postcode() : '';
+        if ($postcode === '' && $customer) {
+            $postcode = (string) $customer->get_billing_postcode();
+        }
+        $addr1 = $customer ? (string) $customer->get_shipping_address_1() : '';
+        $addr2 = $customer ? (string) $customer->get_shipping_address_2() : '';
+        if ($addr1 === '' && $customer) {
+            $addr1 = (string) $customer->get_billing_address_1();
+            $addr2 = (string) $customer->get_billing_address_2();
+        }
+        $full_address = trim($addr1 . ' ' . $addr2);
+        $state = $customer ? (string) $customer->get_shipping_state() : '';
+
+        $is_jeju = self::is_jeju_address($postcode, $state, $full_address);
+        $is_remote = self::is_remote_address($postcode, $full_address);
+
+        $groups = [];
+        foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
+            $variation_id = (int) ($cart_item['variation_id'] ?? 0);
+            $product_id = (int) ($cart_item['product_id'] ?? 0);
+            $quantity = (int) ($cart_item['quantity'] ?? 1);
+            $target_id = $variation_id > 0 ? $variation_id : $product_id;
+
+            $meta = self::get_variation_shipping_meta($target_id);
+            $supplier_id = !empty($meta['supplier_id']) ? $meta['supplier_id'] : 'dailyfood';
+            $source_product_id = !empty($meta['source_product_id']) ? $meta['source_product_id'] : (string) $target_id;
+            $policy = $meta['policy'] ?? null;
+
+            $group_key = $supplier_id . '|' . $source_product_id;
+            if (!isset($groups[$group_key])) {
+                $groups[$group_key] = [
+                    'supplier_id' => $supplier_id,
+                    'source_product_id' => $source_product_id,
+                    'policy' => $policy,
+                    'total_qty' => 0,
+                ];
+            }
+            $groups[$group_key]['total_qty'] += $quantity;
+        }
+
+        $total_base_shipping = 0.0;
+        $total_surcharge = 0.0;
+
+        foreach ($groups as $group) {
+            $policy = $group['policy'];
+            $qty = $group['total_qty'];
+            if (!is_array($policy)) {
+                continue;
+            }
+
+            $type = (string) ($policy['shipping_policy_type'] ?? 'unknown');
+            $base_fee = (float) ($policy['shipping_base_fee'] ?? 0);
+            $jeju_fee = (float) ($policy['shipping_jeju_extra_fee'] ?? 0);
+            $remote_fee = (float) ($policy['shipping_remote_extra_fee'] ?? 0);
+            $tiers = is_array($policy['shipping_tiers'] ?? null) ? $policy['shipping_tiers'] : [];
+
+            $group_shipping = 0.0;
+            if ($type === 'free') {
+                $group_shipping = 0.0;
+            } elseif ($type === 'fixed') {
+                $group_shipping = $base_fee;
+            } elseif ($type === 'quantity_tiered') {
+                $matched_fee = null;
+                $step_size = null;
+                foreach ($tiers as $tier) {
+                    $min = (int) ($tier['min_qty'] ?? 0);
+                    $max_excl = (int) ($tier['max_qty_exclusive'] ?? 0);
+                    $fee = (float) ($tier['fee'] ?? $base_fee);
+                    if ($max_excl > 0 && $qty >= $min && $qty < $max_excl) {
+                        $matched_fee = $fee;
+                        break;
+                    }
+                    if ($max_excl > 0 && $step_size === null) {
+                        $step_size = $max_excl;
+                    }
+                }
+                if ($matched_fee !== null) {
+                    $group_shipping = $matched_fee;
+                } elseif ($step_size !== null && $step_size > 0) {
+                    $boxes = (int) ceil($qty / $step_size);
+                    $group_shipping = $boxes * $base_fee;
+                } else {
+                    $group_shipping = $base_fee;
+                }
+            } else {
+                $group_shipping = $base_fee > 0 ? $base_fee : 3000.0;
+            }
+
+            $total_base_shipping += $group_shipping;
+
+            if ($is_jeju && $jeju_fee > 0) {
+                $total_surcharge += $jeju_fee;
+            } elseif ($is_remote && $remote_fee > 0) {
+                $total_surcharge += $remote_fee;
+            }
+        }
+
+        if ($total_base_shipping > 0) {
+            WC()->cart->add_fee(__('배송비', 'wholesalehub-supplier-lanes'), $total_base_shipping, false);
+        }
+        if ($total_surcharge > 0) {
+            $label = $is_jeju ? __('제주 추가 배송비', 'wholesalehub-supplier-lanes') : __('도서산간 추가 배송비', 'wholesalehub-supplier-lanes');
+            WC()->cart->add_fee($label, $total_surcharge, false);
+        }
+    }
+
+    public static function is_jeju_address(string $postcode, string $state, string $address): bool
+    {
+        if (str_contains($state, '제주') || mb_strpos($address, '제주') !== false) {
+            return true;
+        }
+        $digits = (int) preg_replace('/[^0-9]/', '', $postcode);
+        if ($digits >= 63000 && $digits <= 63699) {
+            return true;
+        }
+        if ($digits >= 690000 && $digits <= 699999) {
+            return true;
+        }
+        return false;
+    }
+
+    public static function is_remote_address(string $postcode, string $address): bool
+    {
+        $digits = (int) preg_replace('/[^0-9]/', '', $postcode);
+        if (
+            ($digits >= 23100 && $digits <= 23136)
+            || ($digits >= 40200 && $digits <= 40240)
+            || ($digits >= 58800 && $digits <= 58866)
+            || ($digits >= 58900 && $digits <= 58958)
+            || ($digits >= 59100 && $digits <= 59166)
+        ) {
+            return true;
+        }
+        return (bool) preg_match('/(울릉|독도|백령도|연평도|거문도|흑산도|추자도)/u', $address);
+    }
+
+    public static function get_variation_shipping_meta(int $variation_id): array
+    {
+        $json = (string) get_post_meta($variation_id, '_wh_shipping_policy', true);
+        $policy = !empty($json) ? json_decode($json, true) : null;
+
+        $supplier_id = (string) get_post_meta($variation_id, '_wh_internal_supplier_id', true);
+        $source_product_id = (string) get_post_meta($variation_id, '_wh_source_product_id', true);
+
+        if (!$policy || empty($supplier_id)) {
+            global $wpdb;
+            $offers = $wpdb->prefix . 'supplier_lane_offers';
+            $row = $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT supplier_id, source_product_id, shipping_policy_json FROM {$offers} WHERE woo_variation_id = %d LIMIT 1",
+                    $variation_id
+                ),
+                ARRAY_A
+            );
+            if (is_array($row)) {
+                if (empty($supplier_id)) {
+                    $supplier_id = (string) ($row['supplier_id'] ?? '');
+                }
+                if (empty($source_product_id)) {
+                    $source_product_id = (string) ($row['source_product_id'] ?? '');
+                }
+                if (!$policy && !empty($row['shipping_policy_json'])) {
+                    $policy = json_decode($row['shipping_policy_json'], true);
+                }
+            }
+        }
+
+        return [
+            'supplier_id' => $supplier_id,
+            'source_product_id' => $source_product_id,
+            'policy' => $policy,
+        ];
     }
 
     public static function hide_internal_order_metadata(array $hidden): array
@@ -1443,7 +1690,7 @@ final class WholesaleHub_Supplier_Lanes
             $wpdb->prepare(
                 "SELECT o.lane_code, o.woo_variation_id, o.public_offer_key,
                         o.public_option_label, o.option_label_raw,
-                        o.source_product_id, o.source_option_id
+                        o.source_product_id, o.source_option_id, o.shipping_policy_json
                  FROM {$offers} o
                  INNER JOIN {$parent_links} p
                    ON p.id = o.parent_link_id
@@ -1466,6 +1713,11 @@ final class WholesaleHub_Supplier_Lanes
             if (!($variation instanceof WC_Product_Variation) || !$variation->is_purchasable() || !$variation->is_in_stock()) {
                 return null;
             }
+            $sp_meta = (string) $variation->get_meta('_wh_shipping_policy');
+            $policy = !empty($sp_meta) ? json_decode($sp_meta, true) : null;
+            if (!$policy && !empty($row['shipping_policy_json'])) {
+                $policy = json_decode((string) $row['shipping_policy_json'], true);
+            }
             return [
                 'lane' => (string) $row['lane_code'],
                 'variation_id' => (int) $row['woo_variation_id'],
@@ -1477,6 +1729,7 @@ final class WholesaleHub_Supplier_Lanes
                 'source_product_id' => (string) $row['source_product_id'],
                 'source_option_id' => (string) $row['source_option_id'],
                 'price' => (float) $variation->get_price(),
+                'shipping_policy' => $policy,
             ];
         }, is_array($rows) ? $rows : [])));
 

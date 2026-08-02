@@ -121,7 +121,18 @@ for (const group of groups) {
         continue
       }
       uniqueOptionIds.add(sourceOptionId)
-      const shippingFee = numericShippingFee(option)
+      const shippingPolicy = option.shipping_policy ?? {
+        shipping_policy_type: numericShippingFee(option) === 0 ? "free" : "fixed",
+        shipping_base_fee: numericShippingFee(option),
+        shipping_tiers: [],
+        shipping_jeju_extra_fee: 0,
+        shipping_remote_extra_fee: 0,
+        shipping_raw_text: String(option.shipping ?? ""),
+        shipping_source: "detail",
+        shipping_collected_at: new Date().toISOString(),
+        shipping_validation_status: "valid",
+      }
+      const shippingFee = Number(shippingPolicy.shipping_base_fee ?? 0)
       const sourceCost = numericSourcePrice(option)
       const landedCost = sourceCost + shippingFee
       options.push({
@@ -131,6 +142,7 @@ for (const group of groups) {
         publicOptionLabel: label,
         sourceCost,
         shippingFee,
+        shipping_policy: shippingPolicy,
         landedCost,
         salePrice: salePrice(landedCost),
         stockStatus: option.stockStatus === "out_of_stock" ? "out_of_stock" : "in_stock",
@@ -140,6 +152,7 @@ for (const group of groups) {
           sourceOptionId: option.sourceOptionId,
           price: sourceCost,
           stockStatus: option.stockStatus,
+          shippingPolicy,
         }),
         hardSpecFingerprint: hash({
           product: canonicalProductKey(source.productName),
@@ -420,6 +433,9 @@ function repeatedUnrelatedImageHashes(products) {
 }
 
 function numericShippingFee(option) {
+  if (option.shipping_policy?.shipping_base_fee !== undefined) {
+    return Math.max(0, Number(option.shipping_policy.shipping_base_fee))
+  }
   if (Number.isFinite(Number(option.shippingFee))) {
     return Math.max(0, Number(option.shippingFee))
   }

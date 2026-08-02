@@ -49,6 +49,11 @@ $counts = [
     'review_needed' => 0,
     'approval_pending_products' => 0,
     'approval_pending_options' => 0,
+    'shipping_free_count' => 0,
+    'shipping_fixed_count' => 0,
+    'shipping_tiered_count' => 0,
+    'shipping_unknown_count' => 0,
+    'shipping_policy_updated' => 0,
     'failed' => 0,
 ];
 $seen = [];
@@ -244,6 +249,21 @@ foreach ($groups as $group) {
                         '_wh_hard_spec_fingerprint',
                         sanitize_text_field((string) $option['hardSpecFingerprint'])
                     );
+                    $sp_type = (string) ($option['shipping_policy']['shipping_policy_type'] ?? 'unknown');
+                    if ($sp_type === 'free') {
+                        $counts['shipping_free_count']++;
+                    } elseif ($sp_type === 'fixed') {
+                        $counts['shipping_fixed_count']++;
+                    } elseif ($sp_type === 'quantity_tiered') {
+                        $counts['shipping_tiered_count']++;
+                    } else {
+                        $counts['shipping_unknown_count']++;
+                    }
+                    $old_sp_json = (string) $variation->get_meta('_wh_shipping_policy');
+                    $new_sp_json = isset($option['shipping_policy']) ? (string) wp_json_encode($option['shipping_policy']) : '';
+                    if ($old_sp_json !== $new_sp_json) {
+                        $counts['shipping_policy_updated']++;
+                    }
                     wh_sync_source_spec_meta($variation, $option);
                     $variation->set_status('publish');
                     $variation->save();
@@ -287,6 +307,9 @@ foreach ($groups as $group) {
                             'stock_status' => $new_stock === 'instock'
                                 ? 'in_stock'
                                 : 'out_of_stock',
+                            'shipping_policy_json' => isset($option['shipping_policy']) && is_array($option['shipping_policy'])
+                                ? wp_json_encode($option['shipping_policy'])
+                                : null,
                             'approval_status' => 'approved',
                             'lifecycle_status' => 'active',
                             'last_snapshot_hash' => (string) $option['snapshotHash'],
@@ -837,6 +860,12 @@ function wh_sync_source_spec_meta(WC_Product_Variation $variation, array $option
         $variation->update_meta_data(
             $meta_key,
             sanitize_text_field((string) ($option[$option_key] ?? ''))
+        );
+    }
+    if (isset($option['shipping_policy']) && is_array($option['shipping_policy'])) {
+        $variation->update_meta_data(
+            '_wh_shipping_policy',
+            wp_json_encode($option['shipping_policy'])
         );
     }
 }

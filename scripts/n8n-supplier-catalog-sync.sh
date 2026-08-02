@@ -152,6 +152,8 @@ telegram_message=$(node -e '
     `품절 ${counts.missing_marked_out_of_stock ?? 0}`,
     `신규 상품 승인대기 ${counts.approval_pending_products ?? 0}`,
     `신규 옵션 승인대기 ${counts.approval_pending_options ?? 0}`,
+    `배송비 정책: 무료 ${counts.shipping_free_count ?? 0} / 고정 ${counts.shipping_fixed_count ?? 0} / 수량별 ${counts.shipping_tiered_count ?? 0} / 확인필요 ${counts.shipping_unknown_count ?? 0}`,
+    `배송비 정책 변경 ${counts.shipping_policy_updated ?? 0}`,
     `review_required ${(counts.image_review_required ?? 0) + (counts.review_needed ?? 0)}`,
     `실패 ${counts.failed ?? 0}`,
   ];
