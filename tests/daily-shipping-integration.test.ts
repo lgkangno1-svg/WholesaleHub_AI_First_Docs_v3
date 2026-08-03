@@ -257,6 +257,8 @@ describe("Shipping Policy Metadata Parsing", () => {
     expect(plugin).toContain("validate_cart_shipping_policies")
     expect(plugin).toContain("wholesalehub_shipping_review_required")
     expect(plugin).toContain("actual_applied_amount")
+    expect(plugin).toContain("shipping_group_actual_amount")
+    expect(plugin).toContain("$cart_item_key === $first_cart_item_key")
     expect(plugin).not.toContain("$base_fee > 0 ? $base_fee : 3000.0")
     expect(approval).toContain("배송비 {$shipping}")
     expect(plugin).toContain("'single-offer'")

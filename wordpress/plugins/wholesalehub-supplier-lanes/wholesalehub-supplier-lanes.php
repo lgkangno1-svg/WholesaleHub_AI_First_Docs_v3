@@ -1246,7 +1246,7 @@ final class WholesaleHub_Supplier_Lanes
         array $values,
         WC_Order $order
     ): void {
-        unset($cart_item_key, $order);
+        unset($order);
         $public = self::public_projection($values);
         if ($public === null) {
             return;
@@ -1256,7 +1256,7 @@ final class WholesaleHub_Supplier_Lanes
 
         $target_id = (int) ($values['variation_id'] ?? $values['product_id'] ?? 0);
         if ($target_id > 0) {
-            $snapshot = self::shipping_snapshot($target_id);
+            $snapshot = self::shipping_snapshot($target_id, $cart_item_key);
             if ($snapshot !== null) {
                 $item->add_meta_data('_wh_shipping_snapshot', wp_json_encode($snapshot), true);
             }
@@ -1485,7 +1485,7 @@ final class WholesaleHub_Supplier_Lanes
         return null;
     }
 
-    private static function shipping_snapshot(int $variation_id): ?array
+    private static function shipping_snapshot(int $variation_id, string $cart_item_key = ''): ?array
     {
         $meta = self::get_variation_shipping_meta($variation_id);
         $policy = $meta['policy'] ?? null;
@@ -1497,8 +1497,9 @@ final class WholesaleHub_Supplier_Lanes
             $group_key = (string) ($meta['supplier_id'] ?? '') . '|' . (string) ($meta['source_product_id'] ?? '');
         }
         $quantity = 0;
+        $first_cart_item_key = '';
         if (function_exists('WC') && WC()->cart !== null) {
-            foreach (WC()->cart->get_cart() as $cart_item) {
+            foreach (WC()->cart->get_cart() as $key => $cart_item) {
                 $target_id = (int) ($cart_item['variation_id'] ?? $cart_item['product_id'] ?? 0);
                 $item_meta = self::get_variation_shipping_meta($target_id);
                 $item_group = (string) ($item_meta['shipping_policy_group_key'] ?? '');
@@ -1506,6 +1507,9 @@ final class WholesaleHub_Supplier_Lanes
                     $item_group = (string) ($item_meta['supplier_id'] ?? '') . '|' . (string) ($item_meta['source_product_id'] ?? '');
                 }
                 if ($item_group === $group_key) {
+                    if ($first_cart_item_key === '') {
+                        $first_cart_item_key = (string) $key;
+                    }
                     $quantity += (int) ($cart_item['quantity'] ?? 0);
                 }
             }
@@ -1524,6 +1528,10 @@ final class WholesaleHub_Supplier_Lanes
         $surcharge = $is_jeju
             ? (float) ($policy['shipping_jeju_extra_fee'] ?? 0)
             : ($is_remote ? (float) ($policy['shipping_remote_extra_fee'] ?? 0) : 0.0);
+        $group_amount = $calculated['amount'] + $surcharge;
+        $applied_amount = $cart_item_key === '' || $cart_item_key === $first_cart_item_key
+            ? $group_amount
+            : 0.0;
         return array_merge($policy, [
             'shipping_policy_group_key' => $group_key,
             'applied_quantity' => $quantity,
@@ -1531,7 +1539,8 @@ final class WholesaleHub_Supplier_Lanes
             'applied_base_fee' => $calculated['amount'],
             'applied_jeju_surcharge' => $is_jeju ? $surcharge : 0.0,
             'applied_remote_surcharge' => $is_remote ? $surcharge : 0.0,
-            'actual_applied_amount' => $calculated['amount'] + $surcharge,
+            'shipping_group_actual_amount' => $group_amount,
+            'actual_applied_amount' => $applied_amount,
         ]);
     }
 
