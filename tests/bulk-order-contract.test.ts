@@ -8,6 +8,8 @@ const exportPlugin = readFileSync("wordpress/plugins/avocadoss-supplier-order-ex
 it("keeps bulk data server-side and uses the WooCommerce checkout basket", () => {
   expect(bulk).toContain("MAX_BYTES = 10485760")
   expect(bulk).toContain("MAX_ROWS = 1000")
+  expect(bulk).toContain("한 번에 최대 1,000행까지 주문할 수 있습니다. 파일을 나누어 업로드해 주세요.")
+  expect(bulk).toContain("count($rows) > self::MAX_ROWS + 1")
   expect(bulk).toContain("wp_check_filetype_and_ext")
   expect(bulk).toContain("hash_file('sha256'")
   expect(bulk).toContain("wholesalehub_bulk_shipments")
