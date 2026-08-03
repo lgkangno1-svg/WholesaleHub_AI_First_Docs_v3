@@ -414,6 +414,20 @@
     for (const root of document.querySelectorAll(".wh-option-a-ui[data-ui-mode]")) {
       initialize(root)
     }
+    for (const form of document.querySelectorAll(".wh-bulk-upload")) {
+      const input = form.querySelector('input[type="file"]')
+      const name = form.querySelector("[data-wh-file-name]")
+      input?.addEventListener("change", () => {
+        if (name) name.textContent = input.files?.[0]?.name || "파일을 선택하거나 여기에 놓아주세요."
+      })
+      form.addEventListener("submit", () => {
+        const button = form.querySelector('button[type="submit"]')
+        if (button) {
+          button.disabled = true
+          button.textContent = "업로드 중…"
+        }
+      })
+    }
   }
 
   window.WholesaleHubSupplierLanes = Object.freeze({

@@ -15,7 +15,7 @@ require_once __DIR__ . '/includes/class-wholesalehub-bulk-order.php';
 final class WholesaleHub_Supplier_Lanes
 {
     private const SCHEMA_VERSION = '1.4.0';
-    private const ASSET_VERSION = '1.4.0';
+    private const ASSET_VERSION = '1.4.1';
     private const SCHEMA_OPTION = 'wh_supplier_lane_schema_version';
     private const MODE_META = '_wh_supplier_lane_mode';
     private const OFFER_KEY_FIELD = 'wh_public_offer_key';
