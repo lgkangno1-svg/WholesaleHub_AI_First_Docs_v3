@@ -448,3 +448,13 @@ body.woocommerce-cart .widget_shopping_cart, .site-header .cart-contents { displ
 .wh-bulk-help { margin-top: 1rem; }
 .wh-bulk-help summary { min-height: 44px; display: flex; align-items: center; font-weight: 700; cursor: pointer; }
 @media (max-width: 640px) { .wh-bulk-step, .wh-bulk-help { padding: 1rem; } .wh-bulk-step-download .button, .wh-bulk-upload button { width: 100%; justify-content: center; } }
+
+.wh-bulk-home { box-sizing: border-box; position: fixed; right: 24px; bottom: 24px; z-index: 999; display: flex; align-items: stretch; flex-direction: column; gap: 1rem; width: min(360px, calc(100vw - 48px)); padding: 1.25rem; border: 1px solid #bfdbfe; border-radius: 12px; background: #eff6ff; box-shadow: 0 12px 32px rgba(15, 23, 42, .2); }
+.wh-bulk-home h2 { margin: .15rem 0 .25rem; font-size: 1.4rem; }
+.wh-bulk-home p { margin: 0; color: #475569; }
+.wh-bulk-home-kicker { color: #2563eb; font-size: .78rem; font-weight: 800; }
+.wh-bulk-home nav { display: grid; gap: .5rem; }
+.wh-bulk-home .button { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; margin: 0; white-space: nowrap; }
+.wh-bulk-home .button:hover, .wh-bulk-home .button:focus-visible { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(15, 23, 42, .16); }
+.wh-bulk-home .button:active { transform: translateY(0); }
+@media (max-width: 768px) { .wh-bulk-home { right: 12px; bottom: 12px; left: 12px; width: auto; padding: 1rem; } .wh-bulk-home nav { grid-template-columns: 1fr; } .wh-bulk-home .button { width: 100%; } }

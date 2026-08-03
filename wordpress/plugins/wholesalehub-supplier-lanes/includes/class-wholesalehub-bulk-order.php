@@ -24,6 +24,7 @@ final class WholesaleHub_Bulk_Order {
         add_action('woocommerce_thankyou', [self::class, 'thankyou'], 20);
         add_action('admin_menu', [self::class, 'admin_menu']);
         add_action('admin_menu', [self::class, 'admin_search_menu']);
+        add_action('wp_footer', [self::class, 'home_entry'], 20);
         add_filter('woocommerce_account_menu_items', [self::class, 'account_menu']);
         add_filter('woocommerce_email_order_meta_fields', [self::class, 'email_meta'], 20, 3);
     }
@@ -113,6 +114,13 @@ final class WholesaleHub_Bulk_Order {
 
     private static function allowed(): bool {
         return is_user_logged_in() && ('approved' === get_user_meta(get_current_user_id(), '_avo_approval_status', true) || current_user_can('manage_woocommerce'));
+    }
+
+    public static function home_entry(): void {
+        if (!is_shop() || is_paged()) return;
+        $bulk = wc_get_account_endpoint_url('bulk-order');
+        $download = self::allowed() ? admin_url('admin-post.php?action=wh_bulk_template') : $bulk;
+        echo '<aside class="wh-bulk-home" aria-labelledby="wh-bulk-home-title"><div><span class="wh-bulk-home-kicker">빠른주문</span><h2 id="wh-bulk-home-title">엑셀 대량주문</h2><p>양식을 다운로드한 뒤 여러 상품과 배송지를 한 번에 주문하세요.</p></div><nav aria-label="엑셀 대량주문 바로가기"><a class="button alt" href="'.esc_url($bulk).'">엑셀 대량주문</a><a class="button" href="'.esc_url($download).'">양식 다운로드</a><a class="button" href="'.esc_url($bulk).'">주문 상품 확인</a></nav></aside>';
     }
 
     public static function page(): void {
