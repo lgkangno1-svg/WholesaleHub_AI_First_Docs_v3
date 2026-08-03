@@ -44,6 +44,7 @@ final class WholesaleHub_Supplier_Lanes
         add_action('woocommerce_variable_add_to_cart', [self::class, 'maybe_render_lane_forms'], 1);
         add_action('wp_loaded', [self::class, 'handle_add_to_cart'], 20);
         add_action('woocommerce_cart_calculate_fees', [self::class, 'calculate_supplier_shipping_fees'], 20);
+        add_action('woocommerce_check_cart_items', [self::class, 'validate_cart_shipping_policies']);
         add_filter('woocommerce_add_cart_item_data', [self::class, 'preserve_cart_identity'], 10, 3);
         add_filter('woocommerce_get_item_data', [self::class, 'public_cart_item_data'], 10, 2);
         add_action(
@@ -1171,6 +1172,10 @@ final class WholesaleHub_Supplier_Lanes
             if ($offer === null || (int) $offer['woo_parent_id'] !== $parent_id || $offer['lane_code'] !== $lane) {
                 throw new RuntimeException('구매할 수 없는 옵션입니다.');
             }
+            $shipping_policy = json_decode((string) ($offer['shipping_policy_json'] ?? ''), true);
+            if (!is_array($shipping_policy) || ($shipping_policy['shipping_validation_status'] ?? '') !== 'valid') {
+                throw new RuntimeException('배송비 확인이 필요한 옵션입니다.');
+            }
             $variation = wc_get_product((int) $offer['woo_variation_id']);
             if (
                 !($variation instanceof WC_Product_Variation)
@@ -1251,9 +1256,9 @@ final class WholesaleHub_Supplier_Lanes
 
         $target_id = (int) ($values['variation_id'] ?? $values['product_id'] ?? 0);
         if ($target_id > 0) {
-            $meta = self::get_variation_shipping_meta($target_id);
-            if (!empty($meta['policy'])) {
-                $item->add_meta_data('_wh_shipping_snapshot', wp_json_encode($meta['policy']), true);
+            $snapshot = self::shipping_snapshot($target_id);
+            if ($snapshot !== null) {
+                $item->add_meta_data('_wh_shipping_snapshot', wp_json_encode($snapshot), true);
             }
         }
 
@@ -1306,7 +1311,10 @@ final class WholesaleHub_Supplier_Lanes
             $source_product_id = !empty($meta['source_product_id']) ? $meta['source_product_id'] : (string) $target_id;
             $policy = $meta['policy'] ?? null;
 
-            $group_key = $supplier_id . '|' . $source_product_id;
+            $group_key = (string) ($meta['shipping_policy_group_key'] ?? '');
+            if ($group_key === '') {
+                $group_key = $supplier_id . '|' . $source_product_id;
+            }
             if (!isset($groups[$group_key])) {
                 $groups[$group_key] = [
                     'supplier_id' => $supplier_id,
@@ -1334,37 +1342,11 @@ final class WholesaleHub_Supplier_Lanes
             $remote_fee = (float) ($policy['shipping_remote_extra_fee'] ?? 0);
             $tiers = is_array($policy['shipping_tiers'] ?? null) ? $policy['shipping_tiers'] : [];
 
-            $group_shipping = 0.0;
-            if ($type === 'free') {
-                $group_shipping = 0.0;
-            } elseif ($type === 'fixed') {
-                $group_shipping = $base_fee;
-            } elseif ($type === 'quantity_tiered') {
-                $matched_fee = null;
-                $step_size = null;
-                foreach ($tiers as $tier) {
-                    $min = (int) ($tier['min_qty'] ?? 0);
-                    $max_excl = (int) ($tier['max_qty_exclusive'] ?? 0);
-                    $fee = (float) ($tier['fee'] ?? $base_fee);
-                    if ($max_excl > 0 && $qty >= $min && $qty < $max_excl) {
-                        $matched_fee = $fee;
-                        break;
-                    }
-                    if ($max_excl > 0 && $step_size === null) {
-                        $step_size = $max_excl;
-                    }
-                }
-                if ($matched_fee !== null) {
-                    $group_shipping = $matched_fee;
-                } elseif ($step_size !== null && $step_size > 0) {
-                    $boxes = (int) ceil($qty / $step_size);
-                    $group_shipping = $boxes * $base_fee;
-                } else {
-                    $group_shipping = $base_fee;
-                }
-            } else {
-                $group_shipping = $base_fee > 0 ? $base_fee : 3000.0;
+            $calculated = self::shipping_amount($policy, $qty);
+            if ($calculated === null) {
+                continue;
             }
+            $group_shipping = $calculated['amount'];
 
             $total_base_shipping += $group_shipping;
 
@@ -1381,6 +1363,21 @@ final class WholesaleHub_Supplier_Lanes
         if ($total_surcharge > 0) {
             $label = $is_jeju ? __('제주 추가 배송비', 'wholesalehub-supplier-lanes') : __('도서산간 추가 배송비', 'wholesalehub-supplier-lanes');
             WC()->cart->add_fee($label, $total_surcharge, false);
+        }
+    }
+
+    public static function validate_cart_shipping_policies(): void
+    {
+        if (!function_exists('WC') || WC()->cart === null) {
+            return;
+        }
+        foreach (WC()->cart->get_cart() as $cart_item) {
+            $target_id = (int) ($cart_item['variation_id'] ?? $cart_item['product_id'] ?? 0);
+            $policy = self::get_variation_shipping_meta($target_id)['policy'] ?? null;
+            if (!is_array($policy) || ($policy['shipping_validation_status'] ?? '') !== 'valid') {
+                wc_add_notice('배송비 확인이 필요한 옵션은 현재 주문할 수 없습니다.', 'error');
+                return;
+            }
         }
     }
 
@@ -1421,6 +1418,7 @@ final class WholesaleHub_Supplier_Lanes
 
         $supplier_id = (string) get_post_meta($variation_id, '_wh_internal_supplier_id', true);
         $source_product_id = (string) get_post_meta($variation_id, '_wh_source_product_id', true);
+        $shipping_policy_group_key = (string) get_post_meta($variation_id, '_wh_shipping_policy_group_key', true);
 
         if (!$policy || empty($supplier_id)) {
             global $wpdb;
@@ -1448,8 +1446,93 @@ final class WholesaleHub_Supplier_Lanes
         return [
             'supplier_id' => $supplier_id,
             'source_product_id' => $source_product_id,
+            'shipping_policy_group_key' => $shipping_policy_group_key,
             'policy' => $policy,
         ];
+    }
+
+    private static function shipping_amount(array $policy, int $quantity): ?array
+    {
+        if (($policy['shipping_validation_status'] ?? '') !== 'valid') {
+            return null;
+        }
+        $type = (string) ($policy['shipping_policy_type'] ?? 'unknown');
+        $base_fee = (float) ($policy['shipping_base_fee'] ?? 0);
+        if ($type === 'free') {
+            return ['amount' => 0.0, 'matched_tier' => null];
+        }
+        if ($type === 'fixed') {
+            return ['amount' => $base_fee, 'matched_tier' => null];
+        }
+        if ($type !== 'quantity_tiered') {
+            return null;
+        }
+        $tiers = is_array($policy['shipping_tiers'] ?? null) ? $policy['shipping_tiers'] : [];
+        foreach ($tiers as $tier) {
+            $min = (int) ($tier['min_qty'] ?? 0);
+            $max = (int) ($tier['max_qty_exclusive'] ?? 0);
+            if ($max > 0 && $quantity >= $min && $quantity < $max) {
+                return ['amount' => (float) ($tier['fee'] ?? $base_fee), 'matched_tier' => $tier];
+            }
+        }
+        $step = (int) ($tiers[0]['max_qty_exclusive'] ?? 0);
+        if (count($tiers) === 1 && $step > 0) {
+            return [
+                'amount' => (float) ceil($quantity / $step) * (float) ($tiers[0]['fee'] ?? $base_fee),
+                'matched_tier' => $tiers[0],
+            ];
+        }
+        return null;
+    }
+
+    private static function shipping_snapshot(int $variation_id): ?array
+    {
+        $meta = self::get_variation_shipping_meta($variation_id);
+        $policy = $meta['policy'] ?? null;
+        if (!is_array($policy)) {
+            return null;
+        }
+        $group_key = (string) ($meta['shipping_policy_group_key'] ?? '');
+        if ($group_key === '') {
+            $group_key = (string) ($meta['supplier_id'] ?? '') . '|' . (string) ($meta['source_product_id'] ?? '');
+        }
+        $quantity = 0;
+        if (function_exists('WC') && WC()->cart !== null) {
+            foreach (WC()->cart->get_cart() as $cart_item) {
+                $target_id = (int) ($cart_item['variation_id'] ?? $cart_item['product_id'] ?? 0);
+                $item_meta = self::get_variation_shipping_meta($target_id);
+                $item_group = (string) ($item_meta['shipping_policy_group_key'] ?? '');
+                if ($item_group === '') {
+                    $item_group = (string) ($item_meta['supplier_id'] ?? '') . '|' . (string) ($item_meta['source_product_id'] ?? '');
+                }
+                if ($item_group === $group_key) {
+                    $quantity += (int) ($cart_item['quantity'] ?? 0);
+                }
+            }
+        }
+        $quantity = max(1, $quantity);
+        $calculated = self::shipping_amount($policy, $quantity);
+        if ($calculated === null) {
+            return null;
+        }
+        $customer = function_exists('WC') ? WC()->customer : null;
+        $postcode = $customer ? (string) ($customer->get_shipping_postcode() ?: $customer->get_billing_postcode()) : '';
+        $address = $customer ? trim((string) ($customer->get_shipping_address_1() ?: $customer->get_billing_address_1()) . ' ' . (string) ($customer->get_shipping_address_2() ?: $customer->get_billing_address_2())) : '';
+        $state = $customer ? (string) $customer->get_shipping_state() : '';
+        $is_jeju = self::is_jeju_address($postcode, $state, $address);
+        $is_remote = !$is_jeju && self::is_remote_address($postcode, $address);
+        $surcharge = $is_jeju
+            ? (float) ($policy['shipping_jeju_extra_fee'] ?? 0)
+            : ($is_remote ? (float) ($policy['shipping_remote_extra_fee'] ?? 0) : 0.0);
+        return array_merge($policy, [
+            'shipping_policy_group_key' => $group_key,
+            'applied_quantity' => $quantity,
+            'applied_tier' => $calculated['matched_tier'],
+            'applied_base_fee' => $calculated['amount'],
+            'applied_jeju_surcharge' => $is_jeju ? $surcharge : 0.0,
+            'applied_remote_surcharge' => $is_remote ? $surcharge : 0.0,
+            'actual_applied_amount' => $calculated['amount'] + $surcharge,
+        ]);
     }
 
     public static function hide_internal_order_metadata(array $hidden): array
@@ -1502,6 +1585,14 @@ final class WholesaleHub_Supplier_Lanes
             throw new \Automattic\WooCommerce\StoreApi\Exceptions\RouteException(
                 'wholesalehub_offer_unavailable',
                 '현재 주문할 수 없는 옵션입니다.',
+                400
+            );
+        }
+        $shipping_policy = json_decode((string) ($offer['shipping_policy_json'] ?? ''), true);
+        if (!is_array($shipping_policy) || ($shipping_policy['shipping_validation_status'] ?? '') !== 'valid') {
+            throw new \Automattic\WooCommerce\StoreApi\Exceptions\RouteException(
+                'wholesalehub_shipping_review_required',
+                '배송비 확인이 필요한 옵션입니다.',
                 400
             );
         }

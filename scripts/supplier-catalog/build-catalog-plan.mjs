@@ -122,19 +122,30 @@ for (const group of groups) {
       }
       uniqueOptionIds.add(sourceOptionId)
       const shippingPolicy = option.shipping_policy ?? {
-        shipping_policy_type: numericShippingFee(option) === 0 ? "free" : "fixed",
-        shipping_base_fee: numericShippingFee(option),
+        shipping_policy_type: "unknown",
+        shipping_base_fee: 0,
         shipping_tiers: [],
         shipping_jeju_extra_fee: 0,
         shipping_remote_extra_fee: 0,
         shipping_raw_text: String(option.shipping ?? ""),
         shipping_source: "detail",
         shipping_collected_at: new Date().toISOString(),
-        shipping_validation_status: "valid",
+        shipping_validation_status: "review_required",
       }
       const shippingFee = Number(shippingPolicy.shipping_base_fee ?? 0)
+      const shippingPolicyIdentity = {
+        type: shippingPolicy.shipping_policy_type,
+        base: shippingPolicy.shipping_base_fee,
+        tiers: shippingPolicy.shipping_tiers,
+        jeju: shippingPolicy.shipping_jeju_extra_fee,
+        remote: shippingPolicy.shipping_remote_extra_fee,
+        raw: shippingPolicy.shipping_raw_text,
+        source: shippingPolicy.shipping_source,
+        validation: shippingPolicy.shipping_validation_status,
+      }
+      const shippingPolicyGroupKey = `${source.supplierId}|${source.sourceProductId}|${hash(shippingPolicyIdentity)}`
       const sourceCost = numericSourcePrice(option)
-      const landedCost = sourceCost + shippingFee
+      const landedCost = sourceCost
       options.push({
         sourceOptionId,
         sourceIdType: option.sourceIdType,
@@ -143,8 +154,9 @@ for (const group of groups) {
         sourceCost,
         shippingFee,
         shipping_policy: shippingPolicy,
+        shipping_policy_group_key: shippingPolicyGroupKey,
         landedCost,
-        salePrice: salePrice(landedCost),
+        salePrice: salePrice(sourceCost),
         stockStatus: option.stockStatus === "out_of_stock" ? "out_of_stock" : "in_stock",
         snapshotHash: hash({
           supplierId: source.supplierId,
@@ -152,7 +164,7 @@ for (const group of groups) {
           sourceOptionId: option.sourceOptionId,
           price: sourceCost,
           stockStatus: option.stockStatus,
-          shippingPolicy,
+          shippingPolicy: shippingPolicyIdentity,
         }),
         hardSpecFingerprint: hash({
           product: canonicalProductKey(source.productName),

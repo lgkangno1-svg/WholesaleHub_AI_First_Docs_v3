@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest"
+import { readFileSync } from "node:fs"
+import { spawnSync } from "node:child_process"
 
 function parseShippingPolicy(rawText, collectedAt = new Date().toISOString()) {
   const text = String(rawText ?? "").trim()
@@ -130,6 +132,20 @@ function sourceSpecFields(sourceOptionLabel) {
   }
 }
 
+function shippingAmount(policy, quantity) {
+  if (policy.shipping_validation_status !== "valid") return null
+  if (policy.shipping_policy_type === "free") return 0
+  if (policy.shipping_policy_type === "fixed") return policy.shipping_base_fee
+  const tier = policy.shipping_tiers.find(
+    (item) => quantity >= item.min_qty && quantity < item.max_qty_exclusive,
+  )
+  if (tier) return tier.fee
+  if (policy.shipping_policy_type === "quantity_tiered" && policy.shipping_tiers.length === 1) {
+    return Math.ceil(quantity / policy.shipping_tiers[0].max_qty_exclusive) * policy.shipping_base_fee
+  }
+  return null
+}
+
 describe("Daily Renewal Crawler & Option Normalization", () => {
   it("preserves black mango watermelon 1통, 2통, 3통, 4통 count labels and prevents 망 misrecognition", () => {
     const options = [
@@ -187,5 +203,64 @@ describe("Shipping Policy Metadata Parsing", () => {
     const policyEmpty = parseShippingPolicy("")
     expect(policyEmpty.shipping_policy_type).toBe("unknown")
     expect(policyEmpty.shipping_validation_status).toBe("review_required")
+  })
+
+  it("parses every distinct live raw pattern family", () => {
+    expect(parseShippingPolicy("무료자세히 무료 제주도 : 5,000원도서산간 : 5,000원")).toMatchObject({
+      shipping_policy_type: "free",
+      shipping_jeju_extra_fee: 5000,
+      shipping_remote_extra_fee: 5000,
+    })
+    expect(parseShippingPolicy("1,900원\n제주도 : 5,000원 추가\n도서산간 : 5,000원 추가")).toMatchObject({
+      shipping_policy_type: "fixed",
+      shipping_base_fee: 1900,
+    })
+    expect(parseShippingPolicy("수량별배송비자세히 0개 이상 ~ 6개 미만 4,000원 제주도 : 5,000원도서산간 : 5,000원")).toMatchObject({
+      shipping_policy_type: "quantity_tiered",
+      shipping_base_fee: 4000,
+      shipping_tiers: [{ min_qty: 0, max_qty_exclusive: 6, fee: 4000 }],
+    })
+  })
+
+  it("charges the tier boundary and repeated single-range fee without trusting frontend input", () => {
+    const policy = parseShippingPolicy("0개 이상 ~ 5개 미만 3,000원")
+    expect(shippingAmount(policy, 4)).toBe(3000)
+    expect(shippingAmount(policy, 5)).toBe(3000)
+    expect(shippingAmount(policy, 6)).toBe(6000)
+    expect(shippingAmount({ ...policy, shipping_validation_status: "review_required" }, 1)).toBeNull()
+  })
+
+  it("keeps same-policy groups together and different products, policies, and lanes separate", () => {
+    const keys = [
+      "dailyfood|product-a|policy-1",
+      "dailyfood|product-a|policy-1",
+      "dailyfood|product-a|policy-2",
+      "dailyfood|product-b|policy-1",
+      "walldob2b|product-a|policy-1",
+    ]
+    expect(new Set(keys).size).toBe(4)
+  })
+
+  it("syntax-checks the actual collector and asserts server-side safety and order snapshot wiring", () => {
+    const collector = "scripts/supplier-catalog/collect-dailyfood-catalog.mjs"
+    expect(spawnSync(process.execPath, ["--check", collector]).status).toBe(0)
+    const plan = readFileSync("scripts/supplier-catalog/build-catalog-plan.mjs", "utf8")
+    const plugin = readFileSync(
+      "wordpress/plugins/wholesalehub-supplier-lanes/wholesalehub-supplier-lanes.php",
+      "utf8",
+    )
+    const approval = readFileSync(
+      "wordpress/plugins/wholesalehub-supplier-lanes/includes/class-wholesalehub-supplier-lane-approval.php",
+      "utf8",
+    )
+    expect(plan).toContain("salePrice(sourceCost)")
+    expect(plugin).toContain("validate_cart_shipping_policies")
+    expect(plugin).toContain("wholesalehub_shipping_review_required")
+    expect(plugin).toContain("actual_applied_amount")
+    expect(plugin).not.toContain("$base_fee > 0 ? $base_fee : 3000.0")
+    expect(approval).toContain("배송비 {$shipping}")
+    expect(plugin).toContain("'single-offer'")
+    expect(plugin).toContain("'single-supplier'")
+    expect(plugin).toContain("'multi-supplier'")
   })
 })

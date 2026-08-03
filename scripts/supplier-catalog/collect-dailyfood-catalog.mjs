@@ -203,6 +203,7 @@ try {
         return { ok: false, status: 0, text: "", error: last }
       }
       const listGroups = []
+      const rawListProductIds = new Set()
       let paginationComplete = false
       for (let pageNo = 1; pageNo <= 50; pageNo += 1) {
         const url =
@@ -226,6 +227,7 @@ try {
           const sourceProductId = match?.[1]?.trim() ?? ""
           const document = new DOMParser().parseFromString(html, "text/html")
           const listName = normalize(document.querySelector(".pname")?.textContent ?? "")
+          if (sourceProductId && listName) rawListProductIds.add(sourceProductId)
           if (sourceProductId && listName && !excludedSourceIdSet.has(sourceProductId)) {
             listGroups.push({
               sourceProductId,
@@ -386,6 +388,7 @@ try {
       }
       return {
         paginationComplete,
+        rawListGroupCount: rawListProductIds.size,
         listGroupCount: listGroups.length,
         groups,
         detailStatus,
@@ -448,6 +451,7 @@ try {
       exclusions.push({
         supplier: "dailyfood",
         sourceProductId: group.sourceProductId,
+        productName: group.productName,
         url: group.detailUrl,
         reason: "terminal_excluded",
         keyword: "가성비",
@@ -471,6 +475,7 @@ try {
             ? nameCandidates
             : []
       const matched = candidates[0]
+      if (!matched) {
         const rawShippingText = option.shipping || ""
         const shippingPolicy = parseShippingPolicy(rawShippingText)
         options.push({
@@ -496,6 +501,7 @@ try {
           supplier: "dailyfood",
           sourceProductId: group.sourceProductId,
           sourceOptionId: matched.pcode,
+          productName: group.productName,
           url: detail?.url ?? group.detailUrl,
           reason: "individual_detail_fetch_failed",
         })
@@ -542,6 +548,7 @@ try {
       exclusions.push({
         supplier: "dailyfood",
         sourceProductId: group.sourceProductId,
+        productName: group.productName,
         url: group.detailUrl,
         reason: "no_valid_options",
       })
@@ -554,6 +561,7 @@ try {
         supplier: "dailyfood",
         sourceProductId: row.pcode,
         sourceOptionId: row.pcode,
+        productName: row.productName,
         url: `${baseUrl}/partner/?mod=product&actpage=prt.detail.pop&pcode=${encodeURIComponent(row.pcode)}`,
         reason: "terminal_excluded",
         keyword: "가성비",
@@ -609,6 +617,7 @@ try {
       duplicateProductIds === 0 &&
       duplicateOptionIds === 0,
     source: {
+      rawListGroupCount: browserResult.rawListGroupCount,
       listGroupCount: browserResult.listGroupCount,
       exportRowCount: exportRows.length,
       individualDetailSuccessCount: Object.values(browserResult.detailStatus).filter(

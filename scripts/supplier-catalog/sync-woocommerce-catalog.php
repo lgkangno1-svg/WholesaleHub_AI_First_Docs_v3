@@ -62,6 +62,7 @@ $image_retry_required_products = [];
 $source_image_unavailable_products = [];
 $touched_parents = [];
 $variation_price_changes = [];
+$shipping_mappings = [];
 $exclusion_result = wh_sync_reconcile_terminal_exclusions(
     is_array($plan['exclusions'] ?? null) ? $plan['exclusions'] : [],
     $parent_table,
@@ -250,6 +251,27 @@ foreach ($groups as $group) {
                         sanitize_text_field((string) $option['hardSpecFingerprint'])
                     );
                     $sp_type = (string) ($option['shipping_policy']['shipping_policy_type'] ?? 'unknown');
+                    $sp_status = (string) ($option['shipping_policy']['shipping_validation_status'] ?? 'review_required');
+                    if ($sp_status !== 'valid') {
+                        $previous_policy = json_decode((string) ($existing['shipping_policy_json'] ?? ''), true);
+                        if (is_array($previous_policy) && ($previous_policy['shipping_validation_status'] ?? '') === 'valid') {
+                            $option['shipping_policy'] = $previous_policy;
+                            $previous_group_key = (string) $variation->get_meta('_wh_shipping_policy_group_key');
+                            if ($previous_group_key !== '') {
+                                $option['shipping_policy_group_key'] = $previous_group_key;
+                            }
+                            $sp_type = (string) ($previous_policy['shipping_policy_type'] ?? 'unknown');
+                        } else {
+                            $counts['shipping_unknown_count']++;
+                            $reviews[] = [
+                                'reason' => 'shipping_policy_review_required',
+                                'supplier_id' => $supplier_id,
+                                'source_product_id' => $source_product_id,
+                                'source_option_id' => $source_option_id,
+                            ];
+                            continue;
+                        }
+                    }
                     if ($sp_type === 'free') {
                         $counts['shipping_free_count']++;
                     } elseif ($sp_type === 'fixed') {
@@ -260,6 +282,13 @@ foreach ($groups as $group) {
                         $counts['shipping_unknown_count']++;
                     }
                     $old_sp_json = (string) $variation->get_meta('_wh_shipping_policy');
+                    $previous_woo_policy = $old_sp_json !== '' ? json_decode($old_sp_json, true) : null;
+                    if (
+                        is_array($previous_woo_policy)
+                        && wh_shipping_policy_identity($previous_woo_policy) === wh_shipping_policy_identity($option['shipping_policy'])
+                    ) {
+                        $option['shipping_policy'] = $previous_woo_policy;
+                    }
                     $new_sp_json = isset($option['shipping_policy']) ? (string) wp_json_encode($option['shipping_policy']) : '';
                     if ($old_sp_json !== $new_sp_json) {
                         $counts['shipping_policy_updated']++;
@@ -320,6 +349,19 @@ foreach ($groups as $group) {
                         ],
                         ['id' => (int) $existing['id']]
                     );
+                    $shipping_mappings[] = [
+                        'supplier_id' => $supplier_id,
+                        'source_product_id' => $source_product_id,
+                        'source_option_id' => $source_option_id,
+                        'woo_parent_id' => $parent_id,
+                        'woo_variation_id' => (int) $variation->get_id(),
+                        'public_offer_key' => (string) ($existing['public_offer_key'] ?? ''),
+                        'previous_shipping_policy' => $old_sp_json !== ''
+                            ? json_decode($old_sp_json, true)
+                            : null,
+                        'shipping_policy' => $option['shipping_policy'],
+                        'shipping_policy_changed' => $old_sp_json !== $new_sp_json,
+                    ];
                 } else {
                     $status = WholesaleHub_Supplier_Lane_Approval::stage_option(
                         $parent_id,
@@ -428,6 +470,7 @@ $result = [
     'image_retry_required_products' => $image_retry_required_products,
     'source_image_unavailable_products' => $source_image_unavailable_products,
     'variation_price_changes' => $variation_price_changes,
+    'shipping_mappings' => $shipping_mappings,
 ];
 file_put_contents(
     $result_path,
@@ -868,6 +911,16 @@ function wh_sync_source_spec_meta(WC_Product_Variation $variation, array $option
             wp_json_encode($option['shipping_policy'])
         );
     }
+    $variation->update_meta_data(
+        '_wh_shipping_policy_group_key',
+        sanitize_text_field((string) ($option['shipping_policy_group_key'] ?? ''))
+    );
+}
+
+function wh_shipping_policy_identity(array $policy): string
+{
+    unset($policy['shipping_collected_at']);
+    return (string) wp_json_encode($policy);
 }
 
 function wh_sync_refresh_parent_attributes(int $parent_id, string $offer_table): void

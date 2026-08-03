@@ -109,6 +109,8 @@ docker exec \
   wp --allow-root --path=/var/www/html eval-file /tmp/sync-woocommerce-catalog.php
 docker cp avocadoss-wp:/tmp/catalog-sync-result.json \
   "$REPORT_DIR/catalog-sync-result.json" >/dev/null
+step=shipping_audit
+node scripts/supplier-catalog/generate-daily-shipping-audit.mjs "$REPORT_DIR"
 
 step=completed
 sync_mode=11시
@@ -118,6 +120,7 @@ fi
 telegram_message=$(node -e '
   const result = require(process.argv[1]);
   const syncMode = process.argv[2];
+  const audit = require(process.argv[3]);
   const counts = result.counts ?? {};
   const reviewRequired = (result.reviews ?? [])
     .filter((row) => !["image_failed", "sync_group_failed"].includes(row.reason))
@@ -152,15 +155,17 @@ telegram_message=$(node -e '
     `품절 ${counts.missing_marked_out_of_stock ?? 0}`,
     `신규 상품 승인대기 ${counts.approval_pending_products ?? 0}`,
     `신규 옵션 승인대기 ${counts.approval_pending_options ?? 0}`,
-    `배송비 정책: 무료 ${counts.shipping_free_count ?? 0} / 고정 ${counts.shipping_fixed_count ?? 0} / 수량별 ${counts.shipping_tiered_count ?? 0} / 확인필요 ${counts.shipping_unknown_count ?? 0}`,
+    `배송비 정책: 무료 ${counts.shipping_free_count ?? 0} / 고정 ${counts.shipping_fixed_count ?? 0} / 수량별 ${counts.shipping_tiered_count ?? 0} / 기타 조건부 ${audit.counts?.other_conditional?.options ?? 0} / 확인필요 ${counts.shipping_unknown_count ?? 0}`,
     `배송비 정책 변경 ${counts.shipping_policy_updated ?? 0}`,
+    `상품·옵션 수집 실패 ${audit.counts?.collection_failures ?? 0}`,
+    `이미지 원본 없음 ${counts.source_image_unavailable ?? 0}`,
     `review_required ${(counts.image_review_required ?? 0) + (counts.review_needed ?? 0)}`,
     `실패 ${counts.failed ?? 0}`,
   ];
   if (reviewRequired) lines.push(`review_required 상품 ${reviewRequired}`);
   if (failed) lines.push(`실패 상품 ${failed}`);
   process.stdout.write(lines.join("\n"));
-' "$REPORT_DIR/catalog-sync-result.json" "$sync_mode")
+' "$REPORT_DIR/catalog-sync-result.json" "$sync_mode" "$REPORT_DIR/daily-shipping-audit.json")
 step=telegram
 notify_telegram "$telegram_message"
 printf 'sent %s\n' "$(date -u +%FT%TZ)" >"$REPORT_DIR/telegram-report.status"

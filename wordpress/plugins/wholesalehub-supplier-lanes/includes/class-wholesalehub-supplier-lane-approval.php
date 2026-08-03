@@ -1174,11 +1174,30 @@ final class WholesaleHub_Supplier_Lane_Approval
 
     private static function option_label(array $option): string
     {
-        return sanitize_text_field((string) (
+        $label = sanitize_text_field((string) (
             $option['sourceOptionLabel']
             ?? $option['publicOptionLabel']
             ?? ''
         ));
+        $policy = $option['shipping_policy'] ?? $option['shippingPolicy'] ?? null;
+        if (!is_array($policy)) {
+            return $label;
+        }
+        $type = (string) ($policy['shipping_policy_type'] ?? 'unknown');
+        $base = number_format((float) ($policy['shipping_base_fee'] ?? 0));
+        $shipping = $type === 'free' ? '무료' : ($type === 'fixed' ? "고정 {$base}원" : ($type === 'quantity_tiered' ? '수량별' : '확인 필요'));
+        $jeju = (float) ($policy['shipping_jeju_extra_fee'] ?? 0);
+        $remote = (float) ($policy['shipping_remote_extra_fee'] ?? 0);
+        $suffix = "배송비 {$shipping}";
+        if ($jeju > 0 || $remote > 0) {
+            $suffix .= ' · 제주 +' . number_format($jeju) . '원 · 도서산간 +' . number_format($remote) . '원';
+        }
+        $tiers = is_array($policy['shipping_tiers'] ?? null) ? $policy['shipping_tiers'] : [];
+        if ($tiers !== []) {
+            $tier = $tiers[0];
+            $suffix .= ' · ' . (int) ($tier['min_qty'] ?? 0) . '~' . ((int) ($tier['max_qty_exclusive'] ?? 0) - 1) . '개 ' . number_format((float) ($tier['fee'] ?? 0)) . '원';
+        }
+        return $label . ' · ' . $suffix;
     }
 
     private static function price_range(array $request): string
