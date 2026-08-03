@@ -1,0 +1,52 @@
+import { expect, it } from "vitest"
+import { readFileSync } from "node:fs"
+
+const bulk = readFileSync("wordpress/plugins/wholesalehub-supplier-lanes/includes/class-wholesalehub-bulk-order.php", "utf8")
+const lane = readFileSync("wordpress/plugins/wholesalehub-supplier-lanes/wholesalehub-supplier-lanes.php", "utf8")
+const exportPlugin = readFileSync("wordpress/plugins/avocadoss-supplier-order-export/includes/class-wholesalehub-supplier-order-export.php", "utf8")
+
+it("keeps bulk data server-side and uses the WooCommerce checkout basket", () => {
+  expect(bulk).toContain("MAX_BYTES = 10485760")
+  expect(bulk).toContain("MAX_ROWS = 1000")
+  expect(bulk).toContain("wp_check_filetype_and_ext")
+  expect(bulk).toContain("hash_file('sha256'")
+  expect(bulk).toContain("wholesalehub_bulk_shipments")
+  expect(bulk).toContain("idempotency_key")
+  expect(bulk).toContain("wholesalehub_bulk_rows")
+  expect(bulk).toContain("shipping_snapshot")
+  expect(bulk).toContain("mime_content_type")
+  expect(bulk).toContain("expanded/$compressed>100")
+  expect(bulk).toContain("str_contains($sheet,'<f')")
+  expect(bulk).toContain("_avo_approval_status")
+  expect(bulk).toContain("woocommerce_account_menu_items")
+  expect(bulk).toContain("woocommerce_email_order_meta_fields")
+  expect(bulk).toContain("wh_bulk_result")
+  expect(bulk).toContain("woocommerce_thankyou")
+  expect(bulk).toContain("download_url('wh_bulk_result',$id,'xlsx')")
+  expect(bulk).toContain("group_shipping")
+  expect(bulk).toContain("actual_applied_amount")
+  expect(bulk).toContain("wp_nonce_url")
+  expect(bulk).toContain("flush_rewrite_rules(false)")
+  expect(bulk).toContain("cart_data_from_offer")
+  expect(bulk).toContain("wh-bulk-order-search")
+  expect(bulk).toContain("customer_reference LIKE")
+  expect(bulk).toContain("recipient LIKE")
+  expect(bulk).toContain("manage_woocommerce")
+  expect(bulk).toContain("WC()->cart->empty_cart()")
+  expect(bulk).toContain("woocommerce_payment_complete")
+})
+
+it("exports each bulk item to its shipment recipient without supplier disclosure", () => {
+  expect(exportPlugin).toContain("_wh_bulk_recipient")
+  expect(exportPlugin).toContain("_wh_bulk_address1")
+  expect(exportPlugin).toContain("$bulk_recipient ?: $recipient")
+  expect(exportPlugin).not.toContain("supplier_name")
+})
+
+it("routes product purchase and cart access through checkout", () => {
+  expect(lane).toContain("WC()->cart->empty_cart()")
+  expect(lane).toContain("wc_get_checkout_url()")
+  expect(lane).toContain("redirect_cart_to_checkout")
+  expect(lane).not.toContain("장바구니 담기")
+  expect(lane).toContain("is_checkout()")
+})

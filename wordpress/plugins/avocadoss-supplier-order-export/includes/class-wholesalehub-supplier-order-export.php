@@ -239,6 +239,11 @@ final class Avocadoss_WholesaleHub_Supplier_Order_Export_Command {
     }
 
     private function map_order_row( array $snapshot, WC_Order $order, WC_Order_Item_Product $item ) {
+        $bulk_recipient = (string) $item->get_meta( '_wh_bulk_recipient', true );
+        $bulk_phone = (string) $item->get_meta( '_wh_bulk_phone', true );
+        $bulk_postcode = (string) $item->get_meta( '_wh_bulk_postcode', true );
+        $bulk_address = trim( (string) $item->get_meta( '_wh_bulk_address1', true ) . ' ' . (string) $item->get_meta( '_wh_bulk_address2', true ) );
+        $bulk_message = (string) $item->get_meta( '_wh_bulk_message', true );
         $shipping_first = $order->get_shipping_first_name();
         $shipping_last  = $order->get_shipping_last_name();
         $billing_first  = $order->get_billing_first_name();
@@ -261,7 +266,7 @@ final class Avocadoss_WholesaleHub_Supplier_Order_Export_Command {
                 )
             )
         );
-        return array(
+        $mapped = array(
             'woo_order_id'                    => (int) $snapshot['woo_order_id'],
             'woo_order_item_id'               => (int) $snapshot['woo_order_item_id'],
             'source_snapshot_id'              => (int) $snapshot['woo_order_item_id'],
@@ -269,11 +274,11 @@ final class Avocadoss_WholesaleHub_Supplier_Order_Export_Command {
             'supplier_original_product_title' => (string) $snapshot['supplier_original_product_title'],
             'supplier_original_option_name'   => (string) $snapshot['supplier_original_option_name'],
             'quantity'                        => (int) $snapshot['quantity'],
-            'recipient'                       => $recipient,
-            'recipient_phone'                 => (string) $phone,
-            'postcode'                        => (string) $postcode,
-            'address'                         => $address,
-            'delivery_message'                => (string) $order->get_customer_note(),
+            'recipient'                       => $bulk_recipient ?: $recipient,
+            'recipient_phone'                 => $bulk_phone ?: (string) $phone,
+            'postcode'                        => $bulk_postcode ?: (string) $postcode,
+            'address'                         => $bulk_address ?: $address,
+            'delivery_message'                => $bulk_message ?: (string) $order->get_customer_note(),
             'buyer'                           => trim( $billing_first . ' ' . $billing_last ),
             'buyer_phone'                     => (string) $order->get_billing_phone(),
             'customer_product'                => (string) $item->get_name(),
@@ -287,6 +292,7 @@ final class Avocadoss_WholesaleHub_Supplier_Order_Export_Command {
                 ? (int) $snapshot['shipping_included_snapshot']
                 : null,
         );
+        return $mapped;
     }
 
     private function count_source_unmapped( PDO $database, $order_id_filter ) {

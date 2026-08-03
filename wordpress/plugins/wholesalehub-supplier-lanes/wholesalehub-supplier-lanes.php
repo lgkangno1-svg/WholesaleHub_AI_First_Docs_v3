@@ -10,6 +10,7 @@
 defined('ABSPATH') || exit;
 
 require_once __DIR__ . '/includes/class-wholesalehub-supplier-lane-approval.php';
+require_once __DIR__ . '/includes/class-wholesalehub-bulk-order.php';
 
 final class WholesaleHub_Supplier_Lanes
 {
@@ -43,6 +44,7 @@ final class WholesaleHub_Supplier_Lanes
         add_action('admin_init', [self::class, 'handle_admin_actions']);
         add_action('woocommerce_variable_add_to_cart', [self::class, 'maybe_render_lane_forms'], 1);
         add_action('wp_loaded', [self::class, 'handle_add_to_cart'], 20);
+        add_action('template_redirect', [self::class, 'redirect_cart_to_checkout'], 1);
         add_action('woocommerce_cart_calculate_fees', [self::class, 'calculate_supplier_shipping_fees'], 20);
         add_action('woocommerce_check_cart_items', [self::class, 'validate_cart_shipping_policies']);
         add_filter('woocommerce_add_cart_item_data', [self::class, 'preserve_cart_identity'], 10, 3);
@@ -75,6 +77,7 @@ final class WholesaleHub_Supplier_Lanes
         if ((string) get_option(self::SCHEMA_OPTION, '') !== self::SCHEMA_VERSION) {
             self::install_schema();
         }
+        WholesaleHub_Bulk_Order::install_schema();
     }
 
     public static function install_schema(): void
@@ -238,7 +241,7 @@ final class WholesaleHub_Supplier_Lanes
 
     public static function enqueue_assets(): void
     {
-        if (!is_product()) {
+        if (!is_product() && !is_checkout() && !is_account_page()) {
             return;
         }
         wp_enqueue_style(
@@ -1032,7 +1035,7 @@ final class WholesaleHub_Supplier_Lanes
         echo '<input type="hidden" name="wh_lane" value="' . esc_attr($offer['lane']) . '">';
         echo '<input type="hidden" name="' . esc_attr(self::OFFER_KEY_FIELD) . '" value="' . esc_attr($offer['key']) . '">';
         wp_nonce_field('wh_supplier_lane_add', 'wh_lane_nonce');
-        echo '<button type="submit" class="button alt wh-add-btn">장바구니 담기</button>';
+        echo '<button type="submit" class="button alt wh-add-btn">바로 구매하기</button>';
         echo '</form></article>';
     }
 
@@ -1186,6 +1189,8 @@ final class WholesaleHub_Supplier_Lanes
                 throw new RuntimeException('현재 주문할 수 없는 옵션입니다.');
             }
             $cart_data = self::cart_data_from_offer($offer, $variation);
+            WholesaleHub_Bulk_Order::clear_checkout_session();
+            WC()->cart->empty_cart();
             if (!WC()->cart->add_to_cart(
                 $parent_id,
                 $quantity,
@@ -1193,7 +1198,7 @@ final class WholesaleHub_Supplier_Lanes
                 $variation->get_variation_attributes(),
                 $cart_data
             )) {
-                throw new RuntimeException('장바구니에 담지 못했습니다.');
+                throw new RuntimeException('구매 바구니를 준비하지 못했습니다.');
             }
             WC()->cart->calculate_totals();
             WC()->cart->set_session();
@@ -1204,7 +1209,7 @@ final class WholesaleHub_Supplier_Lanes
                 WC()->session->save_data();
             }
             wc_add_to_cart_message([$variation->get_id() => $quantity], true);
-            wp_safe_redirect(wc_get_cart_url());
+            wp_safe_redirect(wc_get_checkout_url());
             exit;
         } catch (RuntimeException $error) {
             if (function_exists('wc_add_notice')) {
@@ -1213,6 +1218,14 @@ final class WholesaleHub_Supplier_Lanes
                 $redirect = add_query_arg('wh_lane_error', '1', $redirect);
             }
             wp_safe_redirect($redirect);
+            exit;
+        }
+    }
+
+    public static function redirect_cart_to_checkout(): void
+    {
+        if (function_exists('is_cart') && is_cart() && !wp_doing_ajax()) {
+            wp_safe_redirect(function_exists('wc_get_checkout_url') ? wc_get_checkout_url() : home_url('/'));
             exit;
         }
     }
@@ -1280,6 +1293,18 @@ final class WholesaleHub_Supplier_Lanes
         }
         if (!function_exists('WC') || WC()->cart === null || WC()->cart->is_empty()) {
             return;
+        }
+        $cart_items = WC()->cart->get_cart();
+        $bulk_items = array_filter($cart_items, static fn(array $item): bool => !empty($item['wh_bulk_row_id']));
+        if (WC()->session !== null && absint(WC()->session->get('wh_bulk_batch')) && count($bulk_items) === count($cart_items)) {
+            $shipping = WholesaleHub_Bulk_Order::checkout_shipping_total();
+            if ($shipping > 0) {
+                WC()->cart->add_fee(__('배송비', 'wholesalehub-supplier-lanes'), $shipping, false);
+            }
+            return;
+        }
+        if (WC()->session !== null && absint(WC()->session->get('wh_bulk_batch'))) {
+            WholesaleHub_Bulk_Order::clear_checkout_session();
         }
 
         $customer = WC()->customer;
@@ -1451,7 +1476,7 @@ final class WholesaleHub_Supplier_Lanes
         ];
     }
 
-    private static function shipping_amount(array $policy, int $quantity): ?array
+    public static function shipping_amount(array $policy, int $quantity): ?array
     {
         if (($policy['shipping_validation_status'] ?? '') !== 'valid') {
             return null;
@@ -1777,7 +1802,7 @@ final class WholesaleHub_Supplier_Lanes
         echo '<input type="hidden" name="product_id" value="' . (int) $parent_id . '">';
         echo '<input type="hidden" name="wh_lane" value="' . esc_attr($lane) . '">';
         wp_nonce_field('wh_supplier_lane_add', 'wh_lane_nonce');
-        echo '<button type="submit" class="button alt">' . esc_html__('장바구니 담기', 'wholesalehub-supplier-lanes') . '</button>';
+        echo '<button type="submit" class="button alt">' . esc_html__('바로 구매하기', 'wholesalehub-supplier-lanes') . '</button>';
         echo '</form>';
     }
 
@@ -2020,7 +2045,7 @@ final class WholesaleHub_Supplier_Lanes
             : '';
     }
 
-    private static function cart_data_from_offer(array $offer, WC_Product_Variation $variation): array
+    public static function cart_data_from_offer(array $offer, WC_Product_Variation $variation): array
     {
         return [
             'wh_lane_offer_key' => (string) $offer['public_offer_key'],
@@ -2056,7 +2081,11 @@ final class WholesaleHub_Supplier_Lanes
 }
 
 if (function_exists('register_activation_hook')) {
-    register_activation_hook(__FILE__, [WholesaleHub_Supplier_Lanes::class, 'install_schema']);
+    register_activation_hook(__FILE__, static function (): void {
+        WholesaleHub_Supplier_Lanes::install_schema();
+        WholesaleHub_Bulk_Order::install_schema();
+    });
 }
 WholesaleHub_Supplier_Lanes::boot();
 WholesaleHub_Supplier_Lane_Approval::boot();
+WholesaleHub_Bulk_Order::boot();
