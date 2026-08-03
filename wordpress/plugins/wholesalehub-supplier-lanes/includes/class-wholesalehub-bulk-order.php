@@ -5,6 +5,8 @@ final class WholesaleHub_Bulk_Order {
     private const MAX_BYTES = 10485760;
     private const MAX_ROWS = 1000;
     private const NONCE = 'wh_bulk_order';
+    private const SCHEMA_VERSION = '1.0.1';
+    private const SCHEMA_OPTION = 'wh_bulk_schema_version';
 
     public static function boot(): void {
         add_action('init', [self::class, 'routes']);
@@ -26,12 +28,75 @@ final class WholesaleHub_Bulk_Order {
     }
 
     public static function install_schema(): void {
+        if ((string) get_option(self::SCHEMA_OPTION, '') === self::SCHEMA_VERSION) {
+            return;
+        }
         global $wpdb;
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         $c = $wpdb->get_charset_collate();
-        foreach (['batches' => "id bigint unsigned NOT NULL AUTO_INCREMENT, uuid char(36) NOT NULL, customer_id bigint unsigned NOT NULL, status varchar(32) NOT NULL, file_hash char(64) NOT NULL, row_count int unsigned NOT NULL, shipment_count int unsigned NOT NULL DEFAULT 0, item_subtotal decimal(18,2) NOT NULL DEFAULT 0, shipping_total decimal(18,2) NOT NULL DEFAULT 0, grand_total decimal(18,2) NOT NULL DEFAULT 0, woo_order_id bigint unsigned NULL, idempotency_key varchar(64) NULL, created_at datetime NOT NULL, expires_at datetime NOT NULL, finalized_at datetime NULL, PRIMARY KEY(id), UNIQUE KEY uuid(uuid), UNIQUE KEY customer_file(customer_id,file_hash), UNIQUE KEY idempotency_key(idempotency_key)", 'rows' => "id bigint unsigned NOT NULL AUTO_INCREMENT, batch_id bigint unsigned NOT NULL, row_number int unsigned NOT NULL, customer_reference varchar(100) NOT NULL, variation_id bigint unsigned NULL, public_offer_key varchar(191) NOT NULL, quantity int unsigned NOT NULL, recipient varchar(100) NOT NULL, phone varchar(40) NOT NULL, postcode varchar(20) NOT NULL, address1 text NOT NULL, address2 text NULL, message text NULL, unit_price decimal(18,2) NOT NULL DEFAULT 0, shipping_snapshot longtext NULL, validation_state varchar(24) NOT NULL, error_code varchar(64) NULL, error_message text NULL, PRIMARY KEY(id), KEY batch_row(batch_id,row_number)", 'shipments' => "id bigint unsigned NOT NULL AUTO_INCREMENT, batch_id bigint unsigned NOT NULL, group_key varchar(191) NOT NULL, customer_reference varchar(100) NOT NULL, recipient varchar(100) NOT NULL, phone varchar(40) NOT NULL, postcode varchar(20) NOT NULL, address1 text NOT NULL, address2 text NULL, item_subtotal decimal(18,2) NOT NULL DEFAULT 0, shipping_amount decimal(18,2) NOT NULL DEFAULT 0, fulfillment_status varchar(32) NOT NULL DEFAULT 'pending', snapshot longtext NULL, PRIMARY KEY(id), UNIQUE KEY batch_group(batch_id,group_key)"] as $name => $sql) {
+        $tables = [
+            'batches' => "
+                id bigint unsigned NOT NULL AUTO_INCREMENT,
+                uuid char(36) NOT NULL,
+                customer_id bigint unsigned NOT NULL,
+                status varchar(32) NOT NULL,
+                file_hash char(64) NOT NULL,
+                row_count int unsigned NOT NULL,
+                shipment_count int unsigned NOT NULL DEFAULT 0,
+                item_subtotal decimal(18,2) NOT NULL DEFAULT 0,
+                shipping_total decimal(18,2) NOT NULL DEFAULT 0,
+                grand_total decimal(18,2) NOT NULL DEFAULT 0,
+                woo_order_id bigint unsigned NULL,
+                idempotency_key varchar(64) NULL,
+                created_at datetime NOT NULL,
+                expires_at datetime NOT NULL,
+                finalized_at datetime NULL,
+                PRIMARY KEY  (id),
+                UNIQUE KEY uuid (uuid),
+                UNIQUE KEY customer_file (customer_id, file_hash),
+                UNIQUE KEY idempotency_key (idempotency_key)",
+            'rows' => "
+                id bigint unsigned NOT NULL AUTO_INCREMENT,
+                batch_id bigint unsigned NOT NULL,
+                row_number int unsigned NOT NULL,
+                customer_reference varchar(100) NOT NULL,
+                variation_id bigint unsigned NULL,
+                public_offer_key varchar(191) NOT NULL,
+                quantity int unsigned NOT NULL,
+                recipient varchar(100) NOT NULL,
+                phone varchar(40) NOT NULL,
+                postcode varchar(20) NOT NULL,
+                address1 text NOT NULL,
+                address2 text NULL,
+                message text NULL,
+                unit_price decimal(18,2) NOT NULL DEFAULT 0,
+                shipping_snapshot longtext NULL,
+                validation_state varchar(24) NOT NULL,
+                error_code varchar(64) NULL,
+                error_message text NULL,
+                PRIMARY KEY  (id),
+                KEY batch_row (batch_id, row_number)",
+            'shipments' => "
+                id bigint unsigned NOT NULL AUTO_INCREMENT,
+                batch_id bigint unsigned NOT NULL,
+                group_key varchar(191) NOT NULL,
+                customer_reference varchar(100) NOT NULL,
+                recipient varchar(100) NOT NULL,
+                phone varchar(40) NOT NULL,
+                postcode varchar(20) NOT NULL,
+                address1 text NOT NULL,
+                address2 text NULL,
+                item_subtotal decimal(18,2) NOT NULL DEFAULT 0,
+                shipping_amount decimal(18,2) NOT NULL DEFAULT 0,
+                fulfillment_status varchar(32) NOT NULL DEFAULT 'pending',
+                snapshot longtext NULL,
+                PRIMARY KEY  (id),
+                UNIQUE KEY batch_group (batch_id, group_key)",
+        ];
+        foreach ($tables as $name => $sql) {
             dbDelta("CREATE TABLE {$wpdb->prefix}wholesalehub_bulk_{$name} ({$sql}) {$c};");
         }
+        update_option(self::SCHEMA_OPTION, self::SCHEMA_VERSION);
     }
 
     public static function routes(): void {
