@@ -76,8 +76,11 @@ step=dailyfood
 trap 'code=$?; notify_telegram "도매Hub 공급사 카탈로그 동기화 실패: 단계=$step 코드=$code" || true; emit_result failed "$code" "$step"; exit "$code"' ERR
 cd "$PROJECT_DIR"
 
-step=build
-npm run build
+step=preflight
+node --check scripts/supplier-catalog/collect-dailyfood-catalog.mjs
+node --check scripts/supplier-catalog/collect-walldob2b-catalog.mjs
+node --check scripts/supplier-catalog/build-catalog-plan.mjs
+node --check scripts/supplier-catalog/generate-daily-shipping-audit.mjs
 if [ "$RUN_HOUR" = "11" ] && [ "$SECONDARY_ONLY" != "1" ]; then
   if ! mkdir "$ADMINPLUS_RUN_DIR/$RUN_DATE" 2>/dev/null; then
     emit_result completed 0 completed
