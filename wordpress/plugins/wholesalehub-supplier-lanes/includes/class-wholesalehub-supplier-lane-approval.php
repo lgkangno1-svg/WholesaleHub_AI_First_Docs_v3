@@ -71,16 +71,25 @@ final class WholesaleHub_Supplier_Lane_Approval
             return 'invalid';
         }
         $options = array_values(is_array($lane['options'] ?? null) ? $lane['options'] : []);
+        $categories = array_values(array_filter(array_map(
+            'sanitize_text_field',
+            is_array($group['approvalCategories'] ?? null)
+                ? $group['approvalCategories']
+                : []
+        )));
+        $suggested_category_id = 0;
+        if (isset($categories[0])) {
+            $term = get_term_by('name', $categories[0], 'product_cat');
+            if ($term && !is_wp_error($term)) {
+                $suggested_category_id = (int) $term->term_id;
+            }
+        }
         $payload = [
             'group' => [
                 'displayName' => sanitize_text_field((string) ($group['displayName'] ?? '')),
                 'source_image_url' => esc_url_raw((string) ($group['source_image_url'] ?? '')),
-                'categories' => array_values(array_filter(array_map(
-                    'sanitize_text_field',
-                    is_array($group['approvalCategories'] ?? null)
-                        ? $group['approvalCategories']
-                        : []
-                ))),
+                'categories' => $categories,
+                'suggestedCategoryId' => $suggested_category_id,
                 'testMode' => !empty($group['_approvalTestMode']),
             ],
             'lane' => [
@@ -189,7 +198,16 @@ final class WholesaleHub_Supplier_Lane_Approval
             return null;
         }
         $action = (string) $parts[2];
-        if (
+        $arg = $parts[3] ?? null;
+        if ($action === 'cat') {
+            if ($arg === null || preg_match('/^[1-9][0-9]*$/', $arg) !== 1) {
+                return null;
+            }
+        } elseif ($action === 'tax') {
+            if (!in_array($arg, ['n', 't'], true)) {
+                return null;
+            }
+        } elseif (
             !in_array(
                 $action,
                 ['link', 'new', 'newok', 'add', 'addok', 'hold', 'exclude', 'back', 'confirm'],
@@ -199,7 +217,7 @@ final class WholesaleHub_Supplier_Lane_Approval
         ) {
             return null;
         }
-        return ['token' => $parts[1], 'action' => $action];
+        return ['token' => $parts[1], 'action' => $action, 'arg' => $arg];
     }
 
     public static function initial_buttons(array $request): array
@@ -224,20 +242,7 @@ final class WholesaleHub_Supplier_Lane_Approval
                 ],
             ];
         }
-        return [
-            [[
-                'text' => '🔗 기존 상품 연결',
-                'callback_data' => self::callback($token, 'link'),
-            ]],
-            [[
-                'text' => '➕ 새 상품 등록',
-                'callback_data' => self::callback($token, 'new'),
-            ]],
-            [
-                ['text' => '⏸ 보류', 'callback_data' => self::callback($token, 'hold')],
-                ['text' => '🚫 영구 제외', 'callback_data' => self::callback($token, 'exclude')],
-            ],
-        ];
+        return self::approval_buttons($request);
     }
 
     public static function handle_telegram_callback($result, array $callback)
@@ -266,6 +271,12 @@ final class WholesaleHub_Supplier_Lane_Approval
                 self::message_text($request),
                 self::initial_buttons($request)
             );
+        }
+        if ($action === 'cat') {
+            return self::select_category_callback($request, (int) $parsed['arg'], $actor);
+        }
+        if ($action === 'tax') {
+            return self::select_tax_callback($request, (string) $parsed['arg'], $actor);
         }
         if ($action === 'link' || str_starts_with($action, 'page')) {
             $page = $action === 'link' ? 0 : max(0, ((int) substr($action, 4)) - 1);
@@ -296,11 +307,25 @@ final class WholesaleHub_Supplier_Lane_Approval
             );
         }
         if ($action === 'new') {
+            if ((string) $request['request_kind'] !== 'product') {
+                return self::response(false, '잘못된 요청입니다.');
+            }
+            $selection = self::selection($request);
+            if (empty($selection['selected_category_id'])) {
+                return self::response(false, '카테고리를 먼저 선택해주세요.');
+            }
+            if (empty($selection['final_tax_status'])) {
+                return self::response(false, '과세/면세를 먼저 확정해주세요.');
+            }
+            $category_label = self::category_label((int) $selection['selected_category_id']);
+            $tax_label = self::tax_label((string) $selection['final_tax_status']);
             return self::response(
                 true,
                 '새 상품 생성을 확인하세요.',
                 "새 상품으로 생성하시겠습니까?\n\n{$request['original_product_name']}\n"
-                    . "{$request['option_summary']}\n" . self::supplier_name($request['supplier_id']),
+                    . "{$request['option_summary']}\n"
+                    . "카테고리: {$category_label}\n세금: {$tax_label}\n"
+                    . self::supplier_name($request['supplier_id']),
                 [
                     [[
                         'text' => '✅ 생성',
@@ -419,13 +444,27 @@ final class WholesaleHub_Supplier_Lane_Approval
             if ((string) $existing['status'] === 'approved') {
                 return 'approved';
             }
+            $existing_payload = json_decode((string) $existing['payload_json'], true);
+            $existing_selection = is_array($existing_payload['approval_selection'] ?? null)
+                ? $existing_payload['approval_selection']
+                : null;
+            $new_payload = json_decode((string) $data['payload_json'], true);
+            if (!is_array($new_payload)) {
+                $new_payload = [];
+            }
+            if (is_array($existing_selection)) {
+                $new_payload['approval_selection'] = $existing_selection;
+            }
             $wpdb->update(
                 $table,
                 [
                     'original_product_name' => $data['original_product_name'],
                     'option_summary' => $data['option_summary'],
                     'hard_spec_fingerprint' => $data['hard_spec_fingerprint'],
-                    'payload_json' => $data['payload_json'],
+                    'payload_json' => wp_json_encode(
+                        $new_payload,
+                        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                    ),
                     'updated_at' => current_time('mysql', true),
                 ],
                 ['id' => (int) $existing['id']]
@@ -450,17 +489,25 @@ final class WholesaleHub_Supplier_Lane_Approval
         return 'failed';
     }
 
-    private static function maybe_notify(int $request_id): void
+    public static function send_pending_telegram_approval(int $request_id): bool
+    {
+        return self::maybe_notify($request_id, true);
+    }
+
+    private static function maybe_notify(int $request_id, bool $force = false): bool
     {
         global $wpdb;
         $request = self::request_by_id($request_id);
         if (
+            (!$force && (!defined('WHOLESALEHUB_TELEGRAM_APPROVAL_AUTO_SEND')
+                || !WHOLESALEHUB_TELEGRAM_APPROVAL_AUTO_SEND))
+            ||
             $request === null
             || !in_array((string) $request['status'], self::PENDING_STATUSES, true)
             || (int) $request['telegram_message_id'] > 0
             || !function_exists('avocadoss_send_telegram_approval_message')
         ) {
-            return;
+            return false;
         }
         $now = current_time('mysql', true);
         $stale_before = gmdate('Y-m-d H:i:s', time() - (10 * MINUTE_IN_SECONDS));
@@ -476,7 +523,7 @@ final class WholesaleHub_Supplier_Lane_Approval
             $stale_before
         ));
         if ($claimed !== 1) {
-            return;
+            return false;
         }
         $elapsed = microtime(true) - self::$last_notification_time;
         if (self::$last_notification_time > 0 && $elapsed < 1.1) {
@@ -493,7 +540,7 @@ final class WholesaleHub_Supplier_Lane_Approval
                 ['telegram_sent_at' => null, 'updated_at' => current_time('mysql', true)],
                 ['id' => $request_id, 'telegram_message_id' => null]
             );
-            return;
+            return false;
         }
         $wpdb->update(
             self::table(),
@@ -504,6 +551,7 @@ final class WholesaleHub_Supplier_Lane_Approval
             ],
             ['id' => $request_id]
         );
+        return true;
     }
 
     private static function message_text(array $request): string
@@ -520,14 +568,55 @@ final class WholesaleHub_Supplier_Lane_Approval
             $candidate_lines[] = ($index + 1) . '. ' . $candidate['name']
                 . ' — Woo #' . $candidate['id'];
         }
-        return "🆕 신규 상품 감지\n\n공급사: {$supplier}\n"
-            . "원본 상품명: {$request['original_product_name']}\n"
-            . "Source Product ID: {$request['source_product_id']}\n\n대표 규격:\n"
-            . ($request['option_summary'] ?: '- 없음')
-            . "\n\n공급가 범위:\n" . self::price_range($request)
-            . "\n\n유사 Hub 상품:\n"
-            . ($candidate_lines === [] ? '- 후보 없음' : implode("\n", $candidate_lines))
-            . "\n\n처리 방법을 선택하세요.";
+        $payload = json_decode((string) $request['payload_json'], true);
+        $selection = self::selection($request);
+        $suggested_category_id = (int) ($payload['group']['suggestedCategoryId'] ?? 0);
+        $suggested_category_name = $suggested_category_id > 0
+            ? self::category_label($suggested_category_id)
+            : '없음';
+        $selected_category_id = (int) ($selection['selected_category_id'] ?? 0);
+        $selected_category_name = $selected_category_id > 0
+            ? self::category_label($selected_category_id)
+            : '';
+        $final_tax = (string) ($selection['final_tax_status'] ?? '');
+        $suggested_tax = self::suggest_tax_status($request);
+        $category_warn = (
+            $suggested_category_id > 0
+            && $selected_category_id > 0
+            && $suggested_category_id !== $selected_category_id
+        ) ? ' ⚠️' : '';
+        $lines = [
+            '🆕 신규 상품 감지',
+            '공급사: ' . $supplier,
+            '원본 상품명: ' . $request['original_product_name'],
+            'Source Product ID: ' . $request['source_product_id'],
+            '',
+            '현재 자동추정 카테고리: ' . $suggested_category_name . $category_warn,
+            '선택된 카테고리: ' . ($selected_category_name !== ''
+                ? $selected_category_name . ' ✅'
+                : '미선택'),
+            '세금 자동제안: ' . self::tax_label($suggested_tax),
+            '최종 세금: ' . ($final_tax !== ''
+                ? self::tax_label($final_tax) . ' ✅'
+                : '미선택'),
+            '',
+            '대표 규격:',
+            $request['option_summary'] ?: '- 없음',
+            '공급가 범위:',
+            self::price_range($request),
+            '유사 Hub 상품:',
+            $candidate_lines === [] ? '- 후보 없음' : implode("\n", $candidate_lines),
+        ];
+        if ($selected_category_id <= 0) {
+            $lines[] = '';
+            $lines[] = '아래에서 카테고리를 먼저 선택하세요.';
+        } elseif ($final_tax === '') {
+            $lines[] = '';
+            $lines[] = '카테고리 선택 완료. 과세/면세를 확정하세요.';
+        }
+        $lines[] = '';
+        $lines[] = '처리 방법을 선택하세요.';
+        return implode("\n", $lines);
     }
 
     private static function candidate_response(array $request, int $page): array
@@ -579,6 +668,7 @@ final class WholesaleHub_Supplier_Lane_Approval
             'order' => 'DESC',
         ]);
         $source_tokens = self::tokens((string) $request['original_product_name']);
+        $source_family = self::product_family((string) $request['original_product_name']);
         $payload = json_decode((string) $request['payload_json'], true);
         $test_request = !empty($payload['group']['testMode']);
         $rows = [];
@@ -603,6 +693,14 @@ final class WholesaleHub_Supplier_Lane_Approval
                 continue;
             }
             $name = get_the_title((int) $id);
+            $target_family = self::product_family($name);
+            if (
+                (string) $request['request_kind'] === 'product'
+                && $source_family !== 'unknown'
+                && $target_family !== $source_family
+            ) {
+                continue;
+            }
             $target_tokens = self::tokens($name);
             $intersection = count(array_intersect($source_tokens, $target_tokens));
             $union = count(array_unique(array_merge($source_tokens, $target_tokens)));
@@ -823,7 +921,8 @@ final class WholesaleHub_Supplier_Lane_Approval
                     (string) $request['lane_code'],
                     (string) $request['supplier_id'],
                     (string) $request['source_product_id'],
-                    $option
+                    $option,
+                    self::final_tax_from_payload($request)
                 );
                 if ($variation_id > 0) {
                     $created[] = $variation_id;
@@ -858,7 +957,11 @@ final class WholesaleHub_Supplier_Lane_Approval
             WC_Product_Variable::sync($parent_id);
             $parent = wc_get_product($parent_id);
             if ($mode === 'new' && $parent instanceof WC_Product_Variable) {
-                if (!$test_mode && function_exists('avocadoss_ensure_product_thumbnail')) {
+                $ai_thumbnail_id = 0;
+                if (function_exists('avocadoss_generate_ai_thumbnail')) {
+                    $ai_thumbnail_id = (int) avocadoss_generate_ai_thumbnail($parent_id);
+                }
+                if ($ai_thumbnail_id <= 0 && !$test_mode && function_exists('avocadoss_ensure_product_thumbnail')) {
                     if (!avocadoss_ensure_product_thumbnail($parent_id)) {
                         throw new RuntimeException('source_image_required');
                     }
@@ -895,6 +998,10 @@ final class WholesaleHub_Supplier_Lane_Approval
 
     private static function create_parent(array $request, array $payload, bool $test_mode): int
     {
+        $selection = is_array($payload['approval_selection'] ?? null)
+            ? $payload['approval_selection']
+            : [];
+        $final_tax = (string) ($selection['final_tax_status'] ?? '');
         $product = new WC_Product_Variable();
         $product->set_name((string) $request['original_product_name']);
         $product->set_status('private');
@@ -903,6 +1010,9 @@ final class WholesaleHub_Supplier_Lane_Approval
             '<p>선택한 옵션과 수량에 따라 주문할 수 있습니다. 옵션별로 나누어 배송될 수 있습니다.</p>'
         );
         $product->set_short_description('<p>신선 상품 옵션을 선택해 주문하세요.</p>');
+        if (in_array($final_tax, ['none', 'taxable'], true)) {
+            $product->set_tax_status($final_tax);
+        }
         $product->update_meta_data('_wh_supplier_lane_mode', '1');
         if ($test_mode) {
             $product->update_meta_data('_wh_approval_test_mode', '1');
@@ -919,6 +1029,10 @@ final class WholesaleHub_Supplier_Lane_Approval
             'sanitize_text_field',
             (array) ($payload['group']['categories'] ?? [])
         )));
+        $selected_category_id = (int) ($selection['selected_category_id'] ?? 0);
+        if ($selected_category_id > 0) {
+            $categories = [(int) $selected_category_id];
+        }
         if ($categories !== []) {
             wp_set_object_terms($parent_id, $categories, 'product_cat', false);
         }
@@ -931,7 +1045,8 @@ final class WholesaleHub_Supplier_Lane_Approval
         string $lane_code,
         string $supplier_id,
         string $source_product_id,
-        array $option
+        array $option,
+        string $tax_status = ''
     ): int {
         global $wpdb;
         $source_option_id = sanitize_text_field((string) ($option['sourceOptionId'] ?? ''));
@@ -963,6 +1078,9 @@ final class WholesaleHub_Supplier_Lane_Approval
         $variation->set_price(wc_format_decimal($sale_price, 2));
         $variation->set_manage_stock(false);
         $variation->set_stock_status($stock_status);
+        if (in_array($tax_status, ['none', 'taxable'], true)) {
+            $variation->set_tax_status($tax_status);
+        }
         $variation->set_attributes([
             sanitize_title('출고구분') => $lane_code === 'A' ? 'A사' : 'B사',
             sanitize_title('구매옵션') => $public_label,
@@ -1239,9 +1357,253 @@ final class WholesaleHub_Supplier_Lane_Approval
         );
     }
 
+    private static function approval_categories(): array
+    {
+        $names = ['농산물', '가공식품', '수산물', '축산물', '공동구매'];
+        $terms = get_terms([
+            'taxonomy' => 'product_cat',
+            'hide_empty' => false,
+            'parent' => 0,
+            'name' => $names,
+        ]);
+        if (is_wp_error($terms)) {
+            return [];
+        }
+        $by_name = [];
+        foreach ($terms as $term) {
+            $by_name[(string) $term->name] = $term;
+        }
+        $ordered = [];
+        foreach ($names as $name) {
+            if (isset($by_name[$name])) {
+                $ordered[] = $by_name[$name];
+            }
+        }
+        return $ordered;
+    }
+
+    private static function selection(array $request): array
+    {
+        $payload = json_decode((string) $request['payload_json'], true);
+        return is_array($payload['approval_selection'] ?? null)
+            ? $payload['approval_selection']
+            : [];
+    }
+
+    private static function save_selection(int $request_id, array $selection): void
+    {
+        global $wpdb;
+        $request = self::request_by_id($request_id);
+        if ($request === null) {
+            return;
+        }
+        $payload = json_decode((string) $request['payload_json'], true);
+        if (!is_array($payload)) {
+            $payload = [];
+        }
+        $payload['approval_selection'] = array_merge(
+            self::selection($request),
+            $selection
+        );
+        $wpdb->update(
+            self::table(),
+            [
+                'payload_json' => wp_json_encode(
+                    $payload,
+                    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                ),
+                'updated_at' => current_time('mysql', true),
+            ],
+            ['id' => $request_id]
+        );
+    }
+
+    private static function final_tax_from_payload(array $request): string
+    {
+        $selection = self::selection($request);
+        $final = (string) ($selection['final_tax_status'] ?? '');
+        return in_array($final, ['none', 'taxable'], true) ? $final : '';
+    }
+
+    private static function category_label(int $term_id): string
+    {
+        $term = get_term($term_id, 'product_cat');
+        return ($term && !is_wp_error($term)) ? (string) $term->name : '';
+    }
+
+    private static function tax_label(?string $status): string
+    {
+        if ($status === 'none') {
+            return '면세';
+        }
+        if ($status === 'taxable') {
+            return '과세';
+        }
+        return '확인필요';
+    }
+
+    private static function suggest_tax_status(array $request): string
+    {
+        $payload = json_decode((string) $request['payload_json'], true);
+        $selection = self::selection($request);
+        $category_name = '';
+        $selected_id = (int) ($selection['selected_category_id'] ?? 0);
+        if ($selected_id > 0) {
+            $category_name = self::category_label($selected_id);
+        }
+        if ($category_name === '') {
+            $names = (array) ($payload['group']['categories'] ?? []);
+            $category_name = (string) ($names[0] ?? '');
+        }
+        $name = (string) ($request['original_product_name'] ?? '');
+        $combined = $category_name . ' ' . $name;
+        $review_signals = [
+            '김치', '겉절이', '젓갈', '무침', '식해', '두부', '된장', '고추장', '간장', '쌈장',
+            '식초', '염장', '절임', '건조', '건식', '냉동', '데침', '조리', '가공', '훈제',
+            '양념', '소스', '즙', '통조림', '밀키트', '찌개', '만두', '과자', '잼', '엑기스',
+            '말랭이', '조림', '볶음', '튀김', '반찬', '국수', '라면', '스프', '햄', '소시지',
+            '치즈', '버터', '식용유', '참기름', '들기름', '액젓', '어묵', '맛살', '피클',
+            '장아찌', '소금', '즉석', '레토르트', '분말', '캔',
+        ];
+        foreach ($review_signals as $signal) {
+            if ($signal !== '' && mb_strpos($combined, $signal) !== false) {
+                return 'review';
+            }
+        }
+        if (
+            mb_strpos($category_name, '농산물') !== false
+            || mb_strpos($category_name, '수산물') !== false
+            || mb_strpos($category_name, '축산물') !== false
+        ) {
+            return 'none';
+        }
+        return 'review';
+    }
+
+    private static function approval_buttons(array $request): array
+    {
+        $token = (string) $request['action_token'];
+        $selection = self::selection($request);
+        $selected_id = (int) ($selection['selected_category_id'] ?? 0);
+        $final_tax = (string) ($selection['final_tax_status'] ?? '');
+        $rows = [];
+
+        $category_row = [];
+        foreach (self::approval_categories() as $category) {
+            $category_row[] = [
+                'text' => ($selected_id === (int) $category->term_id ? '✅ ' : '') . $category->name,
+                'callback_data' => self::callback($token, 'cat:' . (int) $category->term_id),
+            ];
+            if (count($category_row) === 2) {
+                $rows[] = $category_row;
+                $category_row = [];
+            }
+        }
+        if ($category_row !== []) {
+            $rows[] = $category_row;
+        }
+
+        if ($selected_id > 0) {
+            $rows[] = [
+                [
+                    'text' => ($final_tax === 'none' ? '✅ ' : '') . '면세 확정',
+                    'callback_data' => self::callback($token, 'tax:n'),
+                ],
+                [
+                    'text' => ($final_tax === 'taxable' ? '✅ ' : '') . '과세 확정',
+                    'callback_data' => self::callback($token, 'tax:t'),
+                ],
+            ];
+        }
+
+        $rows[] = [[
+            'text' => '🔗 기존 상품 연결',
+            'callback_data' => self::callback($token, 'link'),
+        ]];
+        $rows[] = [[
+            'text' => '➕ 새 상품 등록',
+            'callback_data' => self::callback($token, 'new'),
+        ]];
+        $rows[] = [
+            ['text' => '⏸ 보류', 'callback_data' => self::callback($token, 'hold')],
+            ['text' => '🚫 영구 제외', 'callback_data' => self::callback($token, 'exclude')],
+        ];
+        return $rows;
+    }
+
+    private static function select_category_callback(array $request, int $term_id, string $actor): array
+    {
+        $term = get_term($term_id, 'product_cat');
+        if (!$term || is_wp_error($term)) {
+            return self::response(false, '선택할 수 없는 카테고리입니다.');
+        }
+        self::save_selection((int) $request['id'], ['selected_category_id' => (int) $term_id]);
+        $request = self::request_by_id((int) $request['id']) ?? $request;
+        self::audit(
+            (int) $request['id'],
+            'select_category',
+            $actor,
+            null,
+            'pending_mapping',
+            ['term_id' => (int) $term_id]
+        );
+        return self::response(
+            true,
+            '카테고리를 선택했습니다.',
+            self::message_text($request),
+            self::approval_buttons($request)
+        );
+    }
+
+    private static function select_tax_callback(array $request, string $code, string $actor): array
+    {
+        $status = $code === 'n' ? 'none' : 'taxable';
+        self::save_selection((int) $request['id'], ['final_tax_status' => $status]);
+        $request = self::request_by_id((int) $request['id']) ?? $request;
+        self::audit(
+            (int) $request['id'],
+            'select_tax',
+            $actor,
+            null,
+            'pending_mapping',
+            ['tax_status' => $status]
+        );
+        return self::response(
+            true,
+            '세금을 확정했습니다.',
+            self::message_text($request),
+            self::approval_buttons($request)
+        );
+    }
+
     private static function normalized(string $value): string
     {
         return mb_strtolower(preg_replace('/[^\p{L}\p{N}]+/u', '', $value) ?? '');
+    }
+
+    private static function product_family(string $value): string
+    {
+        $compact = preg_replace('/\s+/u', '', $value) ?? '';
+        foreach ([
+            '자몽' => '/레드루비|자몽/u', '옥수수' => '/옥수수/u', '참외' => '/참외/u',
+            '사과' => '/사과/u', '감자' => '/감자/u', '당근' => '/당근/u',
+            '수박' => '/애플수박|흑수박|씨들리스수박|참박수박|수박/u',
+            '복숭아' => '/천도복숭아|망고복숭아|신비복숭아|대극천복숭아|복숭아|백도|황도|천반도|거반도/u',
+            '자두' => '/피자두|대석자두|자두/u', '감귤' => '/감귤|하우스귤|귤/u',
+            '방울토마토' => '/방울토마토/u', '토마토' => '/토마토/u',
+            '포도' => '/샤인머스켓|거봉|캠벨포도|포도/u',
+            '멜론' => '/머스크메론|세지메론|백자멜론|파파야메론|멜론|메론/u',
+            '키위' => '/키위/u', '아보카도' => '/아보카도/u', '망고스틴' => '/망고스틴/u',
+            '망고' => '/망고/u', '용과' => '/용과/u', '체리' => '/체리/u', '살구' => '/살구/u',
+            '호박' => '/호박/u', '고구마' => '/고구마/u', '양파' => '/양파/u', '오이' => '/오이/u',
+            '마늘' => '/마늘/u', '양배추' => '/양배추/u', '배추' => '/배추/u', '깻잎' => '/깻잎/u',
+            '콩' => '/강낭콩|호랑이콩|콩물|콩/u', '마카다미아' => '/마카다미아/u', '석가' => '/석가/u',
+        ] as $family => $pattern) {
+            if (preg_match($pattern, $compact)) {
+                return $family;
+            }
+        }
+        return 'unknown';
     }
 
     private static function tokens(string $value): array

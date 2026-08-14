@@ -309,7 +309,42 @@ try {
                 shipping,
               })
             }
-            const unique = []
+
+            if (options.length === 0) {
+              let singlePrice = 0
+              let singleStockStatus = "in_stock"
+              let singleShipping = ""
+              for (const row of rows) {
+                const cells = [...row.querySelectorAll(":scope > td, :scope > th")]
+                  .map((cell) => normalize(cell.textContent))
+                if (cells.length !== 2) continue
+                const label = cells[0]
+                const value = cells[1]
+                const combined = label + value
+                if (/품절|판매중지|재고부족/.test(combined)) singleStockStatus = "out_of_stock"
+                if (/배송|택배/.test(label)) {
+                  singleShipping = value
+                  continue
+                }
+                if (singlePrice === 0 && /가격|판매가|공급가|소비자가|단가/.test(label)) {
+                  const priceMatch =
+                    value.match(/(?:[0-9][0-9,]*)\s*(?:￦|₩|원|won|krw)/iu) ||
+                    value.match(/(?:￦|₩)\s*[0-9][0-9,]*/u)
+                  if (priceMatch) {
+                    const num = parseMoney(priceMatch[0])
+                    if (num > 0) singlePrice = num
+                  }
+                }
+              }
+              if (singlePrice > 0 && productName) {
+                options.push({
+                  optionName: productName,
+                  price: singlePrice,
+                  stockStatus: singleStockStatus,
+                  shipping: singleShipping,
+                })
+              }
+            }            const unique = []
             const seen = new Set()
             for (const option of options) {
               const key = `${option.optionName}\u0000${option.price}`

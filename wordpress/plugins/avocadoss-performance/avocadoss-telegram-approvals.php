@@ -534,6 +534,228 @@ function avocadoss_ensure_product_thumbnail( $product_id ) {
     return true;
 }
 
+function avocadoss_ai_thumbnail_configured() {
+    if ( defined( 'WHOLESALEHUB_AI_THUMBNAIL_ENABLED' ) && ! WHOLESALEHUB_AI_THUMBNAIL_ENABLED ) {
+        return false;
+    }
+    return '' !== trim( (string) get_option( 'avocadoss_openrouter_api_key', '' ) );
+}
+
+function avocadoss_ai_thumbnail_model() {
+    return defined( 'WHOLESALEHUB_AI_THUMBNAIL_MODEL' )
+        ? (string) WHOLESALEHUB_AI_THUMBNAIL_MODEL
+        : 'google/gemini-3.1-flash-lite-image';
+}
+
+function avocadoss_build_ai_thumbnail_prompt( $product_id ) {
+    $product = wc_get_product( $product_id );
+    $name    = $product ? (string) $product->get_name() : (string) get_the_title( $product_id );
+    $option_labels = array();
+    if ( $product instanceof WC_Product_Variable ) {
+        foreach ( $product->get_children() as $variation_id ) {
+            $variation = wc_get_product( $variation_id );
+            if ( ! $variation ) {
+                continue;
+            }
+            $label = (string) $variation->get_attribute( '구매옵션' );
+            if ( '' !== $label ) {
+                $option_labels[] = $label;
+            }
+        }
+    }
+    $option_note = array_unique( $option_labels ) === array()
+        ? ''
+        : ' 옵션 예시: ' . implode( ', ', array_slice( array_unique( $option_labels ), 0, 4 ) ) . '.';
+    $terms = wp_get_object_terms( $product_id, 'product_cat', array( 'fields' => 'names' ) );
+    $category = is_wp_error( $terms ) || ! is_array( $terms ) ? '' : implode( ', ', array_slice( $terms, 0, 2 ) );
+    $family = '';
+    foreach ( array( '수산물', '축산물', '농산물', '가공식품' ) as $candidate ) {
+        if ( false !== mb_strpos( $category . $name, $candidate ) ) {
+            $family = $candidate;
+            break;
+        }
+    }
+    $family_guide = array(
+        '농산물' => '깨끗한 자연광 아래 신선도가 강조되는, 실제 낱개 또는 묶음 느낌의 자연스러운 구성',
+        '수산물' => '위생적이고 신선한 식재료 느낌, 과도한 연출 없는 정갈한 구성',
+        '축산물' => '신선하고 정갈한 식재료 느낌, 과도한 연출 없는 구성',
+        '가공식품' => '실제 내용물 중심의 구성, 허위 포장 연출 없음',
+    );
+    $family_line = isset( $family_guide[ $family ] ) ? $family_guide[ $family ] : '깨끗하고 자연스러운 판매용 구성';
+    return '한국 식료품 온라인 도매몰 판매용 고품질 실사 썸네일을 만드세요. '
+        . '상품명: ' . $name . '.' . $option_note
+        . ' 카테고리: ' . $category . '. '
+        . $family_line . '. '
+        . '실제 상품과 품목, 품종, 색상, 형태, 수량이 일치해야 하며 허위 포장, 허위 수량, 허위 구성은 금지입니다. '
+        . '기존 공급사 사진과는 다른 새로운 자연스러운 구도로 구성하세요. '
+        . '정사각형 1:1 비율. 텍스트, 문구, 워터마크, 로고 없음. 과장 과다 금지.';
+}
+
+function avocadoss_extract_ai_image_payload( $response ) {
+    if ( is_wp_error( $response ) ) {
+        return '';
+    }
+    $status = (int) wp_remote_retrieve_response_code( $response );
+    if ( 200 > $status || 300 <= $status ) {
+        return '';
+    }
+    $decoded = json_decode( wp_remote_retrieve_body( $response ), true );
+    if ( ! is_array( $decoded ) ) {
+        return '';
+    }
+    $message = isset( $decoded['choices'][0]['message'] ) && is_array( $decoded['choices'][0]['message'] )
+        ? $decoded['choices'][0]['message']
+        : array();
+    foreach ( (array) ( $message['images'] ?? array() ) as $image ) {
+        $url = (string) ( $image['image_url']['url'] ?? '' );
+        if ( '' !== $url ) {
+            return $url;
+        }
+    }
+    $content = $message['content'] ?? '';
+    if ( is_string( $content ) && 1 === preg_match( '/data:image\/[a-z0-9+.]+;base64,[A-Za-z0-9+\/=]+/', $content, $match ) ) {
+        return $match[0];
+    }
+    return '';
+}
+
+function avocadoss_upload_ai_image_attachment( $product_id, $payload ) {
+    require_once ABSPATH . 'wp-admin/includes/file.php';
+    require_once ABSPATH . 'wp-admin/includes/media.php';
+    require_once ABSPATH . 'wp-admin/includes/image.php';
+    $extension = 'png';
+    if ( 1 === preg_match( '#^data:image/([a-z0-9+.]+);base64,#i', $payload, $mime_match ) ) {
+        $extension = sanitize_key( $mime_match[1] );
+    }
+    if ( str_starts_with( $payload, 'data:' ) ) {
+        $parts = explode( ',', $payload, 2 );
+        if ( 2 !== count( $parts ) ) {
+            return 0;
+        }
+        $binary = base64_decode( trim( $parts[1] ), true );
+        if ( false === $binary || '' === $binary ) {
+            return 0;
+        }
+    } elseif ( wp_http_validate_url( $payload ) ) {
+        $fetched = wp_remote_get( $payload, array( 'timeout' => 60 ) );
+        if ( is_wp_error( $fetched ) ) {
+            return 0;
+        }
+        $binary = wp_remote_retrieve_body( $fetched );
+    } else {
+        return 0;
+    }
+    $file_name = 'ai-thumbnail-' . $product_id . '-' . time() . '.' . $extension;
+    $upload = wp_upload_bits( $file_name, null, $binary );
+    if ( ! empty( $upload['error'] ) || empty( $upload['file'] ) ) {
+        return 0;
+    }
+    $attachment_id = wp_insert_attachment(
+        array(
+            'post_mime_type' => $upload['type'],
+            'post_title'     => sanitize_file_name( 'ai-' . get_the_title( $product_id ) ),
+            'post_content'   => '',
+            'post_status'    => 'inherit',
+        ),
+        $upload['file'],
+        $product_id
+    );
+    if ( is_wp_error( $attachment_id ) || 0 === absint( $attachment_id ) ) {
+        return 0;
+    }
+    $attachment_id = (int) $attachment_id;
+    $metadata = wp_generate_attachment_metadata( $attachment_id, $upload['file'] );
+    wp_update_attachment_metadata( $attachment_id, $metadata );
+    update_post_meta( $attachment_id, '_wh_ai_generated_thumbnail', '1' );
+    if ( ! set_post_thumbnail( $product_id, $attachment_id ) ) {
+        return 0;
+    }
+    return $attachment_id;
+}
+
+function avocadoss_is_processed_food_category( $product_id ) {
+    $processed = get_term_by( 'name', '가공식품', 'product_cat' );
+    if ( ! $processed ) {
+        return false;
+    }
+    $terms = wp_get_post_terms( $product_id, 'product_cat', array( 'fields' => 'ids' ) );
+    if ( is_wp_error( $terms ) || empty( $terms ) ) {
+        return false;
+    }
+    foreach ( $terms as $term_id ) {
+        $term = get_term( (int) $term_id, 'product_cat' );
+        while ( $term && ! is_wp_error( $term ) ) {
+            if ( (int) $term->term_id === (int) $processed->term_id ) {
+                return true;
+            }
+            $term = $term->parent ? get_term( (int) $term->parent, 'product_cat' ) : null;
+        }
+    }
+    return false;
+}
+
+function avocadoss_generate_ai_thumbnail( $product_id ) {
+    $product_id = absint( $product_id );
+    if ( $product_id <= 0 || ! avocadoss_ai_thumbnail_configured() ) {
+        return 0;
+    }
+    if ( avocadoss_is_processed_food_category( $product_id ) ) {
+        update_post_meta( $product_id, '_wh_ai_thumbnail_skipped', 'processed_food' );
+        return 0;
+    }
+    $existing = absint( get_post_meta( $product_id, '_wh_ai_thumbnail_attachment', true ) );
+    if ( $existing > 0 && wp_attachment_is_image( $existing ) ) {
+        set_post_thumbnail( $product_id, $existing );
+        return $existing;
+    }
+    if ( '1' === get_post_meta( $product_id, '_wh_ai_thumbnail_failed', true ) ) {
+        return 0;
+    }
+    $prompt = avocadoss_build_ai_thumbnail_prompt( $product_id );
+    $timeout = defined( 'WHOLESALEHUB_AI_THUMBNAIL_TIMEOUT' ) ? (int) WHOLESALEHUB_AI_THUMBNAIL_TIMEOUT : 120;
+    $response = wp_remote_post(
+        'https://openrouter.ai/api/v1/chat/completions',
+        array(
+            'timeout' => $timeout,
+            'headers' => array(
+                'Authorization' => 'Bearer ' . trim( (string) get_option( 'avocadoss_openrouter_api_key', '' ) ),
+                'Content-Type'  => 'application/json',
+            ),
+            'body'    => wp_json_encode(
+                array(
+                    'model'      => avocadoss_ai_thumbnail_model(),
+                    'modalities' => array( 'image', 'text' ),
+                    'messages'   => array(
+                        array(
+                            'role'    => 'user',
+                            'content' => $prompt,
+                        ),
+                    ),
+                ),
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            ),
+        )
+    );
+    $payload = avocadoss_extract_ai_image_payload( $response );
+    if ( '' === $payload ) {
+        update_post_meta( $product_id, '_wh_ai_thumbnail_failed', '1' );
+        update_post_meta( $product_id, '_wh_ai_thumbnail_error', 'image_payload_missing' );
+        return 0;
+    }
+    $attachment_id = avocadoss_upload_ai_image_attachment( $product_id, $payload );
+    if ( $attachment_id <= 0 ) {
+        update_post_meta( $product_id, '_wh_ai_thumbnail_failed', '1' );
+        update_post_meta( $product_id, '_wh_ai_thumbnail_error', 'image_upload_failed' );
+        return 0;
+    }
+    update_post_meta( $product_id, '_wh_ai_thumbnail_attachment', $attachment_id );
+    update_post_meta( $product_id, '_wh_ai_thumbnail_prompt', wp_strip_all_tags( $prompt ) );
+    update_post_meta( $product_id, '_wh_ai_thumbnail_model', avocadoss_ai_thumbnail_model() );
+    delete_post_meta( $product_id, '_wh_ai_thumbnail_failed' );
+    delete_post_meta( $product_id, '_wh_ai_thumbnail_error' );
+    return $attachment_id;
+}
+
 if ( defined( 'WP_CLI' ) && WP_CLI ) {
     WP_CLI::add_command(
         'avocadoss repair-approved-thumbnails',
@@ -876,7 +1098,7 @@ function avocadoss_process_user_telegram_callback( $user_id, $action, $nonce, $m
         wp_mail(
             $user->user_email,
             '[도매허브] 회원가입이 거부되었습니다',
-            "안녕하세요,\n\n죄송합니다. 회원가입 신청이 거부되었습니다.\n\n문의: admin@avocadoss.co.kr"
+            "안녕하세요,\n\n죄송합니다. 회원가입 신청이 거부되었습니다.\n\n문의: tnfwod@naver.com"
         );
     }
     $processed = current_time( 'mysql' );

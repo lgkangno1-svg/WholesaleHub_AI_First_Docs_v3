@@ -316,7 +316,31 @@ final class WholesaleHub_Homepage {
 
 	public static function recommendable_product( $product_id ) {
 		$product = wc_get_product( $product_id );
-		if ( ! $product || 'publish' !== $product->get_status() || '' === $product->get_price() || (float) $product->get_price() <= 0 || ! $product->is_in_stock() ) {
+		if ( ! $product || 'publish' !== $product->get_status() ) {
+			return false;
+		}
+		$price_ok = false;
+		$stock_ok = true;
+		if ( $product->is_type( 'variable' ) ) {
+			$children = $product->get_children();
+			$active_variations = 0;
+			foreach ( $children as $child_id ) {
+				$variation = wc_get_product( (int) $child_id );
+				if ( ! $variation || 'publish' !== $variation->get_status() ) {
+					continue;
+				}
+				$vprice = $variation->get_price();
+				if ( is_numeric( $vprice ) && (float) $vprice > 0 ) {
+					$price_ok = true;
+					++$active_variations;
+				}
+			}
+			$stock_ok = $active_variations > 0;
+		} else {
+			$price_ok = '' !== $product->get_price() && (float) $product->get_price() > 0;
+			$stock_ok = $product->is_in_stock();
+		}
+		if ( ! $price_ok || ! $stock_ok ) {
 			return false;
 		}
 		if ( 'visible' !== $product->get_catalog_visibility() || has_term( '공동구매', 'product_cat', $product_id ) ) {

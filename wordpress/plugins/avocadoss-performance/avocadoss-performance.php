@@ -5,6 +5,8 @@
  * Version: 1.4
  */
 require_once __DIR__ . '/avocadoss-multi-variation-cart.php';
+require_once __DIR__ . '/avocadoss-telegram-approvals.php';
+require_once __DIR__ . '/includes/class-wholesalehub-homepage.php';
 remove_action("wp_head","wp_generator");
 remove_action("wp_head","wlwmanifest_link");
 remove_action("wp_head","rsd_link");
@@ -23,8 +25,7 @@ add_action('wp_head', function(){
 add_action('wp_footer', function(){
     echo '<div id="biz-info" style="background:#1A202C;color:#A0AEC0;text-align:center;padding:16px;font-size:0.82em;line-height:2;border-top:1px solid #2D3748;">';
     echo '상호: 도매허브 &nbsp;|&nbsp; 대표: 강호성 &nbsp;|&nbsp; 사업자등록번호: 502-40-62677<br>';
-    echo '사업장 주소: 경기도 용인시 처인구 남사읍 처인성로 577, 104호 &nbsp;|&nbsp; 통신판매업: 신고 준비중<br>';
-    echo '연락처: 010-3999-8933 &nbsp;|&nbsp; 이메일: admin@avocadoss.co.kr';
+    echo '사업장 주소: 경기도 용인시 처인구 남사읍 처인성로 577, 104호';
     echo '</div>' . PHP_EOL;
 }, 99);
 
@@ -974,7 +975,7 @@ function avocadoss_register_deposit_webhook() {
 
 function avocadoss_verify_webhook_permission( $request ) {
     $token = $request->get_header( 'X-Avocadoss-Key' );
-    $expected_token = 'avcd_sec_dp_token_2026_z'; // Secure API token
+    $expected_token = defined( 'AVOCADOSS_DEPOSIT_WEBHOOK_KEY' ) ? AVOCADOSS_DEPOSIT_WEBHOOK_KEY : ( getenv( 'AVOCADOSS_DEPOSIT_WEBHOOK_KEY' ) !== false ? getenv( 'AVOCADOSS_DEPOSIT_WEBHOOK_KEY' ) : '' );
     return $token === $expected_token;
 }
 
@@ -1035,6 +1036,13 @@ function avocadoss_handle_deposit_webhook( $request ) {
         return new WP_REST_Response( array( 'success' => false, 'message' => sprintf( "'%s' 입금자명에 해당하는 가입 회원을 찾을 수 없습니다.", $sender ) ), 404 );
     }
     
+    // Idempotency guard — atomic claim via unique option_name (prevents concurrent double-credit)
+    $event_key = isset($params['event_id']) ? $params['event_id'] : hash('sha256', $sender . '|' . $amount . '|' . ($params['timestamp'] ?? $params['received_at'] ?? ''));
+    $option_name = 'avocadoss_deposit_event_' . hash('sha256', $event_key);
+    $claimed = add_option( $option_name, time(), '', false );
+    if ( ! $claimed ) {
+        return new WP_REST_Response( array( 'success' => true, 'message' => '이미 처리된 입금 이벤트입니다.', 'duplicate' => true ), 200 );
+    }
     // Update points
     $points = (int) get_user_meta( $user_id, '_avocadoss_points', true );
     $new_points = $points + $amount;
@@ -1058,11 +1066,11 @@ function avocadoss_handle_deposit_webhook( $request ) {
                 'value' => 'pending',
             ),
         ),
-        'posts_per_page' => 1,
+        'posts_per_page' => 2,
     ) );
-    
+    $ambiguous_match = count($pending_requests) > 1;
     $request_matched = false;
-    if ( ! empty( $pending_requests ) ) {
+    if ( ! $ambiguous_match && ! empty( $pending_requests ) ) {
         $req_post = $pending_requests[0];
         update_post_meta( $req_post->ID, '_status', 'completed' );
         wp_update_post( array(
@@ -1135,6 +1143,29 @@ function avocadoss_handle_deposit_webhook( $request ) {
         'auto_paid_order' => $auto_paid_order,
         'related_order_id'=> $related_order_id
     ), 200 );
+}
+
+// P0 paid-order Telegram (payment_complete only — no early alerts)
+add_action( 'woocommerce_payment_complete', 'avocadoss_send_paid_order_telegram', 20 );
+function avocadoss_send_paid_order_telegram( $order_id ) {
+    $order = wc_get_order( $order_id );
+    if ( ! $order || $order->get_meta( '_whh_paid_telegram_sent_at' ) ) {
+        return;
+    }
+    if ( ! function_exists( 'avocadoss_send_telegram_message' ) ) {
+        return;
+    }
+    $message  = '✅ [결제완료] 새로운 주문이 결제 완료되었습니다.
+';
+    $message .= '주문번호: ' . $order->get_order_number() . '
+';
+    $message .= '주문금액: ' . wc_price( $order->get_total() ) . '
+';
+    $message .= '결제수단: ' . $order->get_payment_method_title() . '
+';
+    avocadoss_send_telegram_message( $message );
+    $order->update_meta_data( '_whh_paid_telegram_sent_at', current_time( 'mysql', true ) );
+    $order->save();
 }
 
 // 1) 가입폼에 사업자등록번호, 이름, 연락처, 사업장 주소(우편번호 + 기본주소 + 상세주소) 필드 추가
@@ -1378,7 +1409,7 @@ add_action( 'init', function() {
 
 죄송합니다. 회원가입 신청이 거부되었습니다.
 
-문의: admin@avocadoss.co.kr"
+문의: tnfwod@naver.com"
         );
         wp_die( '<h2>거부 처리 완료</h2><p>' . esc_html( $user->user_email ) . ' 님의 가입을 거부했습니다.</p>', '거부 완료' );
     }
@@ -1498,7 +1529,7 @@ function avo_price_lock_notice() {
     if ( is_user_logged_in() ) {
         $status = get_user_meta( get_current_user_id(), '_avo_approval_status', true );
         if ( 'rejected' === $status ) {
-            echo '<div class="woocommerce-info">가입이 거부되었습니다. 문의: admin@avocadoss.co.kr</div>';
+            echo '<div class="woocommerce-info">가입이 거부되었습니다. 문의: tnfwod@naver.com</div>';
         } else {
             echo '<div class="woocommerce-info">가입 승인 대기중입니다. 승인 후 가격 확인 및 구매가 가능합니다.</div>';
         }
@@ -1510,14 +1541,122 @@ function avo_price_lock_notice() {
 // =========================================================================
 // 운송장 번호 입력 + 고객용 배송 추적 (스마트택배 통합조회: tracker.delivery)
 // =========================================================================
-function avo_carrier_list() {
+function wh_carrier_registry() {
     return array(
-        '04' => 'CJ대한통운',
-        '05' => '한진택배',
-        '08' => '롯데택배',
-        '06' => '로젠택배',
-        '01' => '우체국택배',
+        'cj' => array(
+            'label' => 'CJ대한통운',
+            'aliases' => array('CJ대한통운','CJ택배','CJ','대한통운','CJ Logistics','CJ대한통운택배','cj대한통운','04'),
+            'mode' => 'direct',
+            'url' => 'https://www.cjlogistics.com/ko/tool/parcel/tracking?gnbInvcNo={TRACKING}',
+            'domain' => 'cjlogistics.com',
+        ),
+        'lotte' => array(
+            'label' => '롯데택배',
+            'aliases' => array('롯데택배','롯데글로벌로지스','롯데','Lotte','Lotte Global Logistics','롯데글로벌','08'),
+            'mode' => 'direct',
+            'url' => 'https://www.lotteglogis.com/open/tracking?invno={TRACKING}',
+            'domain' => 'lotteglogis.com',
+        ),
+        'hanjin' => array(
+            'label' => '한진택배',
+            'aliases' => array('한진','한진택배','HANJIN','hanjin','05'),
+            'mode' => 'direct',
+            'url' => 'https://www.hanjin.com/kor/CMS/DeliveryMgr/WaybillResult.do?mCode=MN038&schLang=KR&wblnum={TRACKING}&wblnumText=',
+            'domain' => 'hanjin.com',
+        ),
+        'logen' => array(
+            'label' => '로젠택배',
+            'aliases' => array('로젠','로젠택배','LOGEN','logen','로젠물류','06'),
+            'mode' => 'direct',
+            'url' => 'https://www.ilogen.com/web/personal/trace?slipno={TRACKING}',
+            'domain' => 'ilogen.com',
+        ),
+        'epost' => array(
+            'label' => '우체국택배',
+            'aliases' => array('우체국','우체국택배','우체국소포','우편','ePost','EPOST','우체국택배(소포)','01'),
+            'mode' => 'direct',
+            'url' => 'https://service.epost.go.kr/trace.RetrieveRegiPrclDeliv.postal?sid1={TRACKING}',
+            'domain' => 'epost.go.kr',
+        ),
+        'kyungdong' => array(
+            'label' => '경동택배',
+            'aliases' => array('경동','경동택배','경동화물','KYUNGDONG'),
+            'mode' => 'landing',
+            'url' => 'https://www.kdexp.com/h/EMS/ETrackingInfo?trackNo={TRACKING}',
+            'domain' => 'kdexp.com',
+        ),
+        'daesin' => array(
+            'label' => '대신택배',
+            'aliases' => array('대신','대신택배','대신정기화물','DAESIN'),
+            'mode' => 'landing',
+            'url' => 'https://www.daesinlogistics.co.kr/',
+            'domain' => 'daesinlogistics.co.kr',
+        ),
+        'hapdong' => array(
+            'label' => '합동택배',
+            'aliases' => array('합동','합동택배','합동화물','HAPDONG'),
+            'mode' => 'landing',
+            'url' => 'https://www.hdexp.co.kr/',
+            'domain' => 'hdexp.co.kr',
+        ),
+        'chunil' => array(
+            'label' => '천일택배',
+            'aliases' => array('천일','천일택배','천일정기화물','CHUNIL'),
+            'mode' => 'landing',
+            'url' => 'https://www.chunil.co.kr/',
+            'domain' => 'chunil.co.kr',
+        ),
+        'ilyang' => array(
+            'label' => '일양로지스',
+            'aliases' => array('일양','일양택배','일양로지스','ILyang','ILYANG'),
+            'mode' => 'direct',
+            'url' => 'https://www.ilyanglogis.co.kr/page/TrackingResult.do?blNum={TRACKING}&trackingType=0',
+            'domain' => 'ilyanglogis.co.kr',
+        ),
+        'dhl' => array(
+            'label' => 'DHL',
+            'aliases' => array('DHL','dhl'),
+            'mode' => 'direct',
+            'url' => 'https://www.dhl.com/kr-ko/home/tracking.html?tracking-id={TRACKING}',
+            'domain' => 'dhl.com',
+        ),
     );
+}
+
+function wh_normalize_carrier_name($carrier) {
+    $raw = trim((string) $carrier);
+    if ($raw === '') return '';
+    $raw = preg_replace('/\s+/u', '', $raw);
+    foreach (wh_carrier_registry() as $key => $info) {
+        $aliases = array_merge(array($info['label']), $info['aliases']);
+        foreach ($aliases as $alias) {
+            if (strcasecmp($raw, preg_replace('/\s+/u', '', $alias)) === 0) {
+                return $key;
+            }
+        }
+    }
+    return '';
+}
+
+function wh_get_tracking_url($carrier, $tracking_number) {
+    $key = wh_normalize_carrier_name($carrier);
+    if ($key === '') return null;
+    $info = wh_carrier_registry()[$key];
+    $tn = trim((string) $tracking_number);
+    $tn = str_replace(array('-', ' '), '', $tn);
+    if ($tn === '' || !preg_match('/^[0-9A-Za-z]+$/', $tn)) return null;
+    if ($info['mode'] === 'direct') {
+        return str_replace('{TRACKING}', rawurlencode($tn), $info['url']);
+    }
+    return str_replace('{TRACKING}', rawurlencode($tn), $info['url']);
+}
+
+function avo_carrier_list() {
+    $list = array();
+    foreach (wh_carrier_registry() as $key => $info) {
+        $list[$key] = $info['label'];
+    }
+    return $list;
 }
 
 add_action( 'woocommerce_admin_order_data_after_shipping_address', function( $order ) {
@@ -1562,7 +1701,11 @@ add_action( 'woocommerce_process_shop_order_meta', function( $order_id ) {
 } );
 
 function avo_tracking_url( $carrier_code, $tracking_number ) {
-    return 'https://tracker.delivery/#/' . rawurlencode( $carrier_code ) . '/' . rawurlencode( $tracking_number );
+    $url = wh_get_tracking_url( $carrier_code, $tracking_number );
+    if ( $url !== null ) {
+        return $url;
+    }
+    return '';
 }
 
 function avo_send_tracking_email( $order, $carrier_code, $tracking_number ) {
@@ -3376,7 +3519,7 @@ function avocadoss_block_pending_users_login( $user, $password ) {
     if ( 'pending' === $status ) {
         return new WP_Error( 'avo_pending_approval', '회원가입 승인 대기 중입니다. 관리자 승인이 완료되면 이메일로 안내해 드립니다.' );
     } elseif ( 'rejected' === $status ) {
-        return new WP_Error( 'avo_rejected_approval', '회원가입 승인이 거절되었습니다. 고객센터(admin@avocadoss.co.kr)로 문의해 주세요.' );
+        return new WP_Error( 'avo_rejected_approval', '회원가입 승인이 거절되었습니다. 고객센터(tnfwod@naver.com)로 문의해 주세요.' );
     }
     
     return $user;

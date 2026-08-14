@@ -9,10 +9,9 @@ defined( 'ABSPATH' ) || exit;
 
 $settings    = WholesaleHub_Homepage::settings();
 $limit       = max( 1, min( 8, (int) $settings['section_limit'] ) );
-$featured_ids = WholesaleHub_Homepage::featured_product_ids( $limit );
+$recent_ids  = $settings['enable_all_products'] ? WholesaleHub_Homepage::latest_product_ids( $limit ) : array();
 $drop_ids    = $settings['enable_price_drops'] ? array_slice( WholesaleHub_Homepage::cached_ids( WholesaleHub_Homepage::DROP_CACHE ), 0, $limit ) : array();
 $popular_ids = $settings['enable_popular'] ? array_slice( WholesaleHub_Homepage::cached_ids( WholesaleHub_Homepage::POPULAR_CACHE ), 0, $limit ) : array();
-$all_ids     = $settings['enable_all_products'] ? WholesaleHub_Homepage::latest_product_ids( $limit ) : array();
 
 $render_cards = static function ( $ids, $badge = '' ) use ( $settings ) {
 	if ( empty( $ids ) ) {
@@ -63,14 +62,26 @@ get_header();
 						<button type="submit" aria-label="검색">검색</button>
 					</form>
 					<div class="whh-hero-actions">
-						<?php if ( $featured_ids ) : ?><a href="#featured-products">추천 상품</a><?php endif; ?>
-						<a href="#recent-price-drops">최근 가격 인하 상품</a>
-						<a href="#business-popular">사업자 인기 상품</a>
+						<?php if ( $recent_ids ) : ?><a href="#recent-updates">최근 업데이트</a><?php endif; ?>
+						<?php if ( $drop_ids ) : ?><a href="#recent-price-drops">가격 인하</a><?php endif; ?>
+						<?php if ( $popular_ids ) : ?><a href="#business-popular">사업자 인기</a><?php endif; ?>
 					</div>
 				</div>
 				<div class="whh-hero-panel" aria-hidden="true"><span>도매 상품 탐색</span><strong>필요한 품목을<br>더 빠르게 비교하세요</strong><div class="whh-panel-lines"><i></i><i></i><i></i></div></div>
 			</div>
 		</section>
+
+		<?php if ( $recent_ids ) : ?>
+		<section id="recent-updates" class="whh-products-section"><div class="whh-shell"><div class="whh-section-heading"><div><p class="whh-kicker">RECENT</p><h2>최근 업데이트 상품</h2></div><p>방금 들어온 상품과 새로 바뀐 상품을 확인하세요.</p></div><?php $render_cards( $recent_ids, 'NEW' ); ?></div></section>
+		<?php endif; ?>
+
+		<?php if ( $drop_ids ) : ?>
+		<section id="recent-price-drops" class="whh-products-section whh-products-muted"><div class="whh-shell"><div class="whh-section-heading"><div><p class="whh-kicker">PRICE DROP</p><h2>최근 가격 인하 상품</h2></div><p>최근 공급 조건이 좋아진 상품입니다.</p></div><?php $render_cards( $drop_ids, '가격 인하' ); ?></div></section>
+		<?php endif; ?>
+
+		<?php if ( $popular_ids ) : ?>
+		<section id="business-popular" class="whh-products-section"><div class="whh-shell"><div class="whh-section-heading"><div><p class="whh-kicker">POPULAR</p><h2>사업자 인기 상품</h2></div><p>최근 실제 주문량이 많은 상품입니다.</p></div><?php $render_cards( $popular_ids, '사업자 인기' ); ?></div></section>
+		<?php endif; ?>
 
 		<section class="whh-categories" aria-labelledby="whh-category-title">
 			<div class="whh-shell">
@@ -84,22 +95,6 @@ get_header();
 				</div>
 			</div>
 		</section>
-
-		<?php if ( $featured_ids ) : ?>
-		<section id="featured-products" class="whh-products-section whh-products-muted"><div class="whh-shell"><div class="whh-section-heading"><div><p class="whh-kicker">FEATURED</p><h2>추천 상품</h2></div><p>상품 목록에서 별표로 지정한 추천 상품입니다.</p></div><?php $render_cards( $featured_ids, '추천' ); ?></div></section>
-		<?php endif; ?>
-
-		<?php if ( $drop_ids ) : ?>
-		<section id="recent-price-drops" class="whh-products-section"><div class="whh-shell"><div class="whh-section-heading"><div><p class="whh-kicker">PRICE UPDATE</p><h2>최근 가격이 내려간 상품</h2></div><p>실제 판매 가격이 최근 낮아진 상품입니다.</p></div><?php $render_cards( $drop_ids, '최근 가격 인하' ); ?></div></section>
-		<?php endif; ?>
-
-		<?php if ( $popular_ids ) : ?>
-		<section id="business-popular" class="whh-products-section whh-products-muted"><div class="whh-shell"><div class="whh-section-heading"><div><p class="whh-kicker">BUSINESS PICKS</p><h2>사업자들이 많이 찾는 상품</h2></div><p>최근 완료된 실제 주문을 기준으로 모았습니다.</p></div><?php $render_cards( $popular_ids, '사업자 인기' ); ?></div></section>
-		<?php endif; ?>
-
-		<?php if ( $all_ids ) : ?>
-		<section id="all-products" class="whh-products-section"><div class="whh-shell"><div class="whh-section-heading"><div><p class="whh-kicker">ALL PRODUCTS</p><h2>전체 상품</h2></div><a class="whh-more" href="<?php echo esc_url( wc_get_page_permalink( 'shop' ) ); ?>">전체 보기 →</a></div><?php $render_cards( $all_ids ); ?></div></section>
-		<?php endif; ?>
 	</main>
 </div>
 <?php get_footer(); ?>

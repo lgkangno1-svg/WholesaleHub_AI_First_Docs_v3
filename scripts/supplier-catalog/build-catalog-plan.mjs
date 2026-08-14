@@ -6,7 +6,8 @@ import { sourceProductExclusionReason } from "./catalog-exclusions.mjs"
 const dryRunTitleIndex = process.argv.indexOf("--dry-run-title")
 if (dryRunTitleIndex >= 0) {
   const title = process.argv[dryRunTitleIndex + 1] ?? ""
-  const reason = excludedReason(title)
+  const supplierId = process.argv[dryRunTitleIndex + 2] ?? ""
+  const reason = excludedReason(title, "", supplierId)
   console.log(JSON.stringify({ title, included: reason === null, reason }))
   process.exit(0)
 }
@@ -245,7 +246,7 @@ function eligibleProducts(products, excluded, imageReviews, repeatedHashes) {
   return products.flatMap((product) => {
     const reason =
       sourceProductExclusionReason(product.supplierId, product.sourceProductId) ??
-      excludedReason(product.productName)
+      excludedReason(product.productName, "", product.supplierId)
     if (reason) {
       excluded.push({
         supplier: product.supplierId,
@@ -384,8 +385,9 @@ function canonicalProductKey(value) {
     .replace(/[^가-힣a-z0-9]/gu, "")
 }
 
-function excludedReason(value, category = "") {
+function excludedReason(value, category = "", supplierId = "") {
   const text = clean(value)
+  if (supplierId !== "fafane" && /택배/u.test(value)) return "shipping_service_product_excluded"
   if (/가성비/u.test(value)) return "terminal_excluded"
   if (
     /(천도복숭아|천도|넥타린|nectarine|옐로드림)/iu.test(value) ||

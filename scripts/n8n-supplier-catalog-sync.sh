@@ -3,38 +3,139 @@ set -Eeuo pipefail
 
 PROJECT_DIR="${WHOLESALEHUB_PROJECT_DIR:-/home/tnfwod/projects/wholesalehub}"
 REPORT_DIR="$PROJECT_DIR/reports/rebuild"
+RUNTIME_DIR="$PROJECT_DIR/reports/runtime"
+STATUS_FILE="$RUNTIME_DIR/supplier-catalog-sync-status.json"
 LOCK_FILE="$PROJECT_DIR/reports/supplier-catalog-sync.lock"
 ADMINPLUS_RUN_DIR="$PROJECT_DIR/reports/adminplus-crawl-runs"
 SECONDARY_ONLY="${WHOLESALEHUB_SECONDARY_ONLY:-0}"
+CRAWLER_TIMEOUT="${WHOLESALEHUB_CRAWLER_TIMEOUT:-20m}"
+NETWORK_TIMEOUT="${WHOLESALEHUB_NETWORK_TIMEOUT:-10m}"
+SIGNAL_GRACE_SECONDS="${WHOLESALEHUB_SIGNAL_GRACE_SECONDS:-30}"
+JSON_NODE="${WHOLESALEHUB_JSON_NODE:-node}"
+RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-$$"
+STARTED_AT="$(date -u +%FT%TZ)"
+START_SECONDS=$SECONDS
+step=init
+failure_reason=
+finalized=0
+managed_pid=
+last_success_at=null
+last_failure_at=null
 RUN_HOUR="$(TZ=Asia/Seoul date +%H)"
 RUN_DATE="$(TZ=Asia/Seoul date +%F)"
-mkdir -p "$REPORT_DIR"
-mkdir -p "$ADMINPLUS_RUN_DIR"
+mkdir -p "$REPORT_DIR" "$RUNTIME_DIR" "$ADMINPLUS_RUN_DIR"
 
 emit_result() {
   local status=$1
   local code=$2
   local step=$3
-  node -e '
-    const [status, code, step] = process.argv.slice(1);
+  local reason=${4:-}
+  "$JSON_NODE" -e '
+    const [status, code, step, completedAt, runId, duration, reason] = process.argv.slice(1);
     process.stdout.write("WHOLESALEHUB_RESULT_JSON=" + JSON.stringify({
-      status,
-      exit_code: Number(code),
-      step,
-      completed_at: new Date().toISOString(),
+      status, exit_code: Number(code), step, completed_at: completedAt, run_id: runId,
+      duration_seconds: Number(duration), reason: reason || null,
     }) + "\n");
-  ' "$status" "$code" "$step"
+  ' "$status" "$code" "$step" "$(date -u +%FT%TZ)" "$RUN_ID" "$((SECONDS - START_SECONDS))" "$reason"
+}
+
+read_previous_timestamps() {
+  if [ -f "$STATUS_FILE" ]; then
+    last_success_at=$("$JSON_NODE" -e 'const o = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8")); process.stdout.write(o.last_success_at || "");' "$STATUS_FILE")
+    last_failure_at=$("$JSON_NODE" -e 'const o = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8")); process.stdout.write(o.last_failure_at || "");' "$STATUS_FILE")
+  fi
+}
+
+write_status() {
+  local status=$1 code=$2 reason=${3:-} finished_at tmp
+  finished_at="$(date -u +%FT%TZ)"
+  case "$status" in
+    completed) last_success_at="$finished_at" ;;
+    failed) last_failure_at="$finished_at" ;;
+  esac
+  tmp="$STATUS_FILE.$$.tmp"
+  "$JSON_NODE" -e '
+    const [status, code, runId, startedAt, finishedAt, step, lastSuccess, lastFailure, duration, reason, pid] = process.argv.slice(1);
+    process.stdout.write(JSON.stringify({
+      status, run_id: runId, started_at: startedAt, finished_at: finishedAt, current_step: step,
+      last_success_at: lastSuccess || null, last_failure_at: lastFailure || null,
+      duration_seconds: Number(duration), exit_code: Number(code), failure_reason: reason || null, pid: Number(pid),
+    }) + "\n");
+  ' "$status" "$code" "$RUN_ID" "$STARTED_AT" "$finished_at" "$step" "$last_success_at" "$last_failure_at" "$((SECONDS - START_SECONDS))" "$reason" "$$" >"$tmp"
+  mv "$tmp" "$STATUS_FILE"
+}
+
+log_event() {
+  printf 'supplier_catalog_sync run_id=%s timestamp=%s step=%s status=%s duration_seconds=%s exit_code=%s\n' \
+    "$RUN_ID" "$(date -u +%FT%TZ)" "$step" "$1" "$((SECONDS - START_SECONDS))" "$2" >&2
+}
+
+finish() {
+  local status=$1 code=$2 result_step=$3 reason=${4:-}
+  [ "$finalized" -eq 0 ] || return
+  finalized=1
+  step=$result_step
+  write_status "$status" "$code" "$reason"
+  log_event "$status" "$code"
+  emit_result "$status" "$code" "$result_step" "$reason"
+}
+
+start_step() {
+  step=$1
+  write_status running 0
+  log_event running 0
+}
+
+run_with_timeout() {
+  local limit=$1
+  shift
+  setsid timeout --signal=TERM --kill-after=30s "$limit" "$@" &
+  managed_pid=$!
+  if wait "$managed_pid"; then
+    managed_pid=
+    return 0
+  else
+    local code=$?
+  fi
+  managed_pid=
+  if [ "$code" -eq 124 ]; then failure_reason=timeout; else failure_reason=command_failed; fi
+  return "$code"
+}
+
+terminate_managed_stage() {
+  local deadline
+  [ -n "$managed_pid" ] || return
+  kill -TERM -- "-$managed_pid" 2>/dev/null || true
+  deadline=$((SECONDS + SIGNAL_GRACE_SECONDS))
+  while kill -0 -- "-$managed_pid" 2>/dev/null && [ "$SECONDS" -lt "$deadline" ]; do
+    sleep 1
+  done
+  if kill -0 -- "-$managed_pid" 2>/dev/null; then
+    kill -KILL -- "-$managed_pid" 2>/dev/null || true
+  fi
+  wait "$managed_pid" 2>/dev/null || true
+  managed_pid=
 }
 
 notify_telegram() {
   local message=$1
-  docker exec \
+  timeout --signal=TERM --kill-after=30s "$NETWORK_TIMEOUT" docker exec \
     -e WHOLESALEHUB_TELEGRAM_MESSAGE="$message" \
     avocadoss-wp \
     wp --allow-root --path=/var/www/html eval \
     "if (!function_exists('avocadoss_send_telegram_message') || !avocadoss_send_telegram_message(getenv('WHOLESALEHUB_TELEGRAM_MESSAGE'))) { exit(1); }" \
     >/dev/null 2>&1
 }
+
+handle_error() {
+  local code=$1 reason=${failure_reason:-command_failed}
+  notify_telegram "도매Hub 공급사 카탈로그 동기화 실패: 단계=$step 코드=$code" || true
+  finish failed "$code" "$step" "$reason"
+  exit "$code"
+}
+
+handle_signal() { terminate_managed_stage; finish failed 143 "$step" terminated; exit 143; }
+handle_exit() { local code=$1; [ "$finalized" -ne 0 ] || finish failed "$code" "$step" unexpected_exit; }
 
 verify_reusable_dailyfood_snapshot() {
   node -e '
@@ -63,56 +164,63 @@ verify_reusable_dailyfood_snapshot() {
 
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
-  emit_result completed 0 completed
-  exit 0
+  step=lock
+  log_event skipped_locked 75
+  emit_result skipped_locked 75 lock another_sync_is_running
+  exit 75
 fi
+read_previous_timestamps
+trap 'handle_error "$?"' ERR
+trap handle_signal TERM INT
+trap 'handle_exit "$?"' EXIT
+start_step lock
 
 if [ "$RUN_HOUR" != "11" ] && [ "$RUN_HOUR" != "18" ] && [ "$SECONDARY_ONLY" != "1" ]; then
-  emit_result completed 0 completed
+  start_step schedule
+  finish completed 0 completed schedule_not_due
   exit 0
 fi
 
-step=dailyfood
-trap 'code=$?; notify_telegram "도매Hub 공급사 카탈로그 동기화 실패: 단계=$step 코드=$code" || true; emit_result failed "$code" "$step"; exit "$code"' ERR
 cd "$PROJECT_DIR"
 
-step=preflight
+start_step preflight
 node --check scripts/supplier-catalog/collect-dailyfood-catalog.mjs
 node --check scripts/supplier-catalog/collect-walldob2b-catalog.mjs
 node --check scripts/supplier-catalog/build-catalog-plan.mjs
 node --check scripts/supplier-catalog/generate-daily-shipping-audit.mjs
 if [ "$RUN_HOUR" = "11" ] && [ "$SECONDARY_ONLY" != "1" ]; then
   if ! mkdir "$ADMINPLUS_RUN_DIR/$RUN_DATE" 2>/dev/null; then
-    emit_result completed 0 completed
-    exit 0
+    start_step lock
+    finish skipped_locked 75 lock duplicate_adminplus_run
+    exit 75
   fi
-  step=dailyfood
-  node scripts/supplier-catalog/collect-dailyfood-catalog.mjs
+  start_step dailyfood_collect
+  run_with_timeout "$CRAWLER_TIMEOUT" node scripts/supplier-catalog/collect-dailyfood-catalog.mjs
 else
-  step=dailyfood_same_day_snapshot
+  start_step dailyfood_same_day_snapshot
   verify_reusable_dailyfood_snapshot
-  step=dailyfood_image_retry
-  node scripts/supplier-catalog/revalidate-catalog-images.mjs \
+  start_step dailyfood_image_retry
+  run_with_timeout "$CRAWLER_TIMEOUT" node scripts/supplier-catalog/revalidate-catalog-images.mjs \
     "$REPORT_DIR/dailyfood-catalog-snapshot.json"
 fi
-step=walldob2b
-node scripts/supplier-catalog/collect-walldob2b-catalog.mjs
-step=grouping
+start_step walldob2b_collect
+run_with_timeout "$CRAWLER_TIMEOUT" node scripts/supplier-catalog/collect-walldob2b-catalog.mjs
+start_step grouping
 node scripts/supplier-catalog/build-catalog-plan.mjs
 
-step=woocommerce_sync
-docker cp "$REPORT_DIR/catalog-rebuild-plan.json" \
+start_step woocommerce_sync
+run_with_timeout "$NETWORK_TIMEOUT" docker cp "$REPORT_DIR/catalog-rebuild-plan.json" \
   avocadoss-wp:/tmp/catalog-sync-plan.json >/dev/null
-docker cp "$PROJECT_DIR/scripts/supplier-catalog/sync-woocommerce-catalog.php" \
+run_with_timeout "$NETWORK_TIMEOUT" docker cp "$PROJECT_DIR/scripts/supplier-catalog/sync-woocommerce-catalog.php" \
   avocadoss-wp:/tmp/sync-woocommerce-catalog.php >/dev/null
-docker exec \
+run_with_timeout "$NETWORK_TIMEOUT" docker exec \
   -e WHOLESALEHUB_SYNC_PLAN=/tmp/catalog-sync-plan.json \
   -e WHOLESALEHUB_SYNC_RESULT=/tmp/catalog-sync-result.json \
   avocadoss-wp \
   wp --allow-root --path=/var/www/html eval-file /tmp/sync-woocommerce-catalog.php
-docker cp avocadoss-wp:/tmp/catalog-sync-result.json \
+run_with_timeout "$NETWORK_TIMEOUT" docker cp avocadoss-wp:/tmp/catalog-sync-result.json \
   "$REPORT_DIR/catalog-sync-result.json" >/dev/null
-step=shipping_audit
+start_step shipping_audit
 node scripts/supplier-catalog/generate-daily-shipping-audit.mjs "$REPORT_DIR"
 
 step=completed
@@ -169,8 +277,8 @@ telegram_message=$(node -e '
   if (failed) lines.push(`실패 상품 ${failed}`);
   process.stdout.write(lines.join("\n"));
 ' "$REPORT_DIR/catalog-sync-result.json" "$sync_mode" "$REPORT_DIR/daily-shipping-audit.json")
-step=telegram
+start_step telegram
 notify_telegram "$telegram_message"
 printf 'sent %s\n' "$(date -u +%FT%TZ)" >"$REPORT_DIR/telegram-report.status"
 step=completed
-emit_result completed 0 completed
+finish completed 0 completed

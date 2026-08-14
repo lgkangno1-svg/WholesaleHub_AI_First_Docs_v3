@@ -296,6 +296,13 @@ final class WholesaleHub_Supplier_Lanes
         $variety = null;
         $origin = null;
         $storage_type = null;
+        $processing = null;
+        $count_is_range = false;
+        $count_range_max = null;
+        $multiple_weight_ambiguity = preg_match_all(
+            '/[\d\.]+\s*(?:kg|킬로|키로|g|그램)/iu',
+            $raw_label
+        ) > 1;
 
         if (preg_match('/([\d\.]+)\s*(kg|킬로|키로|g|그램)/iu', $raw_label, $m)) {
             $val = (float) $m[1];
@@ -304,18 +311,20 @@ final class WholesaleHub_Supplier_Lanes
                 $weight_val = $val;
                 $weight_unit = 'g';
             } else {
-                $weight_val = $val;
-                $weight_unit = 'kg';
+                $weight_val = $val * 1000;
+                $weight_unit = 'g';
             }
         }
 
         if (preg_match(
-            '/([\d\.]+)(?:\s*[~\-–]\s*[\d\.]+)?\s*(개입|개|입|과수?|송이|수)(?:\s*(?:내외|전후|이상|이하))?/u',
+            '/([\d\.]+)(?:\s*[~\-–]\s*([\d\.]+))?\s*(개입|개|입|과수?|송이|수)(?:\s*(?:내외|전후|이상|이하))?/u',
             $raw_label,
             $m
         )) {
             $count_val = (int) $m[1];
-            $unit_raw = $m[2];
+            $count_is_range = isset($m[2]) && $m[2] !== '';
+            $count_range_max = $count_is_range ? (int) $m[2] : null;
+            $unit_raw = $m[3];
             if ($unit_raw === '개입' || $unit_raw === '입') {
                 $count_unit = '개';
             } elseif ($unit_raw === '과수') {
@@ -326,7 +335,7 @@ final class WholesaleHub_Supplier_Lanes
         }
 
         if (preg_match(
-            '/(왕특과|왕특품|왕특|특대과|특대|특A품|특A|특품|특과|꼬마과|꼬마|중대과|중대|중소과|중소|소과|소품|중과|중품|대과|대품|선물용|정품|못난이|프리미엄)/u',
+            '/(왕특과|왕특품|왕특|특대과|특대|특A품|특A|특품|특과|꼬마과|꼬마|중대과|중대|중소과|중소|소과|소품|중과|중품|대과|대품|선물용|정품|가정용|못난이|프리미엄)/u',
             $raw_label,
             $m
         )) {
@@ -370,24 +379,33 @@ final class WholesaleHub_Supplier_Lanes
             $storage_type = $m[1];
         }
 
+        if (preg_match('/(비손질|손질|비세척|무세척|세척)/u', $raw_label, $m)) {
+            $processing = $m[1];
+        }
+
         if (preg_match('/(신비복숭아|성주참외|홍감자|찰옥수수|망고스틴|무지개망고)/u', $raw_label, $m)) {
             $variety = $m[1];
         }
 
         $key_parts = [];
-        if ($grade_size) $key_parts[] = $grade_size;
+        if ($grade_size) $key_parts[] = 'grade:' . $grade_size;
         if ($weight_val !== null) {
             $formatted = (floor($weight_val) == $weight_val) ? (int) $weight_val : $weight_val;
-            $key_parts[] = $formatted . ($weight_unit ?? 'kg');
+            $key_parts[] = 'weight:' . $formatted . ($weight_unit ?? 'g');
         }
         if ($count_val !== null) {
-            $key_parts[] = $count_val . ($count_unit ?? '개');
+            $key_parts[] = 'count:' . $count_val . ($count_unit ?? '개') . ($count_is_range ? '-range' : '');
         }
-        if ($packaging) $key_parts[] = $packaging;
-        if ($variety) $key_parts[] = $variety;
+        if ($packaging) $key_parts[] = 'packaging:' . $packaging;
+        if ($variety) $key_parts[] = 'variety:' . $variety;
+        if ($origin) $key_parts[] = 'origin:' . $origin;
+        if ($storage_type) $key_parts[] = 'storage:' . $storage_type;
+        if ($processing) $key_parts[] = 'processing:' . $processing;
 
         $comparison_group = !empty($key_parts) ? implode(' ', $key_parts) : $raw_label;
-        $confidence = ($grade_size !== null || $weight_val !== null || $count_val !== null) ? 0.95 : 0.50;
+        $has_hard_quantity = $weight_val !== null || ($count_val !== null && !$count_is_range);
+        $has_sufficient_spec = $grade_size !== null && $has_hard_quantity && !$count_is_range;
+        $confidence = $has_sufficient_spec ? 0.95 : 0.50;
         $status = ($confidence >= 0.85) ? 'auto_approved' : 'review_required';
 
         return [
@@ -395,14 +413,69 @@ final class WholesaleHub_Supplier_Lanes
             'weight_unit' => $weight_unit,
             'count_val' => $count_val,
             'count_unit' => $count_unit,
+            'count_is_range' => $count_is_range,
+            'count_range_max' => $count_range_max,
             'grade_size' => $grade_size,
             'packaging' => $packaging,
             'variety' => $variety,
             'origin' => $origin,
             'storage_type' => $storage_type,
+            'processing' => $processing,
+            'multiple_weight_ambiguity' => $multiple_weight_ambiguity,
             'comparison_group' => $comparison_group,
             'confidence' => $confidence,
             'status' => $status,
+        ];
+    }
+
+    public static function compare_spec_labels(string $left_label, string $right_label): array
+    {
+        $left = self::parse_spec_label($left_label);
+        $right = self::parse_spec_label($right_label);
+        $contradictions = [];
+
+        foreach (['origin', 'grade_size', 'weight_val', 'storage_type', 'processing'] as $field) {
+            if (
+                $left[$field] !== null
+                && $right[$field] !== null
+                && (string) $left[$field] !== (string) $right[$field]
+            ) {
+                $contradictions[] = $field;
+            }
+        }
+        if ($left['count_val'] !== null && $right['count_val'] !== null) {
+            $left_max = $left['count_range_max'] ?? $left['count_val'];
+            $right_max = $right['count_range_max'] ?? $right['count_val'];
+            if ($left_max < $right['count_val'] || $right_max < $left['count_val']) {
+                $contradictions[] = 'count_val';
+            }
+        }
+        if ($contradictions !== []) {
+            return ['verdict' => 'DIFFERENT', 'reasons' => $contradictions, 'left' => $left, 'right' => $right];
+        }
+
+        $review = [];
+        foreach (['origin', 'grade_size', 'weight_val', 'count_val', 'storage_type', 'processing'] as $field) {
+            if (($left[$field] === null) xor ($right[$field] === null)) {
+                $review[] = $field . '_unknown';
+            }
+        }
+        if ($left['count_is_range'] || $right['count_is_range']) $review[] = 'count_range';
+        if ($left['multiple_weight_ambiguity'] || $right['multiple_weight_ambiguity']) {
+            $review[] = 'multiple_weight_ambiguity';
+        }
+        if ($left['status'] === 'review_required' || $right['status'] === 'review_required') {
+            $review[] = 'insufficient_coverage';
+        }
+        if ($review !== []) {
+            return ['verdict' => 'REVIEW_REQUIRED', 'reasons' => array_values(array_unique($review)), 'left' => $left, 'right' => $right];
+        }
+
+        return [
+            'verdict' => $left['comparison_group'] === $right['comparison_group'] ? 'SAME' : 'DIFFERENT',
+            'reasons' => $left['comparison_group'] === $right['comparison_group'] ? [] : ['comparison_group'],
+            'left' => $left,
+            'right' => $right,
         ];
     }
 
