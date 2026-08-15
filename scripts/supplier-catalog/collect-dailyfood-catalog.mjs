@@ -176,6 +176,18 @@ try {
         ranked.sort((left, right) => left.priority - right.priority || right.score - left.score)
         return [...new Set(ranked.map((candidate) => candidate.url))]
       }
+      const descriptionFromDocument = (document) => {
+        const node = document.querySelector("tr.product_desc_row td.product_desc, .product_desc")
+        if (!node) return ""
+        const paragraphs = [...node.querySelectorAll("p")]
+        if (paragraphs.length > 0) {
+          return paragraphs
+            .map((p) => String(p.textContent ?? "").replace(/\s+/gu, " ").trim())
+            .filter((line) => line !== "")
+            .join("\n")
+        }
+        return String(node.textContent ?? "").replace(/\s+/gu, " ").trim()
+      }
       const fetchText = async (url) => {
         let last = "unknown"
         for (let attempt = 1; attempt <= 3; attempt += 1) {
@@ -359,6 +371,7 @@ try {
                 productName,
                 detailUrl: url,
                 imageCandidates,
+                sourceDescription: descriptionFromDocument(document),
                 options: unique,
               },
             }
@@ -404,13 +417,19 @@ try {
           }),
         )
         for (const item of settled) {
+          const parsedDetailDocument = item.ok
+            ? new DOMParser().parseFromString(item.text, "text/html")
+            : null
           detailStatus[item.pcode] = {
             ok: item.ok,
             status: item.status,
             url: item.url,
-            imageCandidates: item.ok
-              ? imageCandidatesFromDocument(new DOMParser().parseFromString(item.text, "text/html"))
+            imageCandidates: parsedDetailDocument
+              ? imageCandidatesFromDocument(parsedDetailDocument)
               : [],
+            sourceDescription: parsedDetailDocument
+              ? descriptionFromDocument(parsedDetailDocument)
+              : "",
           }
           if (!item.ok) {
             errors.push({
@@ -574,6 +593,7 @@ try {
         sourceProductId: group.sourceProductId,
         sourceIdType: "authoritative",
         productName: group.productName,
+        sourceDescription: String(group.sourceDescription ?? "").trim(),
         detailUrl: group.detailUrl,
         ...image,
         imageUrl: image.source_image_url,
@@ -616,6 +636,9 @@ try {
       sourceProductId: row.pcode,
       sourceIdType: "authoritative",
       productName: row.productName,
+      sourceDescription: String(
+        browserResult.detailStatus[row.pcode]?.sourceDescription ?? "",
+      ).trim(),
       detailUrl: `${baseUrl}/partner/?mod=product&actpage=prt.detail.pop&pcode=${encodeURIComponent(row.pcode)}`,
       ...image,
       imageUrl: image.source_image_url,

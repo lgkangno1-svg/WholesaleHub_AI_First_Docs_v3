@@ -178,6 +178,7 @@ for (const group of groups) {
         supplierId: source.supplierId,
         sourceProductId: String(source.sourceProductId),
         sourceIdType: source.sourceIdType,
+        sourceDescription: String(source.sourceDescription ?? "").trim(),
         source_image_url: source.source_image_url,
         source_image_urls: source.source_image_urls,
         image_source_type: source.image_source_type,

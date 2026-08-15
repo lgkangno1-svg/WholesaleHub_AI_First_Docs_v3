@@ -96,6 +96,7 @@ final class WholesaleHub_Supplier_Lane_Approval
                 'supplierId' => $supplier_id,
                 'sourceProductId' => $source_product_id,
                 'laneCode' => $lane_code,
+                'sourceDescription' => sanitize_textarea_field((string) ($lane['sourceDescription'] ?? '')),
                 'options' => $options,
             ],
         ];
@@ -1035,6 +1036,10 @@ final class WholesaleHub_Supplier_Lane_Approval
         }
         if ($categories !== []) {
             wp_set_object_terms($parent_id, $categories, 'product_cat', false);
+        }
+        $source_description = sanitize_textarea_field((string) ($payload['lane']['sourceDescription'] ?? ''));
+        if ($source_description !== '') {
+            update_post_meta($parent_id, '_wh_source_description', $source_description);
         }
         return $parent_id;
     }

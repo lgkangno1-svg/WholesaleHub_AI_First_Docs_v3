@@ -121,6 +121,18 @@ foreach ($groups as $group) {
         $parent_id = $candidate_parent_ids[0];
         $touched_parents[$parent_id] = true;
 
+        $source_description = '';
+        foreach (['A', 'B'] as $desc_lane) {
+            $desc_src = $group['lanes'][$desc_lane] ?? null;
+            if (is_array($desc_src) && !empty($desc_src['sourceDescription'])) {
+                $source_description = (string) $desc_src['sourceDescription'];
+                break;
+            }
+        }
+        if ($source_description !== '') {
+            update_post_meta($parent_id, '_wh_source_description', sanitize_textarea_field($source_description));
+        }
+
         foreach (($group['lanes'] ?? []) as $lane_code => $lane) {
             $supplier_id = sanitize_key((string) $lane['supplierId']);
             $source_product_id = sanitize_text_field((string) $lane['sourceProductId']);

@@ -43,6 +43,7 @@ final class WholesaleHub_Supplier_Lanes
         add_action('admin_menu', [self::class, 'register_admin_menu']);
         add_action('admin_init', [self::class, 'handle_admin_actions']);
         add_action('woocommerce_variable_add_to_cart', [self::class, 'maybe_render_lane_forms'], 1);
+        add_action('woocommerce_after_single_product_summary', [self::class, 'maybe_render_source_description'], 5);
         add_action('wp_loaded', [self::class, 'handle_add_to_cart'], 20);
         add_action('template_redirect', [self::class, 'redirect_cart_to_checkout'], 1);
         add_action('woocommerce_cart_calculate_fees', [self::class, 'calculate_supplier_shipping_fees'], 20);
@@ -801,6 +802,22 @@ final class WholesaleHub_Supplier_Lanes
         }
 
         echo '</tbody></table></form></div>';
+    }
+
+    public static function maybe_render_source_description(): void
+    {
+        global $product;
+        if (!($product instanceof WC_Product) || $product->get_meta(self::MODE_META) !== '1') {
+            return;
+        }
+        $description = trim((string) $product->get_meta('_wh_source_description'));
+        if ($description === '') {
+            return;
+        }
+        echo '<section class="wh-product-source-description">';
+        echo '<h2>' . esc_html__('상품 설명', 'wholesalehub-supplier-lanes') . '</h2>';
+        echo '<div class="wh-product-source-description-body">' . nl2br(esc_html($description)) . '</div>';
+        echo '</section>';
     }
 
     public static function maybe_render_lane_forms(): void
