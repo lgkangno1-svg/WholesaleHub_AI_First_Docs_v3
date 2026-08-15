@@ -72,6 +72,26 @@ $counts['excluded'] = $exclusion_result['excluded'];
 $counts['terminal_excluded'] = $exclusion_result['terminal_excluded'];
 $counts['nectarine_excluded'] = $exclusion_result['nectarine_excluded'];
 
+// Pre-populate $seen from ALL plan groups so that groups skipped below
+// (review_needed / mapping conflict / pending approval) are not wrongly
+// marked as missing by the source-absence sweep at the end of the sync.
+foreach ($groups as $plan_group) {
+    foreach (($plan_group['lanes'] ?? []) as $plan_lane) {
+        $plan_supplier = sanitize_key((string) ($plan_lane['supplierId'] ?? ''));
+        $plan_source = sanitize_text_field((string) ($plan_lane['sourceProductId'] ?? ''));
+        if ($plan_supplier === '' || $plan_source === '') {
+            continue;
+        }
+        foreach (($plan_lane['options'] ?? []) as $plan_option) {
+            $plan_opt = sanitize_text_field((string) ($plan_option['sourceOptionId'] ?? ''));
+            if ($plan_opt === '') {
+                continue;
+            }
+            $seen[$plan_supplier . '|' . $plan_source . '|' . $plan_opt] = true;
+        }
+    }
+}
+
 foreach ($groups as $group) {
     try {
         $candidate_parent_ids = [];
