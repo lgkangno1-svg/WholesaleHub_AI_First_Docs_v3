@@ -179,6 +179,8 @@ for (const group of groups) {
         sourceProductId: String(source.sourceProductId),
         sourceIdType: source.sourceIdType,
         sourceDescription: String(source.sourceDescription ?? "").trim(),
+        rawSourceDescription: String(source.rawSourceDescription ?? source.sourceDescription ?? "").trim(),
+        publicSourceDescription: String(source.publicSourceDescription ?? "").trim(),
         source_image_url: source.source_image_url,
         source_image_urls: source.source_image_urls,
         image_source_type: source.image_source_type,

@@ -44,7 +44,7 @@ final class WholesaleHub_Supplier_Lanes
         add_action('admin_menu', [self::class, 'register_admin_menu']);
         add_action('admin_init', [self::class, 'handle_admin_actions']);
         add_action('woocommerce_variable_add_to_cart', [self::class, 'maybe_render_lane_forms'], 1);
-        add_action('woocommerce_after_single_product_summary', [self::class, 'maybe_render_source_description'], 5);
+        add_filter('the_content', [self::class, 'prepend_source_description_to_content'], 10);
         add_action('wp_loaded', [self::class, 'handle_add_to_cart'], 20);
         add_action('template_redirect', [self::class, 'redirect_cart_to_checkout'], 1);
         add_action('woocommerce_cart_calculate_fees', [self::class, 'calculate_supplier_shipping_fees'], 20);
@@ -806,20 +806,72 @@ final class WholesaleHub_Supplier_Lanes
         echo '</tbody></table></form></div>';
     }
 
-    public static function maybe_render_source_description(): void
+    public static function prepend_source_description_to_content(string $content): string
     {
+        if (!is_singular('product') || !is_main_query()) {
+            return $content;
+        }
         global $product;
         if (!($product instanceof WC_Product) || $product->get_meta(self::MODE_META) !== '1') {
-            return;
+            return $content;
         }
-        $description = trim((string) $product->get_meta('_wh_source_description'));
-        if ($description === '') {
-            return;
+        $html = self::source_description_html((int) $product->get_id());
+        if ($html === '') {
+            return $content;
         }
-        echo '<section class="wh-product-source-description">';
-        echo '<h2>' . esc_html__('상품 설명', 'wholesalehub-supplier-lanes') . '</h2>';
-        echo '<div class="wh-product-source-description-body">' . nl2br(esc_html($description)) . '</div>';
-        echo '</section>';
+        return $html . "\n" . $content;
+    }
+
+    public static function source_description_html(int $parent_id): string
+    {
+        $map = json_decode((string) get_post_meta($parent_id, '_wh_source_descriptions', true), true);
+        if (!is_array($map) || $map === []) {
+            $legacy = trim((string) get_post_meta($parent_id, '_wh_source_description', true));
+            if ($legacy === '') {
+                return '';
+            }
+            return '<div class="wh-product-source-description"><div class="wh-product-source-description-body">'
+                . nl2br(esc_html($legacy)) . '</div></div>';
+        }
+        $parts = [];
+        foreach ($map as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+            $public = trim((string) ($entry['public'] ?? ''));
+            if ($public === '') {
+                continue;
+            }
+            $parts[] = '<div class="wh-source-description">' . nl2br(esc_html($public)) . '</div>';
+        }
+        if ($parts === []) {
+            return '';
+        }
+        return '<div class="wh-product-source-description">' . implode('', $parts) . '</div>';
+    }
+
+    public static function upsert_source_description(
+        int $parent_id,
+        string $supplier,
+        string $source_product_id,
+        string $raw,
+        string $public
+    ): void {
+        $key = sanitize_key($supplier) . ':' . $source_product_id;
+        $map = json_decode((string) get_post_meta($parent_id, '_wh_source_descriptions', true), true);
+        if (!is_array($map)) {
+            $map = [];
+        }
+        $map[$key] = [
+            'supplier' => sanitize_key($supplier),
+            'source_product_id' => $source_product_id,
+            'raw' => $raw,
+            'public' => $public,
+        ];
+        update_post_meta($parent_id, '_wh_source_descriptions', wp_json_encode($map, JSON_UNESCAPED_UNICODE));
+        if (trim($public) !== '') {
+            update_post_meta($parent_id, '_wh_source_description', sanitize_textarea_field($public));
+        }
     }
 
     public static function maybe_render_lane_forms(): void

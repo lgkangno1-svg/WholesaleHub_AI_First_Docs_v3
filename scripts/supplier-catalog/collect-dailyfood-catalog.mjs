@@ -18,6 +18,19 @@ const baseUrl = "https://dailyfood.adminplus.co.kr"
 const outputDirectory = "reports/rebuild"
 const sourceExclusions = sourceProductExclusions("dailyfood")
 const excludedSourceProductIds = new Set(sourceExclusions.map((rule) => rule.sourceProductId))
+
+const normalizeDailyfoodPublicDescription = (raw) => {
+  const lines = String(raw ?? "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+  const cutoff = /발주\s*마감|주문\s*마감|마감\s*시간|오전\s*\d+\s*시\s*마감|오후\s*\d+\s*시\s*마감/u
+  const kept = lines.filter((line) => !cutoff.test(line))
+  if (kept.length === 0) {
+    return ""
+  }
+  return ["발주마감 오전 8시", ...kept].join("\n")
+}
 await mkdir(outputDirectory, { recursive: true })
 let previousSnapshot = null
 try {
@@ -179,14 +192,29 @@ try {
       const descriptionFromDocument = (document) => {
         const node = document.querySelector("tr.product_desc_row td.product_desc, .product_desc")
         if (!node) return ""
-        const paragraphs = [...node.querySelectorAll("p")]
-        if (paragraphs.length > 0) {
-          return paragraphs
-            .map((p) => String(p.textContent ?? "").replace(/\s+/gu, " ").trim())
-            .filter((line) => line !== "")
-            .join("\n")
+        const parts = []
+        const block = new Set(["p", "h1", "h2", "h3", "h4", "h5", "h6", "li", "blockquote", "div", "tr", "ul", "ol", "table", "hr", "br"])
+        const skip = new Set(["script", "style", "noscript"])
+        const walk = (el) => {
+          for (const child of el.childNodes) {
+            if (child.nodeType === 3) {
+              const t = (child.textContent ?? "").replace(/\s+/gu, " ").trim()
+              if (t) parts.push(t)
+            } else if (child.nodeType === 1) {
+              const tag = child.tagName.toLowerCase()
+              if (skip.has(tag)) continue
+              walk(child)
+              if (block.has(tag)) parts.push("\n")
+            }
+          }
         }
-        return String(node.textContent ?? "").replace(/\s+/gu, " ").trim()
+        walk(node)
+        return parts
+          .join("")
+          .split("\n")
+          .map((s) => s.replace(/\s+/gu, " ").trim())
+          .filter(Boolean)
+          .join("\n")
       }
       const fetchText = async (url) => {
         let last = "unknown"
@@ -594,6 +622,10 @@ try {
         sourceIdType: "authoritative",
         productName: group.productName,
         sourceDescription: String(group.sourceDescription ?? "").trim(),
+        rawSourceDescription: String(group.sourceDescription ?? "").trim(),
+        publicSourceDescription: normalizeDailyfoodPublicDescription(
+          String(group.sourceDescription ?? "").trim(),
+        ),
         detailUrl: group.detailUrl,
         ...image,
         imageUrl: image.source_image_url,
@@ -639,6 +671,12 @@ try {
       sourceDescription: String(
         browserResult.detailStatus[row.pcode]?.sourceDescription ?? "",
       ).trim(),
+      rawSourceDescription: String(
+        browserResult.detailStatus[row.pcode]?.sourceDescription ?? "",
+      ).trim(),
+      publicSourceDescription: normalizeDailyfoodPublicDescription(
+        String(browserResult.detailStatus[row.pcode]?.sourceDescription ?? "").trim(),
+      ),
       detailUrl: `${baseUrl}/partner/?mod=product&actpage=prt.detail.pop&pcode=${encodeURIComponent(row.pcode)}`,
       ...image,
       imageUrl: image.source_image_url,

@@ -141,16 +141,26 @@ foreach ($groups as $group) {
         $parent_id = $candidate_parent_ids[0];
         $touched_parents[$parent_id] = true;
 
-        $source_description = '';
-        foreach (['A', 'B'] as $desc_lane) {
-            $desc_src = $group['lanes'][$desc_lane] ?? null;
-            if (is_array($desc_src) && !empty($desc_src['sourceDescription'])) {
-                $source_description = (string) $desc_src['sourceDescription'];
-                break;
+        foreach (($group['lanes'] ?? []) as $lane_code => $lane) {
+            if (!is_array($lane)) {
+                continue;
             }
-        }
-        if ($source_description !== '') {
-            update_post_meta($parent_id, '_wh_source_description', sanitize_textarea_field($source_description));
+            $supplier_id = sanitize_key((string) ($lane['supplierId'] ?? ''));
+            $source_product_id = sanitize_text_field((string) ($lane['sourceProductId'] ?? ''));
+            $raw = (string) ($lane['rawSourceDescription'] ?? $lane['sourceDescription'] ?? '');
+            $public = (string) ($lane['publicSourceDescription'] ?? '');
+            if ($public === '' && trim($raw) !== '') {
+                $public = $raw;
+            }
+            if (trim($public) !== '' && $supplier_id !== '' && $source_product_id !== '') {
+                WholesaleHub_Supplier_Lanes::upsert_source_description(
+                    $parent_id,
+                    $supplier_id,
+                    $source_product_id,
+                    $raw,
+                    $public
+                );
+            }
         }
 
         foreach (($group['lanes'] ?? []) as $lane_code => $lane) {

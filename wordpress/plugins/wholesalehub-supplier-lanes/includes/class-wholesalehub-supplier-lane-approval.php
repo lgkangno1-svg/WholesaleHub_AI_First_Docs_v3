@@ -97,6 +97,8 @@ final class WholesaleHub_Supplier_Lane_Approval
                 'sourceProductId' => $source_product_id,
                 'laneCode' => $lane_code,
                 'sourceDescription' => sanitize_textarea_field((string) ($lane['sourceDescription'] ?? '')),
+                'rawSourceDescription' => sanitize_textarea_field((string) ($lane['rawSourceDescription'] ?? $lane['sourceDescription'] ?? '')),
+                'publicSourceDescription' => sanitize_textarea_field((string) ($lane['publicSourceDescription'] ?? '')),
                 'options' => $options,
             ],
         ];
@@ -1037,9 +1039,22 @@ final class WholesaleHub_Supplier_Lane_Approval
         if ($categories !== []) {
             wp_set_object_terms($parent_id, $categories, 'product_cat', false);
         }
-        $source_description = sanitize_textarea_field((string) ($payload['lane']['sourceDescription'] ?? ''));
-        if ($source_description !== '') {
-            update_post_meta($parent_id, '_wh_source_description', $source_description);
+        $lane_code = sanitize_key((string) ($payload['lane']['laneCode'] ?? ''));
+        $supplier_id = sanitize_key((string) ($payload['lane']['supplierId'] ?? ''));
+        $source_product_id = sanitize_text_field((string) ($payload['lane']['sourceProductId'] ?? ''));
+        $raw = (string) ($payload['lane']['rawSourceDescription'] ?? $payload['lane']['sourceDescription'] ?? '');
+        $public = (string) ($payload['lane']['publicSourceDescription'] ?? '');
+        if ($public === '' && trim($raw) !== '') {
+            $public = $raw;
+        }
+        if (trim($public) !== '' && $supplier_id !== '' && $source_product_id !== '') {
+            WholesaleHub_Supplier_Lanes::upsert_source_description(
+                $parent_id,
+                $supplier_id,
+                $source_product_id,
+                $raw,
+                $public
+            );
         }
         return $parent_id;
     }
