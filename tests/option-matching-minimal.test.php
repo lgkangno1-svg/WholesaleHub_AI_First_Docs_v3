@@ -42,6 +42,8 @@ check($domestic['comparison_group'] !== $china['comparison_group'], 'G: 국내�
 check($special5['comparison_group'] !== $noGrade5['comparison_group'] && $noGrade5['status'] === 'review_required' && $noGrade5['confidence'] < 0.85, 'H: 특품5kg vs 5kg review');
 check($trimmed['comparison_group'] !== $untrimmed['comparison_group'] && $untrimmed['processing'] === '비손질', 'processing: 손질 vs 비손질 different');
 check($regular['comparison_group'] !== $homeUse['comparison_group'] && $homeUse['grade_size'] === '가정용', 'grade: 정품 vs 가정용 different');
+$weightRange = $parse('특품 샤인2kg(3~4송이내외)');
+check($weightRange['status'] === 'auto_approved' && $weightRange['weight_val'] === 2000.0 && $weightRange['count_is_range'] === true, 'R: 특품 샤인2kg(3~4송이) weight+range auto');
 
 $compare = [WholesaleHub_Supplier_Lanes::class, 'compare_spec_labels'];
 check($compare('특품 5kg', '5kg')['verdict'] === 'REVIEW_REQUIRED', 'precedence A: missing grade reviews');

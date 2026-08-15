@@ -405,7 +405,7 @@ final class WholesaleHub_Supplier_Lanes
 
         $comparison_group = !empty($key_parts) ? implode(' ', $key_parts) : $raw_label;
         $has_hard_quantity = $weight_val !== null || ($count_val !== null && !$count_is_range);
-        $has_sufficient_spec = $grade_size !== null && $has_hard_quantity && !$count_is_range;
+        $has_sufficient_spec = $grade_size !== null && $has_hard_quantity;
         $confidence = $has_sufficient_spec ? 0.95 : 0.50;
         $status = ($confidence >= 0.85) ? 'auto_approved' : 'review_required';
 
