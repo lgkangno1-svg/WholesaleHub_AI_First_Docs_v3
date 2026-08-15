@@ -15,12 +15,13 @@ require_once __DIR__ . '/includes/class-wholesalehub-bulk-order.php';
 final class WholesaleHub_Supplier_Lanes
 {
     private const SCHEMA_VERSION = '1.4.0';
-    private const ASSET_VERSION = '1.4.5';
+    private const ASSET_VERSION = '1.4.6';
     private const SCHEMA_OPTION = 'wh_supplier_lane_schema_version';
     private const MODE_META = '_wh_supplier_lane_mode';
     private const OFFER_KEY_FIELD = 'wh_public_offer_key';
     private const DISPATCH_NOTICE = '주문 후 1~2일 이내 출고 예정';
     private const SPLIT_NOTICE = '선택한 옵션에 따라 상품이 나누어 배송될 수 있습니다.';
+    private const REMOTE_FALLBACK_FEE = 4000;
     private const INTERNAL_META = [
         '_wh_internal_supplier_id',
         '_wh_source_product_id',
@@ -47,6 +48,7 @@ final class WholesaleHub_Supplier_Lanes
         add_action('wp_loaded', [self::class, 'handle_add_to_cart'], 20);
         add_action('template_redirect', [self::class, 'redirect_cart_to_checkout'], 1);
         add_action('woocommerce_cart_calculate_fees', [self::class, 'calculate_supplier_shipping_fees'], 20);
+        remove_action('woocommerce_cart_calculate_fees', 'avocadoss_add_jeju_island_shipping_fee', 20);
         add_action('woocommerce_check_cart_items', [self::class, 'validate_cart_shipping_policies']);
         add_filter('woocommerce_add_cart_item_data', [self::class, 'preserve_cart_identity'], 10, 3);
         add_filter('woocommerce_get_item_data', [self::class, 'public_cart_item_data'], 10, 2);
@@ -1378,9 +1380,6 @@ final class WholesaleHub_Supplier_Lanes
         if (is_admin() && !defined('DOING_AJAX')) {
             return;
         }
-        if (function_exists('remove_action')) {
-            remove_action('woocommerce_cart_calculate_fees', 'avocadoss_add_jeju_island_shipping_fee', 20);
-        }
         if (!function_exists('WC') || WC()->cart === null || WC()->cart->is_empty()) {
             return;
         }
@@ -1465,10 +1464,10 @@ final class WholesaleHub_Supplier_Lanes
 
             $total_base_shipping += $group_shipping;
 
-            if ($is_jeju && $jeju_fee > 0) {
-                $total_surcharge += $jeju_fee;
-            } elseif ($is_remote && $remote_fee > 0) {
-                $total_surcharge += $remote_fee;
+            if ($is_jeju) {
+                $total_surcharge += $jeju_fee > 0 ? $jeju_fee : self::REMOTE_FALLBACK_FEE;
+            } elseif ($is_remote) {
+                $total_surcharge += $remote_fee > 0 ? $remote_fee : self::REMOTE_FALLBACK_FEE;
             }
         }
 
@@ -1523,7 +1522,7 @@ final class WholesaleHub_Supplier_Lanes
         ) {
             return true;
         }
-        return (bool) preg_match('/(울릉|독도|백령도|연평도|거문도|흑산도|추자도)/u', $address);
+        return (bool) preg_match('/(울릉|독도|백령도|대청도|소청도|연평도|덕적도|자월도|영흥도|거문도|초도|손죽도|조도|청산도|소안도|보길도|생일도|금당도|욕지도|한산도|사량도|매물도|흑산도|추자도|가파도|마라도|비양도|우도|도서산간|도서지역)/u', $address);
     }
 
     public static function get_variation_shipping_meta(int $variation_id): array
