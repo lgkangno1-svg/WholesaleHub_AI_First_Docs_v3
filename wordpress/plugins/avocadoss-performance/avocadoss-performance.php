@@ -7,6 +7,7 @@
 require_once __DIR__ . '/avocadoss-multi-variation-cart.php';
 require_once __DIR__ . '/avocadoss-telegram-approvals.php';
 require_once __DIR__ . '/includes/class-wholesalehub-homepage.php';
+require_once __DIR__ . '/includes/class-wholesalehub-source-snapshot.php';
 remove_action("wp_head","wp_generator");
 remove_action("wp_head","wlwmanifest_link");
 remove_action("wp_head","rsd_link");

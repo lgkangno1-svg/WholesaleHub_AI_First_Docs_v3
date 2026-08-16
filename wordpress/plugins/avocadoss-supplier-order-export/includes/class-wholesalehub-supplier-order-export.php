@@ -200,7 +200,9 @@ final class Avocadoss_WholesaleHub_Supplier_Order_Export_Command {
     }
 
     private function load_rows( PDO $database, $supplier_id, $order_id_filter ) {
-        $sql = "SELECT s.*
+        $rows = array();
+        $seen = array();
+        $sql  = "SELECT s.*
                 FROM woo_order_item_source_snapshots s
                 WHERE s.snapshot_status = 'mapped'
                   AND lower(s.supplier_id) = :supplier_id
@@ -223,7 +225,6 @@ final class Avocadoss_WholesaleHub_Supplier_Order_Export_Command {
         }
         $statement->execute();
 
-        $rows = array();
         foreach ( $statement->fetchAll( PDO::FETCH_ASSOC ) as $snapshot ) {
             $order = wc_get_order( (int) $snapshot['woo_order_id'] );
             if ( ! $order || ! in_array( $order->get_status(), self::ELIGIBLE_ORDER_STATUSES, true ) ) {
@@ -234,8 +235,88 @@ final class Avocadoss_WholesaleHub_Supplier_Order_Export_Command {
                 continue;
             }
             $rows[] = $this->map_order_row( $snapshot, $order, $item );
+            $seen[ $snapshot['woo_order_item_id'] . '|' . $snapshot['supplier_id'] ] = true;
+        }
+
+        foreach ( $this->load_rows_from_meta( $database, $supplier_id, $order_id_filter ) as $row ) {
+            $key = $row['woo_order_item_id'] . '|' . $row['supplier_id'];
+            if ( isset( $seen[ $key ] ) ) {
+                continue;
+            }
+            $rows[] = $row;
+            $seen[ $key ] = true;
+        }
+
+        usort(
+            $rows,
+            static function ( $a, $b ) {
+                return ( $a['woo_order_id'] <=> $b['woo_order_id'] ) ?: ( $a['woo_order_item_id'] <=> $b['woo_order_item_id'] );
+            }
+        );
+        return $rows;
+    }
+
+    private function load_rows_from_meta( PDO $database, $supplier_id, $order_id_filter ) {
+        $rows = array();
+        $args = array(
+            'status'  => array( 'processing', 'completed' ),
+            'limit'   => -1,
+            'type'    => 'shop_order',
+            'return'  => 'ids',
+        );
+        if ( $order_id_filter ) {
+            $args['include'] = array( $order_id_filter );
+        }
+        foreach ( wc_get_orders( $args ) as $order_id ) {
+            $order = wc_get_order( (int) $order_id );
+            if ( ! $order ) {
+                continue;
+            }
+            foreach ( $order->get_items() as $item_id => $item ) {
+                if ( ! $item instanceof WC_Order_Item_Product ) {
+                    continue;
+                }
+                $meta_supplier = (string) $item->get_meta( '_wh_source_supplier_id', true );
+                if ( '' === $meta_supplier || strtolower( $meta_supplier ) !== strtolower( $supplier_id ) ) {
+                    continue;
+                }
+                if ( $this->is_item_exported( $database, $item_id, $supplier_id ) ) {
+                    continue;
+                }
+                $snapshot = array(
+                    'woo_order_id'                    => (int) $order_id,
+                    'woo_order_item_id'               => (int) $item_id,
+                    'supplier_id'                     => $this->normalize_supplier( $meta_supplier ),
+                    'supplier_original_product_title' => (string) $item->get_meta( '_wh_source_original_title', true ),
+                    'supplier_original_option_name'   => (string) $item->get_meta( '_wh_source_original_option_name', true ),
+                    'quantity'                        => (int) $item->get_meta( '_wh_source_quantity', true ) ?: (int) $item->get_quantity(),
+                    'unit_payable_snapshot'           => null,
+                    'line_payable_snapshot'           => null,
+                    'shipping_included_snapshot'      => null,
+                );
+                $rows[] = $this->map_order_row( $snapshot, $order, $item );
+            }
         }
         return $rows;
+    }
+
+    private function is_item_exported( PDO $database, $item_id, $supplier_id ) {
+        $statement = $database->prepare(
+            "SELECT 1
+             FROM supplier_order_export_items i
+             JOIN supplier_order_export_batches b ON b.id = i.batch_id
+             WHERE i.woo_order_item_id = :item
+               AND lower(i.supplier_id) = lower(:supplier_id)
+               AND b.status = 'sent'
+             LIMIT 1"
+        );
+        $statement->execute(
+            array(
+                ':item'        => $item_id,
+                ':supplier_id' => $supplier_id,
+            )
+        );
+        return false !== $statement->fetch();
     }
 
     private function map_order_row( array $snapshot, WC_Order $order, WC_Order_Item_Product $item ) {

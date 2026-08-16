@@ -19,54 +19,36 @@ final class WholesaleHub_Source_Snapshot {
 			return;
 		}
 
+		$variation_id     = (int) $item->get_variation_id();
+		$product_id       = (int) $item->get_product_id();
+		$target_id        = $variation_id > 0 ? $variation_id : $product_id;
+		$supplier_id      = (string) get_post_meta( $target_id, '_wh_internal_supplier_id', true );
+		$source_product_id = (string) get_post_meta( $target_id, '_wh_source_product_id', true );
+		$source_option_id = (string) get_post_meta( $target_id, '_wh_source_option_id', true );
+		if ( '' === $supplier_id || '' === $source_product_id ) {
+			self::store_unmapped( null, $item_id, $order_id, $item, 'live_supplier_meta_missing' );
+			return;
+		}
+
+		$original = self::original_names( $supplier_id, $source_product_id, $source_option_id );
+		if ( '' === $original['title'] ) {
+			self::store_unmapped( null, $item_id, $order_id, $item, 'original_source_names_missing' );
+			return;
+		}
+
+		$item->update_meta_data( '_wh_source_supplier_id', $supplier_id );
+		$item->update_meta_data( '_wh_source_product_id', $source_product_id );
+		$item->update_meta_data( '_wh_source_option_id', $source_option_id );
+		$item->update_meta_data( '_wh_source_original_title', $original['title'] );
+		$item->update_meta_data( '_wh_source_original_option_name', $original['option'] );
+		$item->update_meta_data( '_wh_source_quantity', (float) $item->get_quantity() );
+		$item->save();
+
 		try {
 			$database = self::database();
 			if ( ! $database ) {
-				self::store_unmapped( null, $item_id, $order_id, $item, 'snapshot_database_unavailable' );
 				return;
 			}
-
-			$variation_id = (int) $item->get_variation_id();
-			$product_id   = (int) $item->get_product_id();
-			$link_id      = $variation_id > 0 ? $variation_id : $product_id;
-			$query        = $database->prepare(
-				'SELECT
-					link.woo_product_id,
-					link.woo_variation_id,
-					link.canonical_variant_id,
-					link.selected_offer_id,
-					trace.atomic_supplier_sku_id,
-					trace.supplier_id,
-					product.supplier_product_id,
-					option_row.supplier_option_id,
-					product.original_title,
-					option_row.original_option_name,
-					product.detail_url,
-					offer.final_cost,
-					offer.shipping_fee,
-					trace.is_purchasable
-				FROM woo_variation_offer_links AS link
-				JOIN selected_offer_trace AS trace
-					ON trace.canonical_variant_id = link.canonical_variant_id
-					AND trace.selected_offer_id = link.selected_offer_id
-				JOIN normalized_offers AS offer
-					ON offer.normalized_offer_id = link.selected_offer_id
-				JOIN atomic_supplier_skus AS sku
-					ON sku.atomic_sku_id = offer.atomic_sku_id
-				JOIN supplier_products AS product
-					ON product.supplier_product_id = sku.supplier_product_id
-				JOIN supplier_options AS option_row
-					ON option_row.supplier_option_id = sku.supplier_option_id
-				WHERE link.woo_variation_id = :variation_id
-				LIMIT 1'
-			);
-			$query->execute( array( ':variation_id' => $link_id ) );
-			$source = $query->fetch( PDO::FETCH_ASSOC );
-			if ( ! $source || 1 !== (int) $source['is_purchasable'] ) {
-				self::store_unmapped( $database, $item_id, $order_id, $item, 'variation_offer_link_missing_or_unpurchasable' );
-				return;
-			}
-
 			$insert = $database->prepare(
 				'INSERT OR IGNORE INTO woo_order_item_source_snapshots (
 					woo_order_item_id, woo_order_id, canonical_variant_id,
@@ -92,30 +74,64 @@ final class WholesaleHub_Source_Snapshot {
 				array(
 					':woo_order_item_id'       => (int) $item_id,
 					':woo_order_id'            => (int) $order_id,
-					':canonical_variant_id'    => $source['canonical_variant_id'],
-					':selected_offer_id'       => $source['selected_offer_id'],
-					':atomic_supplier_sku_id'  => $source['atomic_supplier_sku_id'],
-					':supplier_id'             => $source['supplier_id'],
-					':supplier_product_id'     => $source['supplier_product_id'],
-					':supplier_option_id'      => $source['supplier_option_id'],
-					':supplier_cost_snapshot'  => (int) $source['final_cost'],
-					':shipping_fee_snapshot'   => (int) $source['shipping_fee'],
-					':unit_payable_snapshot'   => (int) $source['final_cost'],
-					':line_payable_snapshot'   => (int) $source['final_cost'] * (float) $item->get_quantity(),
+					':canonical_variant_id'    => '',
+					':selected_offer_id'       => '',
+					':atomic_supplier_sku_id'  => '',
+					':supplier_id'             => $supplier_id,
+					':supplier_product_id'     => $source_product_id,
+					':supplier_option_id'      => $source_option_id,
+					':supplier_cost_snapshot'  => 0,
+					':shipping_fee_snapshot'   => 0,
+					':unit_payable_snapshot'   => 0,
+					':line_payable_snapshot'   => 0,
 					':shipping_included_snapshot' => 1,
 					':selected_at'             => gmdate( 'c' ),
 					':woo_product_id'          => $product_id,
 					':woo_variation_id'        => $variation_id,
-					':original_product_title'  => $source['original_title'],
-					':original_option_name'    => $source['original_option_name'],
-					':source_url'              => (string) $source['detail_url'],
+					':original_product_title'  => $original['title'],
+					':original_option_name'    => $original['option'],
+					':source_url'              => '',
 					':quantity'                => (float) $item->get_quantity(),
 				)
 			);
 		} catch ( Throwable $error ) {
-			error_log( 'WholesaleHub source snapshot failed: ' . $error->getMessage() );
-			self::store_unmapped( isset( $database ) ? $database : null, $item_id, $order_id, $item, 'snapshot_exception' );
+			// The legacy SQLite snapshot table is FK-coupled to a retired
+			// normalization schema; the authoritative snapshot now lives in
+			// order-item meta, so a SQLite write failure is non-fatal.
+			error_log( 'WholesaleHub snapshot sqlite mirror skipped: ' . $error->getMessage() );
 		}
+	}
+
+	private static function original_names( $supplier_id, $source_product_id, $source_option_id ) {
+		$is_walldo = 'walldob2b' === $supplier_id || 'walldo' === $supplier_id;
+		$dir       = defined( 'WHOLESALEHUB_SNAPSHOT_DIR' )
+			? WHOLESALEHUB_SNAPSHOT_DIR
+			: WP_CONTENT_DIR . '/uploads/wholesalehub';
+		$path      = $dir . '/' . ( $is_walldo ? 'walldob2b-catalog-snapshot.json' : 'dailyfood-catalog-snapshot.json' );
+		if ( ! is_readable( $path ) ) {
+			return array( 'title' => '', 'option' => '' );
+		}
+		$snapshot = json_decode( (string) file_get_contents( $path ), true );
+		$products = is_array( $snapshot ) && isset( $snapshot['products'] ) && is_array( $snapshot['products'] )
+			? $snapshot['products']
+			: ( is_array( $snapshot ) ? $snapshot : array() );
+		foreach ( $products as $product ) {
+			if ( (string) ( $product['sourceProductId'] ?? '' ) !== (string) $source_product_id ) {
+				continue;
+			}
+			$option = '';
+			foreach ( (array) ( $product['options'] ?? array() ) as $option_row ) {
+				if ( (string) ( $option_row['sourceOptionId'] ?? '' ) === (string) $source_option_id ) {
+					$option = (string) ( $option_row['optionName'] ?? $option_row['publicOptionLabel'] ?? '' );
+					break;
+				}
+			}
+			return array(
+				'title'  => (string) ( $product['productName'] ?? '' ),
+				'option' => $option,
+			);
+		}
+		return array( 'title' => '', 'option' => '' );
 	}
 
 	private static function store_unmapped( $database, $item_id, $order_id, $item, $reason ) {
