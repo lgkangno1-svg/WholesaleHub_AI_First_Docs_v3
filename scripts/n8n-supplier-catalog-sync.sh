@@ -220,6 +220,40 @@ run_with_timeout "$NETWORK_TIMEOUT" docker exec \
   wp --allow-root --path=/var/www/html eval-file /tmp/sync-woocommerce-catalog.php
 run_with_timeout "$NETWORK_TIMEOUT" docker cp avocadoss-wp:/tmp/catalog-sync-result.json \
   "$REPORT_DIR/catalog-sync-result.json" >/dev/null
+
+publish_snapshot_to_container() {
+  local source=$1
+  local name=$2
+  local supplier=$3
+  local valid
+  valid=$(node -e '
+    const fs = require("node:fs");
+    const path = process.argv[1];
+    const expected = process.argv[2];
+    let s;
+    try { s = JSON.parse(fs.readFileSync(path, "utf8")); } catch { process.stdout.write("invalid_json"); process.exit(0); }
+    const products = Array.isArray(s) ? s : (s.products || []);
+    if (!Array.isArray(products) || products.length === 0) { process.stdout.write("empty"); process.exit(0); }
+    if ((s.supplier || "") !== expected) { process.stdout.write("supplier_mismatch"); process.exit(0); }
+    for (const p of products) {
+      if (!p.sourceProductId || !p.productName) { process.stdout.write("missing_identity"); process.exit(0); }
+    }
+    process.stdout.write(JSON.stringify({ ok: true, generated_at: s.generatedAt || "", count: products.length }));
+  ' "$source" "$supplier")
+  case "$valid" in
+    invalid_json|empty|supplier_mismatch|missing_identity)
+      echo "snapshot_publish $name SKIPPED reason=$valid" >&2
+      return 1 ;;
+  esac
+  run_with_timeout "$NETWORK_TIMEOUT" docker cp "$source" "avocadoss-wp:/tmp/wh-snap-$name" >/dev/null
+  run_with_timeout "$NETWORK_TIMEOUT" docker exec avocadoss-wp sh -c "mv -f /tmp/wh-snap-$name /var/www/html/wp-content/uploads/wholesalehub/$name"
+  echo "snapshot_publish $name OK $valid" >&2
+}
+
+start_step snapshot_publish
+publish_snapshot_to_container "$REPORT_DIR/dailyfood-catalog-snapshot.json" dailyfood-catalog-snapshot.json dailyfood || true
+publish_snapshot_to_container "$REPORT_DIR/walldob2b-catalog-snapshot.json" walldob2b-catalog-snapshot.json walldob2b || true
+
 start_step shipping_audit
 node scripts/supplier-catalog/generate-daily-shipping-audit.mjs "$REPORT_DIR"
 
