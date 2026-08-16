@@ -31,6 +31,25 @@
   margin: 0 0 0.5rem;
 }
 
+/* checkout/cart: hide the conflicting WooCommerce default shipping row.
+   The supplier-lanes "배송비" fee row is the single authoritative display. */
+.woocommerce-checkout-review-order-table tr.woocommerce-shipping-totals.shipping,
+.woocommerce-cart table.shop_table tr.shipping {
+  display: none;
+}
+
+.wh-restricted-notice {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+}
+.wh-restricted-notice p {
+  margin: 0.25rem 0 0;
+}
+
 .wh-lane-grid {
   display: grid;
   gap: 1rem;

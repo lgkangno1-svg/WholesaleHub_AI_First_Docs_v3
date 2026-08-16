@@ -16,13 +16,14 @@ require_once __DIR__ . '/includes/class-wholesalehub-marketplace-bulk.php';
 final class WholesaleHub_Supplier_Lanes
 {
     private const SCHEMA_VERSION = '1.4.0';
-    private const ASSET_VERSION = '1.4.7';
+    private const ASSET_VERSION = '1.4.8';
     private const SCHEMA_OPTION = 'wh_supplier_lane_schema_version';
     private const MODE_META = '_wh_supplier_lane_mode';
     private const OFFER_KEY_FIELD = 'wh_public_offer_key';
     private const DISPATCH_NOTICE = '주문 후 1~2일 이내 출고 예정';
     private const SPLIT_NOTICE = '선택한 옵션에 따라 상품이 나누어 배송될 수 있습니다.';
     private const REMOTE_FALLBACK_FEE = 4000;
+    private const RESTRICTED_NOTICE = '제주도 및 도서산간 지역은 배송이 어렵습니다. 생물 특성상 배송에 2일 이상 소요될 수 있는 제주도 및 도서산간 지역은 상품의 품질 관리를 위해 배송하지 않고 있습니다. 이용에 양해 부탁드립니다.';
     private const INTERNAL_META = [
         '_wh_internal_supplier_id',
         '_wh_source_product_id',
@@ -51,6 +52,10 @@ final class WholesaleHub_Supplier_Lanes
         add_action('woocommerce_cart_calculate_fees', [self::class, 'calculate_supplier_shipping_fees'], 20);
         remove_action('woocommerce_cart_calculate_fees', 'avocadoss_add_jeju_island_shipping_fee', 20);
         add_action('woocommerce_check_cart_items', [self::class, 'validate_cart_shipping_policies']);
+        add_action('woocommerce_after_checkout_validation', [self::class, 'block_restricted_checkout'], 10, 2);
+        add_action('woocommerce_single_product_summary', [self::class, 'render_restricted_notice'], 40);
+        add_action('woocommerce_before_cart', [self::class, 'render_restricted_notice']);
+        add_action('woocommerce_before_checkout_form', [self::class, 'render_restricted_notice'], 5);
         add_filter('woocommerce_add_cart_item_data', [self::class, 'preserve_cart_identity'], 10, 3);
         add_filter('woocommerce_get_item_data', [self::class, 'public_cart_item_data'], 10, 2);
         add_action(
@@ -1480,9 +1485,7 @@ final class WholesaleHub_Supplier_Lanes
         }
         $full_address = trim($addr1 . ' ' . $addr2);
         $state = $customer ? (string) $customer->get_shipping_state() : '';
-
-        $is_jeju = self::is_jeju_address($postcode, $state, $full_address);
-        $is_remote = self::is_remote_address($postcode, $full_address);
+        $restriction = self::is_restricted_shipping_destination($postcode, $state, $full_address);
 
         $groups = [];
         foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
@@ -1512,7 +1515,6 @@ final class WholesaleHub_Supplier_Lanes
         }
 
         $total_base_shipping = 0.0;
-        $total_surcharge = 0.0;
 
         foreach ($groups as $group) {
             $policy = $group['policy'];
@@ -1523,8 +1525,6 @@ final class WholesaleHub_Supplier_Lanes
 
             $type = (string) ($policy['shipping_policy_type'] ?? 'unknown');
             $base_fee = (float) ($policy['shipping_base_fee'] ?? 0);
-            $jeju_fee = (float) ($policy['shipping_jeju_extra_fee'] ?? 0);
-            $remote_fee = (float) ($policy['shipping_remote_extra_fee'] ?? 0);
             $tiers = is_array($policy['shipping_tiers'] ?? null) ? $policy['shipping_tiers'] : [];
 
             $calculated = self::shipping_amount($policy, $qty);
@@ -1534,20 +1534,10 @@ final class WholesaleHub_Supplier_Lanes
             $group_shipping = $calculated['amount'];
 
             $total_base_shipping += $group_shipping;
-
-            if ($is_jeju) {
-                $total_surcharge += $jeju_fee > 0 ? $jeju_fee : self::REMOTE_FALLBACK_FEE;
-            } elseif ($is_remote) {
-                $total_surcharge += $remote_fee > 0 ? $remote_fee : self::REMOTE_FALLBACK_FEE;
-            }
         }
 
-        if ($total_base_shipping > 0) {
+        if ($restriction === 'allowed') {
             WC()->cart->add_fee(__('배송비', 'wholesalehub-supplier-lanes'), $total_base_shipping, false);
-        }
-        if ($total_surcharge > 0) {
-            $label = $is_jeju ? __('제주 추가 배송비', 'wholesalehub-supplier-lanes') : __('도서산간 추가 배송비', 'wholesalehub-supplier-lanes');
-            WC()->cart->add_fee($label, $total_surcharge, false);
         }
     }
 
@@ -1564,6 +1554,37 @@ final class WholesaleHub_Supplier_Lanes
                 return;
             }
         }
+    }
+
+    public static function is_restricted_shipping_destination(string $postcode, string $state, string $address): string
+    {
+        if (self::is_jeju_address($postcode, $state, $address)) {
+            return 'restricted_jeju';
+        }
+        if (self::is_remote_address($postcode, $address)) {
+            return 'restricted_remote_island';
+        }
+        return 'allowed';
+    }
+
+    public static function block_restricted_checkout(array $data, WP_Error $errors): void
+    {
+        $postcode = (string) ($data['shipping_postcode'] ?? '');
+        $state = (string) ($data['shipping_state'] ?? '');
+        $address = trim((string) ($data['shipping_address_1'] ?? '') . ' ' . (string) ($data['shipping_address_2'] ?? ''));
+        if ($postcode === '' && isset($data['billing_postcode'])) {
+            $postcode = (string) $data['billing_postcode'];
+            $state = (string) ($data['billing_state'] ?? '');
+            $address = trim((string) ($data['billing_address_1'] ?? '') . ' ' . (string) ($data['billing_address_2'] ?? ''));
+        }
+        if (self::is_restricted_shipping_destination($postcode, $state, $address) !== 'allowed') {
+            $errors->add('shipping_restricted', self::RESTRICTED_NOTICE);
+        }
+    }
+
+    public static function render_restricted_notice(): void
+    {
+        echo '<div class="wh-restricted-notice" role="note"><strong>배송 제한 안내</strong><p>' . esc_html(self::RESTRICTED_NOTICE) . '</p></div>';
     }
 
     public static function is_jeju_address(string $postcode, string $state, string $address): bool
