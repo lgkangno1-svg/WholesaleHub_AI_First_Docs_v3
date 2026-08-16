@@ -1010,7 +1010,7 @@ final class WholesaleHub_Supplier_Lane_Approval
         $product->set_status('private');
         $product->set_catalog_visibility('hidden');
         $product->set_description(
-            '<p>선택한 옵션과 수량에 따라 주문할 수 있습니다. 옵션별로 나누어 배송될 수 있습니다.</p>'
+            '<p>주문시에는 옵션별로 나누어 배송될 수 있습니다.</p>'
         );
         $product->set_short_description('<p>신선 상품 옵션을 선택해 주문하세요.</p>');
         if (in_array($final_tax, ['none', 'taxable'], true)) {
