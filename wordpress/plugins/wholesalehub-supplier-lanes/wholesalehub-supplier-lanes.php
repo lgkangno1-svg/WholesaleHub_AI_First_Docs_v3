@@ -11,11 +11,12 @@ defined('ABSPATH') || exit;
 
 require_once __DIR__ . '/includes/class-wholesalehub-supplier-lane-approval.php';
 require_once __DIR__ . '/includes/class-wholesalehub-bulk-order.php';
+require_once __DIR__ . '/includes/class-wholesalehub-marketplace-bulk.php';
 
 final class WholesaleHub_Supplier_Lanes
 {
     private const SCHEMA_VERSION = '1.4.0';
-    private const ASSET_VERSION = '1.4.6';
+    private const ASSET_VERSION = '1.4.7';
     private const SCHEMA_OPTION = 'wh_supplier_lane_schema_version';
     private const MODE_META = '_wh_supplier_lane_mode';
     private const OFFER_KEY_FIELD = 'wh_public_offer_key';
@@ -81,6 +82,7 @@ final class WholesaleHub_Supplier_Lanes
             self::install_schema();
         }
         WholesaleHub_Bulk_Order::install_schema();
+        WholesaleHub_Marketplace_Bulk::install_schema();
     }
 
     public static function install_schema(): void
@@ -822,6 +824,23 @@ final class WholesaleHub_Supplier_Lanes
         return $html . "\n" . $content;
     }
 
+    public static function normalize_source_description_linebreaks(string $text): string
+    {
+        $text = str_replace(["\r\n", "\r"], "\n", $text);
+        $text = str_replace('\\n', "\n", $text);
+        return $text;
+    }
+
+    private static function render_description_lines(string $text): string
+    {
+        $text = self::normalize_source_description_linebreaks($text);
+        $lines = array_values(array_filter(array_map('trim', explode("\n", $text)), static fn($line) => $line !== ''));
+        if ($lines === []) {
+            return esc_html($text);
+        }
+        return implode('', array_map(static fn($line) => '<p>' . esc_html($line) . '</p>', $lines));
+    }
+
     public static function source_description_html(int $parent_id): string
     {
         $map = json_decode((string) get_post_meta($parent_id, '_wh_source_descriptions', true), true);
@@ -831,7 +850,7 @@ final class WholesaleHub_Supplier_Lanes
                 return '';
             }
             return '<div class="wh-product-source-description"><div class="wh-product-source-description-body">'
-                . nl2br(esc_html($legacy)) . '</div></div>';
+                . self::render_description_lines($legacy) . '</div></div>';
         }
         $parts = [];
         foreach ($map as $entry) {
@@ -842,7 +861,7 @@ final class WholesaleHub_Supplier_Lanes
             if ($public === '') {
                 continue;
             }
-            $parts[] = '<div class="wh-source-description">' . nl2br(esc_html($public)) . '</div>';
+            $parts[] = '<div class="wh-source-description">' . self::render_description_lines($public) . '</div>';
         }
         if ($parts === []) {
             return '';
@@ -868,7 +887,7 @@ final class WholesaleHub_Supplier_Lanes
             'raw' => $raw,
             'public' => $public,
         ];
-        update_post_meta($parent_id, '_wh_source_descriptions', wp_json_encode($map, JSON_UNESCAPED_UNICODE));
+        update_post_meta($parent_id, '_wh_source_descriptions', wp_slash(wp_json_encode($map, JSON_UNESCAPED_UNICODE)));
         if (trim($public) !== '') {
             update_post_meta($parent_id, '_wh_source_description', sanitize_textarea_field($public));
         }
@@ -2225,8 +2244,10 @@ if (function_exists('register_activation_hook')) {
     register_activation_hook(__FILE__, static function (): void {
         WholesaleHub_Supplier_Lanes::install_schema();
         WholesaleHub_Bulk_Order::install_schema();
+        WholesaleHub_Marketplace_Bulk::install_schema();
     });
 }
 WholesaleHub_Supplier_Lanes::boot();
 WholesaleHub_Supplier_Lane_Approval::boot();
 WholesaleHub_Bulk_Order::boot();
+WholesaleHub_Marketplace_Bulk::boot();
