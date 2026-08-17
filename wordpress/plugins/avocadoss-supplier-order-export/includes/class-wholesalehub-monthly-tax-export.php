@@ -40,12 +40,56 @@ final class Avocadoss_WholesaleHub_Monthly_Tax_Export_Command {
 		$this->ensure_schema();
 
 		$result = $this->build( $period, $dry_run );
+		$input_hash = $result['input_hash'];
+
+		$existing = $this->existing_batch( $period );
+		if ( $existing ) {
+			if ( (string) $existing['input_hash'] === $input_hash && ! $force ) {
+				WP_CLI::line( wp_json_encode( array( 'status' => 'unchanged', 'period' => $period, 'message' => '동일 데이터, 재전송 생략' ), JSON_UNESCAPED_UNICODE ) );
+				return;
+			}
+			if ( (string) $existing['input_hash'] !== $input_hash && ! $force ) {
+				$result['status'] = 'REVISION_REQUIRED';
+				WP_CLI::line( wp_json_encode( array_merge( $result, array( 'status' => 'REVISION_REQUIRED', 'message' => '기존 전송 후 데이터 변경 감지, 자동 재발급하지 않음' ) ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) );
+				if ( function_exists( 'avocadoss_send_telegram_message' ) ) {
+					avocadoss_send_telegram_message( '[도매Hub ' . $period . ' 세금자료 변경 감지]\n기존 전송 후 주문/환불/사업자정보/과세구분 변경이 감지되었습니다.\n자동 재발급하지 않았습니다. 검토가 필요합니다.' );
+				}
+				return;
+			}
+		}
+
 		WP_CLI::line( wp_json_encode( $result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) );
 
 		if ( $dry_run ) {
 			return;
 		}
 		$this->send_telegram( $period, $result, $force );
+		$this->record_batch( $period, $input_hash, $result, $existing );
+	}
+
+	private function existing_batch( $period ) {
+		global $wpdb;
+		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wholesalehub_monthly_tax_batches WHERE period=%s LIMIT 1", $period ), ARRAY_A );
+	}
+
+	private function record_batch( $period, $input_hash, $result, $existing ) {
+		global $wpdb;
+		$now = current_time( 'mysql' );
+		$data = array(
+			'period' => $period,
+			'input_hash' => $input_hash,
+			'status' => 'SENT',
+			'taxable_docs' => (int) $result['taxable_docs'],
+			'exempt_docs' => (int) $result['exempt_docs'],
+			'review_count' => (int) $result['review_count'],
+			'telegram_sent_at' => $now,
+		);
+		if ( $existing ) {
+			$wpdb->update( $wpdb->prefix . 'wholesalehub_monthly_tax_batches', $data, array( 'id' => (int) $existing['id'] ) );
+		} else {
+			$data['created_at'] = $now;
+			$wpdb->insert( $wpdb->prefix . 'wholesalehub_monthly_tax_batches', $data );
+		}
 	}
 
 	private function ensure_schema() {
@@ -106,7 +150,6 @@ final class Avocadoss_WholesaleHub_Monthly_Tax_Export_Command {
 					$review[] = array_merge( array( 'business_number' => $biz, 'company' => $data['company'] ), $issue );
 				}
 				$summary['review_count'] += count( $data['issues'] );
-				continue;
 			}
 			foreach ( $data['docs'] as $doc ) {
 				if ( 'TAXABLE' === $doc['type'] ) {
@@ -140,18 +183,20 @@ final class Avocadoss_WholesaleHub_Monthly_Tax_Export_Command {
 			'taxable_vat' => $summary['taxable_vat'],
 			'exempt_supply' => $summary['exempt_supply'],
 			'business_count' => $summary['business_count'],
+			'input_hash' => hash( 'sha256', wp_json_encode( $rows ) ),
 			'files' => $files,
 		);
 	}
 
 	private function collect_rows( $start, $end ) {
+		$start_date = substr( $start, 0, 10 );
+		$end_date = substr( $end, 0, 10 );
 		$rows = array();
 		$args = array(
 			'status' => self::ELIGIBLE_ORDER_STATUSES,
 			'limit' => -1,
 			'type' => 'shop_order',
 			'return' => 'ids',
-			'date_paid' => $start . '...' . $end,
 		);
 		foreach ( wc_get_orders( $args ) as $order_id ) {
 			$order = wc_get_order( (int) $order_id );
@@ -164,6 +209,19 @@ final class Avocadoss_WholesaleHub_Monthly_Tax_Export_Command {
 				if ( ! $item instanceof WC_Order_Item_Product ) {
 					continue;
 				}
+				$supply_at = (string) $item->get_meta( '_wh_tax_supply_at', true );
+				$supply_legacy = false;
+				if ( '' === $supply_at ) {
+					$supply_at = (string) $order->get_meta( '_wh_tax_supply_at', true );
+				}
+				if ( '' === $supply_at ) {
+					$supply_at = $order->get_date_paid()->date( 'Y-m-d' );
+					$supply_legacy = true;
+				}
+				$supply_day = substr( $supply_at, 0, 10 );
+				if ( $supply_day < $start_date || $supply_day > $end_date ) {
+					continue;
+				}
 				$rows[] = array(
 					'order_id' => (int) $order_id,
 					'user_id' => $uid,
@@ -174,7 +232,8 @@ final class Avocadoss_WholesaleHub_Monthly_Tax_Export_Command {
 					'tax_type' => $this->tax_document_type( $item ),
 					'net' => (float) $item->get_total(),
 					'vat' => (float) $item->get_total_tax(),
-					'paid_at' => $order->get_date_paid()->date( 'Y-m-d' ),
+					'supply_at' => $supply_day,
+					'supply_legacy' => $supply_legacy,
 				);
 			}
 		}
@@ -182,16 +241,13 @@ final class Avocadoss_WholesaleHub_Monthly_Tax_Export_Command {
 	}
 
 	private function tax_document_type( WC_Order_Item_Product $item ) {
-		$class  = (string) $item->get_tax_class();
-		$status = (string) $item->get_tax_status();
-		if ( 'zero-rate' === $class ) {
-			return 'ZERO_RATED';
+		$meta = (string) $item->get_meta( '_wh_tax_document_type', true );
+		if ( '' === $meta ) {
+			$target = (int) $item->get_variation_id() ?: (int) $item->get_product_id();
+			$meta = (string) get_post_meta( $target, '_wh_tax_document_type', true );
 		}
-		if ( 'taxable' === $status ) {
-			return 'TAXABLE';
-		}
-		if ( 'none' === $status ) {
-			return 'EXEMPT';
+		if ( in_array( $meta, array( 'TAXABLE', 'EXEMPT', 'ZERO_RATED' ), true ) ) {
+			return $meta;
 		}
 		return 'UNCLASSIFIED';
 	}
@@ -215,6 +271,10 @@ final class Avocadoss_WholesaleHub_Monthly_Tax_Export_Command {
 			}
 			if ( 'UNCLASSIFIED' === $row['tax_type'] ) {
 				$groups[ $biz ]['issues'][] = array( 'order_id' => $row['order_id'], 'code' => 'TAX_CLASS_REVIEW_REQUIRED', 'message' => '과세구분 미확정' );
+				continue;
+			}
+			if ( 'TAXABLE' === $row['tax_type'] && ! $this->vat_evidence_confirmed() ) {
+				$groups[ $biz ]['issues'][] = array( 'order_id' => $row['order_id'], 'code' => 'TAX_AMOUNT_REVIEW_REQUIRED', 'message' => '과세 세액 근거 미확정(tax rate 미설정)' );
 				continue;
 			}
 			$key = $row['tax_type'];
@@ -253,6 +313,12 @@ final class Avocadoss_WholesaleHub_Monthly_Tax_Export_Command {
 
 	private function normalize_business_number( $value ) {
 		return preg_replace( '/[^0-9]/', '', (string) $value );
+	}
+
+	private function vat_evidence_confirmed() {
+		global $wpdb;
+		$rates = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}woocommerce_tax_rates" );
+		return $rates > 0;
 	}
 
 	private function col_letter( $col ) {
@@ -460,4 +526,62 @@ final class Avocadoss_WholesaleHub_Monthly_Tax_Export_Command {
 
 if ( defined( 'WP_CLI' ) && WP_CLI ) {
 	WP_CLI::add_command( 'avocadoss monthly-tax-export', 'Avocadoss_WholesaleHub_Monthly_Tax_Export_Command' );
+	WP_CLI::add_command(
+		'avocadoss tax-classification',
+		function ( $args, $assoc_args ) {
+			$action = isset( $args[0] ) ? $args[0] : '';
+			if ( 'set' === $action ) {
+				$variation = isset( $assoc_args['variation'] ) ? absint( $assoc_args['variation'] ) : 0;
+				$type = isset( $assoc_args['type'] ) ? strtoupper( sanitize_text_field( $assoc_args['type'] ) ) : '';
+				if ( $variation <= 0 || ! in_array( $type, array( 'TAXABLE', 'EXEMPT', 'ZERO_RATED', 'UNCLASSIFIED' ), true ) ) {
+					WP_CLI::error( 'usage: wp avocadoss tax-classification set --variation=ID --type=TAXABLE|EXEMPT|ZERO_RATED|UNCLASSIFIED' );
+				}
+				update_post_meta( $variation, '_wh_tax_document_type', $type );
+				WP_CLI::success( "variation {$variation} -> {$type}" );
+				return;
+			}
+			if ( 'export-review' === $action ) {
+				global $wpdb;
+				$rows = $wpdb->get_results(
+					"SELECT p.ID as vid, p.post_parent as pid FROM {$wpdb->posts} p WHERE p.post_type='product_variation' AND p.post_status='publish'",
+					ARRAY_A
+				);
+				$out = array( array( 'variation_id', 'parent_id', '상품명', '옵션명', 'tax_document_type' ) );
+				foreach ( $rows as $r ) {
+					$type = (string) get_post_meta( (int) $r['vid'], '_wh_tax_document_type', true );
+					$v = wc_get_product( (int) $r['vid'] );
+					$out[] = array(
+						$r['vid'],
+						$r['pid'],
+						get_the_title( (int) $r['pid'] ),
+						$v ? $v->get_name() : '',
+						'' === $type ? 'UNCLASSIFIED' : $type,
+					);
+				}
+				$dir = WP_CONTENT_DIR . '/wholesalehub-private/monthly-tax';
+				wp_mkdir_p( $dir );
+				$file = $dir . '/도매허브_상품_과세구분_검토.xlsx';
+				$z = new ZipArchive();
+				$z->open( $file, ZipArchive::CREATE | ZipArchive::OVERWRITE );
+				$z->addFromString( '[Content_Types].xml', '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>' );
+				$z->addFromString( '_rels/.rels', '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>' );
+				$z->addFromString( 'xl/workbook.xml', '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>' );
+				$z->addFromString( 'xl/_rels/workbook.xml.rels', '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>' );
+				$xml = '<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>';
+				foreach ( $out as $n => $row ) {
+					$xml .= '<row r="' . ( $n + 1 ) . '">';
+					foreach ( array_values( $row ) as $col => $v ) {
+						$xml .= '<c r="' . chr( 65 + $col ) . ( $n + 1 ) . '" t="inlineStr"><is><t>' . htmlspecialchars( (string) $v, ENT_XML1 | ENT_QUOTES, 'UTF-8' ) . '</t></is></c>';
+					}
+					$xml .= '</row>';
+				}
+				$xml .= '</sheetData></worksheet>';
+				$z->addFromString( 'xl/worksheets/sheet1.xml', $xml );
+				$z->close();
+				WP_CLI::success( 'review excel: ' . $file );
+				return;
+			}
+			WP_CLI::error( 'usage: wp avocadoss tax-classification <set|export-review>' );
+		}
+	);
 }
