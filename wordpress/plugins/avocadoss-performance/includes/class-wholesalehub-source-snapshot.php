@@ -42,6 +42,12 @@ final class WholesaleHub_Source_Snapshot {
 		$item->update_meta_data( '_wh_source_original_title', $original['title'] );
 		$item->update_meta_data( '_wh_source_original_option_name', $original['option'] );
 		$item->update_meta_data( '_wh_source_quantity', (float) $item->get_quantity() );
+		if ( null !== $original['unit_cost'] ) {
+			$item->update_meta_data( '_wh_source_supplier_unit_cost', $original['unit_cost'] );
+		}
+		if ( null !== $original['shipping_fee'] ) {
+			$item->update_meta_data( '_wh_source_supplier_shipping_cost', $original['shipping_fee'] );
+		}
 		$item->save();
 
 		try {
@@ -80,10 +86,10 @@ final class WholesaleHub_Source_Snapshot {
 					':supplier_id'             => $supplier_id,
 					':supplier_product_id'     => $source_product_id,
 					':supplier_option_id'      => $source_option_id,
-					':supplier_cost_snapshot'  => 0,
-					':shipping_fee_snapshot'   => 0,
-					':unit_payable_snapshot'   => 0,
-					':line_payable_snapshot'   => 0,
+					':supplier_cost_snapshot'  => (int) ( $original['unit_cost'] ?? 0 ),
+					':shipping_fee_snapshot'   => (int) ( $original['shipping_fee'] ?? 0 ),
+					':unit_payable_snapshot'   => (int) ( $original['unit_cost'] ?? 0 ),
+					':line_payable_snapshot'   => (int) ( $original['unit_cost'] ?? 0 ) * (float) $item->get_quantity(),
 					':shipping_included_snapshot' => 1,
 					':selected_at'             => gmdate( 'c' ),
 					':woo_product_id'          => $product_id,
@@ -120,18 +126,30 @@ final class WholesaleHub_Source_Snapshot {
 				continue;
 			}
 			$option = '';
+			$unit_cost = null;
+			$shipping_fee = null;
 			foreach ( (array) ( $product['options'] ?? array() ) as $option_row ) {
 				if ( (string) ( $option_row['sourceOptionId'] ?? '' ) === (string) $source_option_id ) {
 					$option = (string) ( $option_row['optionName'] ?? $option_row['publicOptionLabel'] ?? '' );
+					if ( isset( $option_row['price'] ) && is_numeric( $option_row['price'] ) ) {
+						$unit_cost = (int) $option_row['price'];
+					}
+					if ( isset( $option_row['shippingFee'] ) && is_numeric( $option_row['shippingFee'] ) ) {
+						$shipping_fee = (int) $option_row['shippingFee'];
+					} elseif ( isset( $option_row['shipping_policy']['shipping_base_fee'] ) && is_numeric( $option_row['shipping_policy']['shipping_base_fee'] ) ) {
+						$shipping_fee = (int) $option_row['shipping_policy']['shipping_base_fee'];
+					}
 					break;
 				}
 			}
 			return array(
-				'title'  => (string) ( $product['productName'] ?? '' ),
-				'option' => $option,
+				'title'        => (string) ( $product['productName'] ?? '' ),
+				'option'       => $option,
+				'unit_cost'    => $unit_cost,
+				'shipping_fee' => $shipping_fee,
 			);
 		}
-		return array( 'title' => '', 'option' => '' );
+		return array( 'title' => '', 'option' => '', 'unit_cost' => null, 'shipping_fee' => null );
 	}
 
 	private static function store_unmapped( $database, $item_id, $order_id, $item, $reason ) {

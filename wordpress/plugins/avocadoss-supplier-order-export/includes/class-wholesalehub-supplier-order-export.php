@@ -14,6 +14,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class Avocadoss_WholesaleHub_Supplier_Order_Export_Command {
     private const ELIGIBLE_ORDER_STATUSES = array( 'processing', 'completed' );
     private const SUPPLIERS = array( 'dailyfood', 'walldob2b' );
+    private const RUN_HOUR_LABEL = '오전 7시';
+    private const RUN_TIME = '07:00';
+    private const RUN_SUFFIX = '0700';
 
     public function __invoke( $args, $assoc_args ) {
         $date             = isset( $assoc_args['date'] ) ? sanitize_text_field( $assoc_args['date'] ) : wp_date( 'Y-m-d', null, new DateTimeZone( 'Asia/Seoul' ) );
@@ -43,8 +46,8 @@ final class Avocadoss_WholesaleHub_Supplier_Order_Export_Command {
 
         $suppliers = $supplier_filter ? array( $supplier_filter ) : self::SUPPLIERS;
         $summary   = array(
-            'dailyfood'       => array( 'orders' => 0, 'rows' => 0, 'payable' => 0, 'missing_amount' => 0 ),
-            'walldob2b'       => array( 'orders' => 0, 'rows' => 0, 'payable' => 0, 'missing_amount' => 0 ),
+            'dailyfood'       => array( 'orders' => 0, 'rows' => 0, 'quantity' => 0, 'payable' => 0, 'shipping' => 0, 'missing_amount' => 0 ),
+            'walldob2b'       => array( 'orders' => 0, 'rows' => 0, 'quantity' => 0, 'payable' => 0, 'shipping' => 0, 'missing_amount' => 0 ),
             'documents_sent'  => 0,
             'source_unmapped' => $this->count_source_unmapped( $database, $order_id_filter ),
             'duplicate_rows'  => 0,
@@ -85,6 +88,7 @@ final class Avocadoss_WholesaleHub_Supplier_Order_Export_Command {
                 $summary[ $supplier_id ]['rows']   = count( $rows );
                 $summary[ $supplier_id ]['orders'] = count( array_unique( array_column( $rows, 'woo_order_id' ) ) );
                 foreach ( $rows as $row ) {
+                    $summary[ $supplier_id ]['quantity'] += (int) $row['quantity'];
                     if ( null === $row['line_payable_snapshot'] ) {
                         ++$summary[ $supplier_id ]['missing_amount'];
                         $summary['missing_amount_items'][] = array(
@@ -93,6 +97,9 @@ final class Avocadoss_WholesaleHub_Supplier_Order_Export_Command {
                         );
                     } else {
                         $summary[ $supplier_id ]['payable'] += (int) $row['line_payable_snapshot'];
+                        if ( null !== $row['shipping_included_snapshot'] ) {
+                            $summary[ $supplier_id ]['shipping'] += (int) $row['shipping_included_snapshot'];
+                        }
                     }
                 }
 
@@ -283,16 +290,19 @@ final class Avocadoss_WholesaleHub_Supplier_Order_Export_Command {
                 if ( $this->is_item_exported( $database, $item_id, $supplier_id ) ) {
                     continue;
                 }
-                $snapshot = array(
+                $unit_cost = $item->get_meta( '_wh_source_supplier_unit_cost', true );
+                $shipping   = $item->get_meta( '_wh_source_supplier_shipping_cost', true );
+                $quantity   = (int) $item->get_meta( '_wh_source_quantity', true ) ?: (int) $item->get_quantity();
+                $snapshot   = array(
                     'woo_order_id'                    => (int) $order_id,
                     'woo_order_item_id'               => (int) $item_id,
                     'supplier_id'                     => $this->normalize_supplier( $meta_supplier ),
                     'supplier_original_product_title' => (string) $item->get_meta( '_wh_source_original_title', true ),
                     'supplier_original_option_name'   => (string) $item->get_meta( '_wh_source_original_option_name', true ),
-                    'quantity'                        => (int) $item->get_meta( '_wh_source_quantity', true ) ?: (int) $item->get_quantity(),
-                    'unit_payable_snapshot'           => null,
-                    'line_payable_snapshot'           => null,
-                    'shipping_included_snapshot'      => null,
+                    'quantity'                        => $quantity,
+                    'unit_payable_snapshot'           => ( '' !== $unit_cost && is_numeric( $unit_cost ) ) ? (int) $unit_cost : null,
+                    'line_payable_snapshot'           => ( '' !== $unit_cost && is_numeric( $unit_cost ) ) ? (int) $unit_cost * $quantity : null,
+                    'shipping_included_snapshot'      => ( '' !== $shipping && is_numeric( $shipping ) ) ? (int) $shipping : null,
                 );
                 $rows[] = $this->map_order_row( $snapshot, $order, $item );
             }
@@ -406,7 +416,7 @@ final class Avocadoss_WholesaleHub_Supplier_Order_Export_Command {
         $statement->execute(
             array(
                 ':supplier_id'  => $supplier_id,
-                ':scheduled_at' => $date . ' 06:00:00 KST',
+                ':scheduled_at' => $date . ' ' . self::RUN_TIME . ':00 KST',
                 ':started_at'   => $now,
                 ':file_name'    => $file_name,
                 ':row_count'    => $row_count,
@@ -754,17 +764,29 @@ final class Avocadoss_WholesaleHub_Supplier_Order_Export_Command {
 
     private function send_summary( $date, array $summary ) {
         $missing_amount_count = count( $summary['missing_amount_items'] );
-        $total_payable        = (int) $summary['dailyfood']['payable'] + (int) $summary['walldob2b']['payable'];
-        $message = sprintf(
-            "[도매Hub 오전 6시 발주서]\n기준시각: %s 06:00 KST\n\nDailyFood\n- 주문: %d건\n- 상품행: %d건\n- 결제예정금액: %s원\n\nWalldo\n- 주문: %d건\n- 상품행: %d건\n- 결제예정금액: %s원\n\n총 공급처 결제예정금액: %s원\n금액 확인 필요: %d건\n미연결 주문: %d건",
+        $daily_payable        = (int) $summary['dailyfood']['payable'];
+        $daily_shipping       = (int) $summary['dailyfood']['shipping'];
+        $walldo_payable       = (int) $summary['walldob2b']['payable'];
+        $walldo_shipping      = (int) $summary['walldob2b']['shipping'];
+        $daily_total          = $daily_payable + $daily_shipping;
+        $walldo_total         = $walldo_payable + $walldo_shipping;
+        $grand_total          = $daily_total + $walldo_total;
+        $message              = sprintf(
+            "[도매Hub " . self::RUN_HOUR_LABEL . " 발주서]\n기준시각: %s " . self::RUN_TIME . " KST\n\nDailyFood\n- 주문: %d건\n- 상품행: %d건\n- 총수량: %d개\n- 상품 매입금액: %s원\n- 공급처 배송비: %s원\n- 결제예정금액: %s원\n\nWalldo\n- 주문: %d건\n- 상품행: %d건\n- 총수량: %d개\n- 상품 매입금액: %s원\n- 공급처 배송비: %s원\n- 결제예정금액: %s원\n\n총 공급처 결제예정금액: %s원\n금액 확인 필요: %d건\n미연결 주문: %d건",
             $date,
             $summary['dailyfood']['orders'],
             $summary['dailyfood']['rows'],
-            number_format( (int) $summary['dailyfood']['payable'] ),
+            (int) $summary['dailyfood']['quantity'],
+            number_format( $daily_payable ),
+            number_format( $daily_shipping ),
+            number_format( $daily_total ),
             $summary['walldob2b']['orders'],
             $summary['walldob2b']['rows'],
-            number_format( (int) $summary['walldob2b']['payable'] ),
-            number_format( $total_payable ),
+            (int) $summary['walldob2b']['quantity'],
+            number_format( $walldo_payable ),
+            number_format( $walldo_shipping ),
+            number_format( $walldo_total ),
+            number_format( $grand_total ),
             $missing_amount_count,
             $summary['source_unmapped']
         );
@@ -785,7 +807,7 @@ final class Avocadoss_WholesaleHub_Supplier_Order_Export_Command {
         return;
 
         $message = sprintf(
-            "[도매Hub 오전 6시 발주서]\n기준시각: %s 06:00 KST\nDailyFood: 주문 %d건 / 상품행 %d건\nWalldo: 주문 %d건 / 상품행 %d건\n미연결 주문: %d건",
+            "[도매Hub " . self::RUN_HOUR_LABEL . " 발주서]\n기준시각: %s " . self::RUN_TIME . " KST\nDailyFood: 주문 %d건 / 상품행 %d건\nWalldo: 주문 %d건 / 상품행 %d건\n미연결 주문: %d건",
             $date,
             $summary['dailyfood']['orders'],
             $summary['dailyfood']['rows'],
@@ -813,7 +835,7 @@ final class Avocadoss_WholesaleHub_Supplier_Order_Export_Command {
 
     private function file_name( $supplier_id, $date ) {
         $compact = str_replace( '-', '', $date );
-        return ( 'dailyfood' === $supplier_id ? 'dailyfood_발주_' : 'walldo_발주_' ) . $compact . '_0600.xlsx';
+        return ( 'dailyfood' === $supplier_id ? 'dailyfood_발주_' : 'walldo_발주_' ) . $compact . '_' . self::RUN_SUFFIX . '.xlsx';
     }
 
     private function normalize_supplier( $supplier_id ) {
