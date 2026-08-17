@@ -10,6 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/includes/class-wholesalehub-supplier-order-export.php';
+require_once __DIR__ . '/includes/class-wholesalehub-monthly-tax-export.php';
 
 add_action(
     'template_redirect',
