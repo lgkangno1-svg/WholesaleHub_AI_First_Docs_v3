@@ -1181,6 +1181,22 @@ add_action( 'woocommerce_register_form', function() {
         <input type="text" class="woocommerce-Input woocommerce-Input--text input-text" name="avo_billing_first_name" id="avo_billing_first_name" placeholder="이름을 입력하세요" value="<?php echo isset( $_POST['avo_billing_first_name'] ) ? esc_attr( wp_unslash( $_POST['avo_billing_first_name'] ) ) : ''; ?>" required />
     </p>
     <p class="form-row form-row-wide">
+        <label for="avo_business_company"><?php esc_html_e( '상호', 'woocommerce' ); ?>&nbsp;<span class="required">*</span></label>
+        <input type="text" class="woocommerce-Input woocommerce-Input--text input-text" name="avo_business_company" id="avo_business_company" placeholder="상호를 입력하세요" value="<?php echo isset( $_POST['avo_business_company'] ) ? esc_attr( wp_unslash( $_POST['avo_business_company'] ) ) : ''; ?>" required />
+    </p>
+    <p class="form-row form-row-wide">
+        <label for="avo_business_type"><?php esc_html_e( '업태', 'woocommerce' ); ?></label>
+        <input type="text" class="woocommerce-Input woocommerce-Input--text input-text" name="avo_business_type" id="avo_business_type" placeholder="예: 도매 및 소매업" value="<?php echo isset( $_POST['avo_business_type'] ) ? esc_attr( wp_unslash( $_POST['avo_business_type'] ) ) : ''; ?>" />
+    </p>
+    <p class="form-row form-row-wide">
+        <label for="avo_business_item"><?php esc_html_e( '종목', 'woocommerce' ); ?></label>
+        <input type="text" class="woocommerce-Input woocommerce-Input--text input-text" name="avo_business_item" id="avo_business_item" placeholder="예: 식료품" value="<?php echo isset( $_POST['avo_business_item'] ) ? esc_attr( wp_unslash( $_POST['avo_business_item'] ) ) : ''; ?>" />
+    </p>
+    <p class="form-row form-row-wide">
+        <label for="avo_tax_email"><?php esc_html_e( '세금계산서 이메일', 'woocommerce' ); ?></label>
+        <input type="email" class="woocommerce-Input woocommerce-Input--text input-text" name="avo_tax_email" id="avo_tax_email" placeholder="세금계산서 수신용 이메일 (미입력 시 가입 이메일 사용)" value="<?php echo isset( $_POST['avo_tax_email'] ) ? esc_attr( wp_unslash( $_POST['avo_tax_email'] ) ) : ''; ?>" />
+    </p>
+    <p class="form-row form-row-wide">
         <label for="avo_billing_phone"><?php esc_html_e( '연락처', 'woocommerce' ); ?>&nbsp;<span class="required">*</span></label>
         <input type="text" class="woocommerce-Input woocommerce-Input--text input-text" name="avo_billing_phone" id="avo_billing_phone" placeholder="예: 010-1234-5678" value="<?php echo isset( $_POST['avo_billing_phone'] ) ? esc_attr( wp_unslash( $_POST['avo_billing_phone'] ) ) : ''; ?>" required />
     </p>
@@ -1250,6 +1266,7 @@ add_action( 'woocommerce_register_form', function() {
 add_filter( 'woocommerce_registration_errors', function( $errors, $username, $email ) {
     $biz = isset( $_POST['avo_business_number'] ) ? trim( wp_unslash( $_POST['avo_business_number'] ) ) : '';
     $name = isset( $_POST['avo_billing_first_name'] ) ? trim( wp_unslash( $_POST['avo_billing_first_name'] ) ) : '';
+    $company = isset( $_POST['avo_business_company'] ) ? trim( wp_unslash( $_POST['avo_business_company'] ) ) : '';
     $phone = isset( $_POST['avo_billing_phone'] ) ? trim( wp_unslash( $_POST['avo_billing_phone'] ) ) : '';
     $postcode = isset( $_POST['avo_billing_postcode'] ) ? trim( wp_unslash( $_POST['avo_billing_postcode'] ) ) : '';
     $address = isset( $_POST['avo_billing_address'] ) ? trim( wp_unslash( $_POST['avo_billing_address'] ) ) : '';
@@ -1275,6 +1292,9 @@ add_filter( 'woocommerce_registration_errors', function( $errors, $username, $em
     if ( '' === $name ) {
         $errors->add( 'avo_billing_first_name_error', '이름을 입력해주세요.' );
     }
+    if ( '' === $company ) {
+        $errors->add( 'avo_business_company_error', '상호를 입력해주세요.' );
+    }
     if ( '' === $phone ) {
         $errors->add( 'avo_billing_phone_error', '연락처를 입력해주세요.' );
     }
@@ -1294,6 +1314,10 @@ add_filter( 'woocommerce_registration_errors', function( $errors, $username, $em
 add_action( 'woocommerce_created_customer', function( $customer_id, $new_customer_data, $password_generated ) {
     $biz = isset( $_POST['avo_business_number'] ) ? sanitize_text_field( wp_unslash( $_POST['avo_business_number'] ) ) : '';
     $name = isset( $_POST['avo_billing_first_name'] ) ? sanitize_text_field( wp_unslash( $_POST['avo_billing_first_name'] ) ) : '';
+    $company = isset( $_POST['avo_business_company'] ) ? sanitize_text_field( wp_unslash( $_POST['avo_business_company'] ) ) : '';
+    $business_type = isset( $_POST['avo_business_type'] ) ? sanitize_text_field( wp_unslash( $_POST['avo_business_type'] ) ) : '';
+    $business_item = isset( $_POST['avo_business_item'] ) ? sanitize_text_field( wp_unslash( $_POST['avo_business_item'] ) ) : '';
+    $tax_email = isset( $_POST['avo_tax_email'] ) ? sanitize_email( wp_unslash( $_POST['avo_tax_email'] ) ) : '';
     $phone = isset( $_POST['avo_billing_phone'] ) ? sanitize_text_field( wp_unslash( $_POST['avo_billing_phone'] ) ) : '';
     $postcode = isset( $_POST['avo_billing_postcode'] ) ? sanitize_text_field( wp_unslash( $_POST['avo_billing_postcode'] ) ) : '';
     $address = isset( $_POST['avo_billing_address'] ) ? sanitize_text_field( wp_unslash( $_POST['avo_billing_address'] ) ) : '';
@@ -1302,6 +1326,10 @@ add_action( 'woocommerce_created_customer', function( $customer_id, $new_custome
     update_user_meta( $customer_id, '_avo_business_number', $biz );
     update_user_meta( $customer_id, 'billing_first_name', $name );
     update_user_meta( $customer_id, 'first_name', $name );
+    update_user_meta( $customer_id, 'billing_company', $company );
+    update_user_meta( $customer_id, '_avo_business_type', $business_type );
+    update_user_meta( $customer_id, '_avo_business_item', $business_item );
+    update_user_meta( $customer_id, '_avo_tax_email', $tax_email );
     update_user_meta( $customer_id, 'billing_phone', $phone );
     update_user_meta( $customer_id, 'billing_postcode', $postcode );
     update_user_meta( $customer_id, 'billing_address_1', $address );
@@ -1415,6 +1443,47 @@ add_action( 'init', function() {
         wp_die( '<h2>거부 처리 완료</h2><p>' . esc_html( $user->user_email ) . ' 님의 가입을 거부했습니다.</p>', '거부 완료' );
     }
 }, 1 );
+
+// =========================================================================
+// 사업자 정보(상호/업태/종목/세금계산서 이메일) 마이페이지 수정
+// =========================================================================
+add_action( 'woocommerce_edit_account_form', function() {
+    $user_id = get_current_user_id();
+    ?>
+    <p class="woocommerce-form-row woocommerce-form-row--wide form-row form-row-wide">
+        <label for="avo_business_company"><?php esc_html_e( '상호', 'woocommerce' ); ?></label>
+        <input type="text" class="woocommerce-Input woocommerce-Input--text input-text" name="avo_business_company" id="avo_business_company" value="<?php echo esc_attr( get_user_meta( $user_id, 'billing_company', true ) ); ?>" />
+    </p>
+    <p class="woocommerce-form-row woocommerce-form-row--wide form-row form-row-wide">
+        <label for="avo_business_type"><?php esc_html_e( '업태', 'woocommerce' ); ?></label>
+        <input type="text" class="woocommerce-Input woocommerce-Input--text input-text" name="avo_business_type" id="avo_business_type" value="<?php echo esc_attr( get_user_meta( $user_id, '_avo_business_type', true ) ); ?>" />
+    </p>
+    <p class="woocommerce-form-row woocommerce-form-row--wide form-row form-row-wide">
+        <label for="avo_business_item"><?php esc_html_e( '종목', 'woocommerce' ); ?></label>
+        <input type="text" class="woocommerce-Input woocommerce-Input--text input-text" name="avo_business_item" id="avo_business_item" value="<?php echo esc_attr( get_user_meta( $user_id, '_avo_business_item', true ) ); ?>" />
+    </p>
+    <p class="woocommerce-form-row woocommerce-form-row--wide form-row form-row-wide">
+        <label for="avo_tax_email"><?php esc_html_e( '세금계산서 이메일', 'woocommerce' ); ?></label>
+        <input type="email" class="woocommerce-Input woocommerce-Input--text input-text" name="avo_tax_email" id="avo_tax_email" value="<?php echo esc_attr( get_user_meta( $user_id, '_avo_tax_email', true ) ); ?>" />
+        <span><em><?php esc_html_e( '미입력 시 가입 이메일이 사용됩니다.', 'woocommerce' ); ?></em></span>
+    </p>
+    <?php
+} );
+
+add_action( 'woocommerce_save_account_details', function( $user_id ) {
+    if ( isset( $_POST['avo_business_company'] ) ) {
+        update_user_meta( $user_id, 'billing_company', sanitize_text_field( wp_unslash( $_POST['avo_business_company'] ) ) );
+    }
+    if ( isset( $_POST['avo_business_type'] ) ) {
+        update_user_meta( $user_id, '_avo_business_type', sanitize_text_field( wp_unslash( $_POST['avo_business_type'] ) ) );
+    }
+    if ( isset( $_POST['avo_business_item'] ) ) {
+        update_user_meta( $user_id, '_avo_business_item', sanitize_text_field( wp_unslash( $_POST['avo_business_item'] ) ) );
+    }
+    if ( isset( $_POST['avo_tax_email'] ) ) {
+        update_user_meta( $user_id, '_avo_tax_email', sanitize_email( wp_unslash( $_POST['avo_tax_email'] ) ) );
+    }
+} );
 
 // 5) wp-admin 회원목록에 B2B 가입정보(승인상태, 사업자번호, 이름, 연락처, 주소) 컬럼 추가
 add_filter( 'manage_users_columns', function( $columns ) {
