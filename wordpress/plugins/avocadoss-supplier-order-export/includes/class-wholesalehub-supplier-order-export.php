@@ -97,11 +97,9 @@ final class Avocadoss_WholesaleHub_Supplier_Order_Export_Command {
                         );
                     } else {
                         $summary[ $supplier_id ]['payable'] += (int) $row['line_payable_snapshot'];
-                        if ( null !== $row['shipping_included_snapshot'] ) {
-                            $summary[ $supplier_id ]['shipping'] += (int) $row['shipping_included_snapshot'];
-                        }
                     }
                 }
+                $summary[ $supplier_id ]['shipping'] = $this->grouped_shipping_total( $rows );
 
                 if ( $dry_run ) {
                     continue;
@@ -292,17 +290,20 @@ final class Avocadoss_WholesaleHub_Supplier_Order_Export_Command {
                 }
                 $unit_cost = $item->get_meta( '_wh_source_supplier_unit_cost', true );
                 $shipping   = $item->get_meta( '_wh_source_supplier_shipping_cost', true );
+                $policy     = $item->get_meta( '_wh_source_supplier_shipping_policy', true );
                 $quantity   = (int) $item->get_meta( '_wh_source_quantity', true ) ?: (int) $item->get_quantity();
                 $snapshot   = array(
                     'woo_order_id'                    => (int) $order_id,
                     'woo_order_item_id'               => (int) $item_id,
                     'supplier_id'                     => $this->normalize_supplier( $meta_supplier ),
+                    'supplier_product_id'             => (string) $item->get_meta( '_wh_source_product_id', true ),
                     'supplier_original_product_title' => (string) $item->get_meta( '_wh_source_original_title', true ),
                     'supplier_original_option_name'   => (string) $item->get_meta( '_wh_source_original_option_name', true ),
                     'quantity'                        => $quantity,
                     'unit_payable_snapshot'           => ( '' !== $unit_cost && is_numeric( $unit_cost ) ) ? (int) $unit_cost : null,
                     'line_payable_snapshot'           => ( '' !== $unit_cost && is_numeric( $unit_cost ) ) ? (int) $unit_cost * $quantity : null,
                     'shipping_included_snapshot'      => ( '' !== $shipping && is_numeric( $shipping ) ) ? (int) $shipping : null,
+                    'shipping_policy'                 => ( '' !== $policy ) ? $policy : null,
                 );
                 $rows[] = $this->map_order_row( $snapshot, $order, $item );
             }
@@ -382,8 +383,56 @@ final class Avocadoss_WholesaleHub_Supplier_Order_Export_Command {
             'shipping_included_snapshot'      => isset( $snapshot['shipping_included_snapshot'] )
                 ? (int) $snapshot['shipping_included_snapshot']
                 : null,
+            'source_product_id'               => (string) ( $snapshot['supplier_product_id'] ?? '' ),
+            'shipping_policy'                 => (string) ( $snapshot['shipping_policy'] ?? '' ),
         );
         return $mapped;
+    }
+
+    private function grouped_shipping_total( array $rows ) {
+        $groups = array();
+        foreach ( $rows as $row ) {
+            $destination = (string) $row['postcode'] . '|' . (string) $row['address'];
+            $group_key   = (string) $row['source_product_id'] . '|' . $destination;
+            if ( ! isset( $groups[ $group_key ] ) ) {
+                $policy = (string) ( $row['shipping_policy'] ?? '' );
+                $groups[ $group_key ] = array(
+                    'qty'    => 0,
+                    'policy' => $policy ? json_decode( $policy, true ) : null,
+                );
+            }
+            $groups[ $group_key ]['qty'] += (int) $row['quantity'];
+        }
+        $total = 0;
+        foreach ( $groups as $group ) {
+            if ( ! is_array( $group['policy'] ) || ( $group['policy']['shipping_validation_status'] ?? '' ) !== 'valid' ) {
+                // fallback: per-item base fee when the full policy is unavailable
+                foreach ( $rows as $row ) {
+                    if ( null !== $row['shipping_included_snapshot'] ) {
+                        $total += (int) $row['shipping_included_snapshot'];
+                    }
+                }
+                return $total;
+            }
+            $type = (string) ( $group['policy']['shipping_policy_type'] ?? 'unknown' );
+            if ( 'free' === $type ) {
+                continue;
+            }
+            $base_fee = (float) ( $group['policy']['shipping_base_fee'] ?? 0 );
+            if ( 'fixed' === $type ) {
+                $total += (int) $base_fee;
+                continue;
+            }
+            $tiers = is_array( $group['policy']['shipping_tiers'] ?? null ) ? $group['policy']['shipping_tiers'] : array();
+            if ( empty( $tiers ) ) {
+                $total += (int) $base_fee;
+                continue;
+            }
+            $fee  = (float) ( $tiers[0]['fee'] ?? $base_fee );
+            $step = (int) ( $tiers[0]['max_qty_exclusive'] ?? 0 );
+            $total += $step > 0 ? (int) ceil( $group['qty'] / $step ) * (int) $fee : (int) $fee;
+        }
+        return $total;
     }
 
     private function count_source_unmapped( PDO $database, $order_id_filter ) {

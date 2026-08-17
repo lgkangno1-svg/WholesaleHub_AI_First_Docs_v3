@@ -48,6 +48,9 @@ final class WholesaleHub_Source_Snapshot {
 		if ( null !== $original['shipping_fee'] ) {
 			$item->update_meta_data( '_wh_source_supplier_shipping_cost', $original['shipping_fee'] );
 		}
+		if ( null !== $original['shipping_policy'] ) {
+			$item->update_meta_data( '_wh_source_supplier_shipping_policy', $original['shipping_policy'] );
+		}
 		$item->save();
 
 		try {
@@ -128,6 +131,7 @@ final class WholesaleHub_Source_Snapshot {
 			$option = '';
 			$unit_cost = null;
 			$shipping_fee = null;
+			$shipping_policy = null;
 			foreach ( (array) ( $product['options'] ?? array() ) as $option_row ) {
 				if ( (string) ( $option_row['sourceOptionId'] ?? '' ) === (string) $source_option_id ) {
 					$option = (string) ( $option_row['optionName'] ?? $option_row['publicOptionLabel'] ?? '' );
@@ -139,17 +143,21 @@ final class WholesaleHub_Source_Snapshot {
 					} elseif ( isset( $option_row['shipping_policy']['shipping_base_fee'] ) && is_numeric( $option_row['shipping_policy']['shipping_base_fee'] ) ) {
 						$shipping_fee = (int) $option_row['shipping_policy']['shipping_base_fee'];
 					}
+					if ( isset( $option_row['shipping_policy'] ) && is_array( $option_row['shipping_policy'] ) ) {
+						$shipping_policy = wp_json_encode( $option_row['shipping_policy'] );
+					}
 					break;
 				}
 			}
 			return array(
-				'title'        => (string) ( $product['productName'] ?? '' ),
-				'option'       => $option,
-				'unit_cost'    => $unit_cost,
-				'shipping_fee' => $shipping_fee,
+				'title'           => (string) ( $product['productName'] ?? '' ),
+				'option'          => $option,
+				'unit_cost'       => $unit_cost,
+				'shipping_fee'    => $shipping_fee,
+				'shipping_policy' => $shipping_policy,
 			);
 		}
-		return array( 'title' => '', 'option' => '', 'unit_cost' => null, 'shipping_fee' => null );
+		return array( 'title' => '', 'option' => '', 'unit_cost' => null, 'shipping_fee' => null, 'shipping_policy' => null );
 	}
 
 	private static function store_unmapped( $database, $item_id, $order_id, $item, $reason ) {
