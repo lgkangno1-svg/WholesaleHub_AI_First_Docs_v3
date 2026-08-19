@@ -11,6 +11,10 @@ function result(overrides: Partial<DailyFoodDirectSiteResult> = {}): DailyFoodDi
     listedProductCount: 137,
     detailFetchedProductCount: 137,
     missingOptionsCount: 0,
+    expectedProductCount: 137,
+    collectedProductCount: 137,
+    incomplete: false,
+    attempts: 1,
     ...overrides,
   }
 }

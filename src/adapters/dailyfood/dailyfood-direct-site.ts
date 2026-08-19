@@ -31,6 +31,13 @@ const DirectSiteResultSchema = z.object({
   products: z.array(DirectSiteProductSchema),
   errors: z.array(z.string()).default([]),
   paginationComplete: z.boolean(),
+  listedProductCount: z.number().int().nonnegative(),
+  detailFetchedProductCount: z.number().int().nonnegative(),
+  missingOptionsCount: z.number().int().nonnegative(),
+  expectedProductCount: z.number().int().nonnegative(),
+  collectedProductCount: z.number().int().nonnegative(),
+  incomplete: z.boolean(),
+  attempts: z.number().int().nonnegative(),
 })
 
 export type DailyFoodDirectSiteOption = z.infer<typeof DirectSiteOptionSchema>
@@ -290,5 +297,17 @@ const CRAWL_DAILYFOOD_IN_BROWSER = `async ({ baseUrl, maxPages }) => {
       }
     }
   }
-  return { crawledAt, products, errors, paginationComplete };
+  return {
+    crawledAt,
+    products,
+    errors,
+    paginationComplete,
+    listedProductCount: products.length + errors.length,
+    detailFetchedProductCount: products.length,
+    missingOptionsCount: products.filter((product) => product.options.length === 0).length,
+    expectedProductCount: products.length + errors.length,
+    collectedProductCount: products.length,
+    incomplete: !paginationComplete || errors.length > 0,
+    attempts: 1,
+  };
 }`
