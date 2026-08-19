@@ -6,6 +6,7 @@
  */
 require_once __DIR__ . '/avocadoss-multi-variation-cart.php';
 require_once __DIR__ . '/avocadoss-telegram-approvals.php';
+require_once __DIR__ . '/avocadoss-customer-claims.php';
 require_once __DIR__ . '/includes/class-wholesalehub-homepage.php';
 require_once __DIR__ . '/includes/class-wholesalehub-source-snapshot.php';
 remove_action("wp_head","wp_generator");
@@ -4386,4 +4387,3 @@ function avocadoss_sort_users_by_points( $query ) {
         $query->set( 'orderby', 'meta_value_num' );
     }
 }
-
