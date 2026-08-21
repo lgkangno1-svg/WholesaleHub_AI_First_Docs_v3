@@ -35,12 +35,15 @@ jobs:
         run: npm run typecheck
 
       - name: Build and test
+        if: always()
         run: npm test
 
       - name: Audit production dependencies
+        if: always()
         run: npm audit --omit=dev --audit-level=high
 
       - name: Lint WordPress PHP
+        if: always()
         shell: bash
         run: |
           set -euo pipefail
@@ -54,6 +57,7 @@ jobs:
           done
 
       - name: Check shell scripts
+        if: always()
         shell: bash
         run: |
           set -euo pipefail
