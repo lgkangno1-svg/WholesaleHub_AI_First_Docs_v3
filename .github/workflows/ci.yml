@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.5.1'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run project checks
+        run: npm run check
+
+      - name: Lint WordPress PHP
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' php_files < <(find wordpress -type f -name '*.php' -print0)
+          if ((${#php_files[@]} == 0)); then
+            echo 'No PHP files found under wordpress/' >&2
+            exit 1
+          fi
+          for file in "${php_files[@]}"; do
+            php -l "$file"
+          done
+
+      - name: Check shell scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' shell_files < <(find scripts -type f -name '*.sh' -print0)
+          if ((${#shell_files[@]} == 0)); then
+            echo 'No shell scripts found under scripts/' >&2
+            exit 1
+          fi
+          for file in "${shell_files[@]}"; do
+            bash -n "$file"
+          done
