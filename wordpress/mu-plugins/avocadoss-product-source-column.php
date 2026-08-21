@@ -99,6 +99,17 @@ function avocadoss_product_identity_source_ids( $product_id, $source = '' ) {
 			}
 		}
 	}
+	if ( empty( $ids ) && avocadoss_product_identity_option_provenance_complete( $product_id ) ) {
+		$product = wc_get_product( $product_id );
+		if ( $product ) {
+			foreach ( $product->get_children() as $variation_id ) {
+				$value = trim( (string) get_post_meta( $variation_id, '_wh_source_product_id', true ) );
+				if ( $value ) {
+					$ids[] = $value;
+				}
+			}
+		}
+	}
 	return array_values( array_unique( array_filter( $ids ) ) );
 }
 
@@ -113,6 +124,36 @@ function avocadoss_product_identity_active_ids() {
 			'order'          => 'ASC',
 		)
 	);
+}
+
+/**
+ * Option-level provenance check (supplier-lane architecture).
+ * A product passes when every SELLABLE variation carries its full crawl
+ * provenance (supplier + source product id + source option id). Variations
+ * that are not purchasable/in stock are exempt — dead options cannot reach
+ * the supplier order export.
+ */
+function avocadoss_product_identity_option_provenance_complete( $product_id ) {
+	$product = wc_get_product( $product_id );
+	if ( ! $product ) {
+		return false;
+	}
+	$children = $product->get_children();
+	if ( empty( $children ) ) {
+		return false;
+	}
+	foreach ( $children as $variation_id ) {
+		$variation = wc_get_product( $variation_id );
+		if ( ! $variation || ! $variation->is_purchasable() || ! $variation->is_in_stock() ) {
+			continue;
+		}
+		foreach ( array( '_supplier_id', '_wh_source_product_id', '_wh_source_option_id' ) as $key ) {
+			if ( ! trim( (string) get_post_meta( $variation_id, $key, true ) ) ) {
+				return false;
+			}
+		}
+	}
+	return true;
 }
 
 function avocadoss_product_identity_title_key( $product_id ) {
@@ -257,14 +298,24 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
 						$issues[] = $product_id . ':' . $variation_id . ':missing_variation_sku';
 					}
 				}
-				if ( ! avocadoss_product_identity_normalize_source( get_post_meta( $product_id, '_b2b_source', true ) ) ) {
-					$issues[] = $product_id . ':missing_source_meta';
-				}
-				$source = avocadoss_product_identity_source( $product_id );
-				if ( ! $source ) {
-					$issues[] = $product_id . ':missing_source';
+				if ( $product->is_type( 'variable' ) && empty( $product->get_children() ) ) {
+					// A variable product with zero options cannot be ordered, so no
+					// crawl provenance is required. Flag it as a warning instead.
+					$warnings[] = $product_id . ':variable_without_options';
 					continue;
 				}
+			$option_provenance_complete = avocadoss_product_identity_option_provenance_complete( $product_id );
+			if ( ! $option_provenance_complete && ! avocadoss_product_identity_normalize_source( get_post_meta( $product_id, '_b2b_source', true ) ) ) {
+				$issues[] = $product_id . ':missing_source_meta';
+			}
+			$source = avocadoss_product_identity_source( $product_id );
+			if ( ! $source && ! $option_provenance_complete ) {
+				$issues[] = $product_id . ':missing_source';
+				continue;
+			}
+			if ( ! $source ) {
+				$source = 'lane';
+			}
 				$source_ids = avocadoss_product_identity_source_ids( $product_id, $source );
 				if ( empty( $source_ids ) ) {
 					if ( 'publish' === get_post_status( $product_id ) ) {
