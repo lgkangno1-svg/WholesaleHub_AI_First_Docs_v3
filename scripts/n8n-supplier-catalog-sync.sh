@@ -175,7 +175,7 @@ trap handle_signal TERM INT
 trap 'handle_exit "$?"' EXIT
 start_step lock
 
-if [ "$RUN_HOUR" != "11" ] && [ "$RUN_HOUR" != "18" ] && [ "$SECONDARY_ONLY" != "1" ]; then
+if [ "$RUN_HOUR" != "11" ] && [ "$RUN_HOUR" != "15" ] && [ "$RUN_HOUR" != "18" ] && [ "$RUN_HOUR" != "21" ] && [ "$SECONDARY_ONLY" != "1" ]; then
   start_step schedule
   finish completed 0 completed schedule_not_due
   exit 0
