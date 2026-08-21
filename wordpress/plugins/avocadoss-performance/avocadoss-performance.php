@@ -17,7 +17,7 @@ remove_action("wp_print_styles","print_emoji_styles");
 add_action("wp_enqueue_scripts",function(){wp_dequeue_style("wp-block-library");wp_dequeue_style("wp-block-library-theme");wp_dequeue_style("global-styles");},100);
 add_action("wp_enqueue_scripts",function(){if(!is_cart()&&!is_checkout()&&!is_account_page()&&!is_product()){wp_dequeue_script("wc-cart-fragments");}},99);
 add_filter("wp_lazy_loading_enabled","__return_true");
-add_action("wp_head",function(){if(is_front_page()){$d=["@context"=>"https://schema.org","@type"=>"Store","name"=>"도매허브","url"=>"https://hub.avocadoss.co.kr","description"=>"도매허브 B2B 쇼핑몰","address"=>["@type"=>"PostalAddress","addressCountry"=>"KR"],"currenciesAccepted"=>"KRW","paymentAccepted"=>"무통장, 카카오, 신용카드","inLanguage"=>"ko"];echo"<script type=\"application/ld+json\">".json_encode($d,320)."</script>\n";}},20);
+add_action("wp_head",function(){if(is_front_page()){$d=["@context"=>"https://schema.org","@type"=>"Store","name"=>"도매허브","url"=>"https://hub.avocadoss.co.kr","description"=>"도매허브 B2B 쇼핑몰","address"=>["@type"=>"PostalAddress","addressCountry"=>"KR"],"currenciesAccepted"=>"KRW","paymentAccepted"=>"충전금(적립금)","inLanguage"=>"ko"];echo"<script type=\"application/ld+json\">".json_encode($d,320)."</script>\n";}},20);
 
 add_action('wp_head', function(){
     echo '<link rel="preconnect" href="https://fonts.googleapis.com">' . PHP_EOL;
@@ -1157,14 +1157,30 @@ function avocadoss_send_paid_order_telegram( $order_id ) {
     if ( ! function_exists( 'avocadoss_send_telegram_message' ) ) {
         return;
     }
-    $message  = '✅ [결제완료] 새로운 주문이 결제 완료되었습니다.
-';
-    $message .= '주문번호: ' . $order->get_order_number() . '
-';
-    $message .= '주문금액: ' . wc_price( $order->get_total() ) . '
-';
-    $message .= '결제수단: ' . $order->get_payment_method_title() . '
-';
+    if ( 'avocadoss_points' === $order->get_payment_method() ) {
+        $user_id  = $order->get_user_id();
+        $balance  = $user_id ? (int) get_user_meta( $user_id, '_avocadoss_points', true ) : 0;
+        $items    = array();
+        foreach ( $order->get_items() as $item ) {
+            $items[] = $item->get_name() . ' x' . $item->get_quantity();
+        }
+        if ( count( $items ) > 6 ) {
+            $items = array_slice( $items, 0, 6 );
+            $items[] = '외 ' . ( $order->get_item_count() - 6 ) . '건';
+        }
+        $message  = '💰 [충전금 사용] 주문이 확정되었습니다.' . "\n";
+        $message .= '주문번호: ' . $order->get_order_number() . "\n";
+        $message .= '차감 금액: ' . number_format( (float) $order->get_total() ) . '원' . "\n";
+        $message .= '결제 후 잔액: ' . number_format( $balance ) . '원' . "\n";
+        $message .= '상품: ' . implode( ', ', $items ) . "\n";
+        $message .= '시각: ' . current_time( 'Y-m-d H:i' ) . ' KST' . "\n";
+        $message .= '관리자 확인: ' . admin_url( 'post.php?post=' . $order->get_id() . '&action=edit' );
+    } else {
+        $message  = '✅ [결제완료] 새로운 주문이 결제 완료되었습니다.' . "\n";
+        $message .= '주문번호: ' . $order->get_order_number() . "\n";
+        $message .= '주문금액: ' . number_format( (float) $order->get_total() ) . '원' . "\n";
+        $message .= '결제수단: ' . $order->get_payment_method_title();
+    }
     avocadoss_send_telegram_message( $message );
     $order->update_meta_data( '_whh_paid_telegram_sent_at', current_time( 'mysql', true ) );
     $order->save();

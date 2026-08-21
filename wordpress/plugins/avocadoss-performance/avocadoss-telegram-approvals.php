@@ -57,6 +57,9 @@ if ( ! function_exists( 'avocadoss_send_telegram_message' ) ) {
         if ( ! $order_id ) {
             return;
         }
+        if ( 'off' === get_option( 'avocadoss_telegram_notice_mode', 'instant' ) ) {
+            return; // placement-time alerts disabled; paid-order alert reports instead
+        }
         if ( 'hourly' === get_option( 'avocadoss_telegram_notice_mode', 'instant' ) ) {
             avocadoss_queue_telegram_order_notice( $order_id );
             return;
