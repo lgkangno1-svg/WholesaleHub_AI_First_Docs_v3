@@ -235,14 +235,21 @@ publish_snapshot_to_container() {
     const products = Array.isArray(s) ? s : (s.products || []);
     if (!Array.isArray(products) || products.length === 0) { process.stdout.write("empty"); process.exit(0); }
     if ((s.supplier || "") !== expected) { process.stdout.write("supplier_mismatch"); process.exit(0); }
+    if (s.complete !== true) { process.stdout.write("incomplete"); process.exit(0); }
+    const counts = s.counts || {};
+    if ((counts.duplicateProductIds || 0) > 0 || (counts.duplicateOptionIds || 0) > 0) {
+      process.stdout.write("duplicate_ids");
+      process.exit(0);
+    }
     for (const p of products) {
       if (!p.sourceProductId || !p.productName) { process.stdout.write("missing_identity"); process.exit(0); }
     }
     process.stdout.write(JSON.stringify({ ok: true, generated_at: s.generatedAt || "", count: products.length }));
   ' "$source" "$supplier")
   case "$valid" in
-    invalid_json|empty|supplier_mismatch|missing_identity)
-      echo "snapshot_publish $name SKIPPED reason=$valid" >&2
+    invalid_json|empty|supplier_mismatch|incomplete|duplicate_ids|missing_identity)
+      echo "snapshot_publish $name FAILED reason=$valid" >&2
+      failure_reason="snapshot_publish_$valid"
       return 1 ;;
   esac
   run_with_timeout "$NETWORK_TIMEOUT" docker cp "$source" "avocadoss-wp:/tmp/wh-snap-$name" >/dev/null
@@ -251,8 +258,8 @@ publish_snapshot_to_container() {
 }
 
 start_step snapshot_publish
-publish_snapshot_to_container "$REPORT_DIR/dailyfood-catalog-snapshot.json" dailyfood-catalog-snapshot.json dailyfood || true
-publish_snapshot_to_container "$REPORT_DIR/walldob2b-catalog-snapshot.json" walldob2b-catalog-snapshot.json walldob2b || true
+publish_snapshot_to_container "$REPORT_DIR/dailyfood-catalog-snapshot.json" dailyfood-catalog-snapshot.json dailyfood
+publish_snapshot_to_container "$REPORT_DIR/walldob2b-catalog-snapshot.json" walldob2b-catalog-snapshot.json walldob2b
 
 start_step shipping_audit
 node scripts/supplier-catalog/generate-daily-shipping-audit.mjs "$REPORT_DIR"
