@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: WholesaleHub SEO / AEO Baseline
- * Description: Adds conservative crawl controls plus WebSite and FAQ structured data for the storefront.
+ * Description: Adds conservative crawl controls and WebSite structured data for the storefront.
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -30,8 +30,8 @@ add_filter(
 );
 
 /**
- * Public FAQ content rendered by wholesalehub-front-page.php.
- * Keep these strings synchronized with that template.
+ * Public Q&A rendered by wholesalehub-front-page.php.
+ * The content is intentionally useful to people first; no special AI-only text is emitted.
  */
 function wholesalehub_public_faq_items(): array {
     return array(
@@ -55,8 +55,10 @@ function wholesalehub_public_faq_items(): array {
 }
 
 /**
- * Add only the graph types that are not supplied reliably by WooCommerce itself.
- * Product/Breadcrumb schema remains owned by WooCommerce or the installed SEO plugin.
+ * WooCommerce (or an installed SEO plugin) remains the owner of Product and
+ * Breadcrumb structured data. Add only a small WebSite graph on the storefront.
+ * Google removed FAQ rich results in 2026, so the visible FAQ is not duplicated as
+ * FAQPage markup merely to chase a discontinued search feature.
  */
 add_action(
     'wp_head',
@@ -66,49 +68,26 @@ add_action(
         }
 
         $home = home_url( '/' );
-        $faq  = wholesalehub_public_faq_items();
         $graph = array(
             '@context' => 'https://schema.org',
-            '@graph'   => array(
-                array(
-                    '@type'           => 'WebSite',
-                    '@id'             => $home . '#website',
-                    'url'             => $home,
-                    'name'            => '도매허브',
-                    'inLanguage'      => 'ko-KR',
-                    'potentialAction' => array(
-                        '@type'       => 'SearchAction',
-                        'target'      => array(
-                            '@type'       => 'EntryPoint',
-                            'urlTemplate' => add_query_arg(
-                                array(
-                                    's'         => '{search_term_string}',
-                                    'post_type' => 'product',
-                                ),
-                                $home
-                            ),
+            '@type'    => 'WebSite',
+            '@id'      => $home . '#website',
+            'url'      => $home,
+            'name'     => '도매허브',
+            'inLanguage' => 'ko-KR',
+            'potentialAction' => array(
+                '@type'       => 'SearchAction',
+                'target'      => array(
+                    '@type'       => 'EntryPoint',
+                    'urlTemplate' => add_query_arg(
+                        array(
+                            's'         => '{search_term_string}',
+                            'post_type' => 'product',
                         ),
-                        'query-input' => 'required name=search_term_string',
+                        $home
                     ),
                 ),
-                array(
-                    '@type'      => 'FAQPage',
-                    '@id'        => $home . '#faq',
-                    'inLanguage' => 'ko-KR',
-                    'mainEntity' => array_map(
-                        static function ( array $item ): array {
-                            return array(
-                                '@type'          => 'Question',
-                                'name'           => $item['question'],
-                                'acceptedAnswer' => array(
-                                    '@type' => 'Answer',
-                                    'text'  => $item['answer'],
-                                ),
-                            );
-                        },
-                        $faq
-                    ),
-                ),
+                'query-input' => 'required name=search_term_string',
             ),
         );
 
