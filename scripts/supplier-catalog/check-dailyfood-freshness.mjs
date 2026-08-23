@@ -155,6 +155,7 @@ try {
     reason: !baseline ? "baseline_missing" : changed ? "source_fingerprint_changed" : "unchanged",
     liveListProducts: liveList.ids.length,
     exportRows: exportRows.length,
+    currentListIds: liveList.ids,
     addedIds,
     removedIds,
     fingerprint,
