@@ -52,7 +52,7 @@ get_header();
 		<section class="whh-hero">
 			<div class="whh-shell whh-hero-grid">
 				<div class="whh-hero-copy">
-					<p class="whh-eyebrow">BUSINESS WHOLESALE MARKET</p>
+					<p class="whh-eyebrow">도매허브 · 사업자 전용 도매 마켓</p>
 					<h1>여러 도매상품을<br>한곳에서</h1>
 					<p class="whh-lead">상품과 구성 조건을 살펴보고<br>사업자에게 맞는 상품을 빠르게 찾아보세요.</p>
 					<form class="whh-search" role="search" method="get" action="<?php echo esc_url( home_url( '/' ) ); ?>">
@@ -72,20 +72,20 @@ get_header();
 		</section>
 
 		<?php if ( $recent_ids ) : ?>
-		<section id="recent-updates" class="whh-products-section"><div class="whh-shell"><div class="whh-section-heading"><div><p class="whh-kicker">RECENT</p><h2>최근 업데이트 상품</h2></div><p>방금 들어온 상품과 새로 바뀐 상품을 확인하세요.</p></div><?php $render_cards( $recent_ids, 'NEW' ); ?></div></section>
+		<section id="recent-updates" class="whh-products-section"><div class="whh-shell"><div class="whh-section-heading"><div><p class="whh-kicker">최근 업데이트</p><h2>최근 업데이트 상품</h2></div><p>방금 들어온 상품과 새로 바뀐 상품을 확인하세요.</p></div><?php $render_cards( $recent_ids, '새 상품' ); ?></div></section>
 		<?php endif; ?>
 
 		<?php if ( $drop_ids ) : ?>
-		<section id="recent-price-drops" class="whh-products-section whh-products-muted"><div class="whh-shell"><div class="whh-section-heading"><div><p class="whh-kicker">PRICE DROP</p><h2>최근 가격 인하 상품</h2></div><p>최근 공급 조건이 좋아진 상품입니다.</p></div><?php $render_cards( $drop_ids, '가격 인하' ); ?></div></section>
+		<section id="recent-price-drops" class="whh-products-section whh-products-muted"><div class="whh-shell"><div class="whh-section-heading"><div><p class="whh-kicker">가격 인하</p><h2>최근 가격 인하 상품</h2></div><p>최근 공급 조건이 좋아진 상품입니다.</p></div><?php $render_cards( $drop_ids, '가격 인하' ); ?></div></section>
 		<?php endif; ?>
 
 		<?php if ( $popular_ids ) : ?>
-		<section id="business-popular" class="whh-products-section"><div class="whh-shell"><div class="whh-section-heading"><div><p class="whh-kicker">POPULAR</p><h2>사업자 인기 상품</h2></div><p>최근 실제 주문량이 많은 상품입니다.</p></div><?php $render_cards( $popular_ids, '사업자 인기' ); ?></div></section>
+		<section id="business-popular" class="whh-products-section"><div class="whh-shell"><div class="whh-section-heading"><div><p class="whh-kicker">사업자 인기</p><h2>사업자 인기 상품</h2></div><p>최근 실제 주문량이 많은 상품입니다.</p></div><?php $render_cards( $popular_ids, '사업자 인기' ); ?></div></section>
 		<?php endif; ?>
 
 		<section class="whh-categories" aria-labelledby="whh-category-title">
 			<div class="whh-shell">
-				<div class="whh-section-heading compact"><div><p class="whh-kicker">CATEGORY</p><h2 id="whh-category-title">카테고리별 상품 탐색</h2></div></div>
+				<div class="whh-section-heading compact"><div><p class="whh-kicker">상품 카테고리</p><h2 id="whh-category-title">카테고리별 상품 탐색</h2></div></div>
 				<div class="whh-category-grid">
 					<a href="<?php echo esc_url( home_url( '/product-category/%eb%86%8d%ec%82%b0%eb%ac%bc/' ) ); ?>"><span>01</span><b>농산물</b><em>→</em></a>
 					<a href="<?php echo esc_url( home_url( '/product-category/%ec%88%98%ec%82%b0%eb%ac%bc/' ) ); ?>"><span>02</span><b>수산물</b><em>→</em></a>
