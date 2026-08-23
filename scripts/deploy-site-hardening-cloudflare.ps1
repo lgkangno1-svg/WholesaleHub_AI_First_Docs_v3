@@ -1,7 +1,5 @@
 param(
-    [Parameter(Mandatory = $true)]
-    [string]$TunnelHost,
-
+    [string]$TunnelHost = "ssh.avocadoss.co.kr",
     [string]$SshUser = "tnfwod",
     [string]$RepoRoot = "C:\Users\tnfwo\Desktop\WholesaleHub_RECOVERED",
     [string]$Commit = "origin/main",
