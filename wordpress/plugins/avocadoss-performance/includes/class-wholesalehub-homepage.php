@@ -451,7 +451,7 @@ final class WholesaleHub_Homepage {
 
 	public static function enqueue_assets() {
 		if ( is_front_page() || is_shop() ) {
-			wp_enqueue_style( 'wholesalehub-homepage', plugins_url( '../assets/css/wholesalehub-homepage.css', __FILE__ ), array(), self::DB_VERSION );
+			wp_enqueue_style( 'wholesalehub-homepage', plugins_url( '../assets/css/wholesalehub-homepage.css', __FILE__ ), array(), (string) filemtime( dirname( __DIR__ ) . '/assets/css/wholesalehub-homepage.css' ) );
 		}
 	}
 
