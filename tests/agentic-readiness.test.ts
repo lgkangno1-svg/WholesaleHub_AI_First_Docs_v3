@@ -25,8 +25,8 @@ describe("WholesaleHub agentic readiness", () => {
     expect(plugin).toContain("text/markdown; charset=utf-8")
     expect(plugin).toContain("Vary: Accept, Accept-Encoding")
     expect(plugin).toContain("status_header( 406 )")
-    expect(plugin).toContain("text/markdown, text/html;q=0.8") === false
     expect(plugin).toContain("$markdown_specificity > $html_specificity")
+    expect(plugin).toContain("$quality = max( 0.0, min( 1.0")
   })
 
   it("publishes honest agent instructions and developer discovery resources", async () => {
