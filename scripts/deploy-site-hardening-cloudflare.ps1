@@ -107,7 +107,6 @@ install -m $($entry.Mode) '$remoteRoot/$stageName' '$remote'
     $validate = @'
 set -euo pipefail
 PROJECT=/home/tnfwod/projects/wholesalehub
-WP=/home/tnfwod/avocadoss-wordpress/wp_data
 bash -n "$PROJECT/scripts/n8n-supplier-catalog-sync.sh"
 bash -n "$PROJECT/scripts/n8n-mvp-sync.sh"
 node --check "$PROJECT/scripts/supplier-catalog/check-dailyfood-freshness.mjs"
@@ -119,7 +118,7 @@ docker exec avocadoss-wp wp --allow-root --path=/var/www/html eval '
 $checks = [
   "deposit_guard" => function_exists("avocadoss_guard_deposit_webhook_secret"),
   "seo_aeo" => function_exists("wholesalehub_public_faq_items"),
-  "approval_telegram_default" => defined("WHOLESALEHUB_TELEGRAM_APPROVAL_AUTO_SEND"),
+  "approval_telegram_enabled" => defined("WHOLESALEHUB_TELEGRAM_APPROVAL_AUTO_SEND") && WHOLESALEHUB_TELEGRAM_APPROVAL_AUTO_SEND === true,
 ];
 foreach ($checks as $name => $ok) { echo $name . "=" . ($ok ? "YES" : "NO") . PHP_EOL; }
 if (in_array(false, $checks, true)) { exit(1); }
@@ -146,7 +145,10 @@ WHOLESALEHUB_FORCE_FULL_DAILY=1 bash scripts/n8n-supplier-catalog-sync.sh
     }
 }
 finally {
-    try { ssh -o "ProxyCommand=$proxy" $target "rm -rf '$remoteRoot'" | Out-Null } catch {}
+    try {
+        $cleanup = "if [ -d '$remoteRoot' ]; then find '$remoteRoot' -mindepth 1 -maxdepth 1 -type f -delete; rmdir '$remoteRoot' 2>/dev/null || true; fi"
+        ssh -o "ProxyCommand=$proxy" $target $cleanup | Out-Null
+    } catch {}
     if (Test-Path -LiteralPath $tempRoot) {
         git -C $RepoRoot worktree remove --force $tempRoot | Out-Null
     }
