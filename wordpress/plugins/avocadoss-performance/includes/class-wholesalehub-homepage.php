@@ -440,7 +440,7 @@ final class WholesaleHub_Homepage {
 	}
 
 	public static function front_page_template( $template ) {
-		if ( is_front_page() ) {
+		if ( is_front_page() || is_shop() ) {
 			$custom = dirname( __DIR__ ) . '/templates/wholesalehub-front-page.php';
 			if ( is_readable( $custom ) ) {
 				return $custom;
@@ -450,7 +450,7 @@ final class WholesaleHub_Homepage {
 	}
 
 	public static function enqueue_assets() {
-		if ( is_front_page() ) {
+		if ( is_front_page() || is_shop() ) {
 			wp_enqueue_style( 'wholesalehub-homepage', plugins_url( '../assets/css/wholesalehub-homepage.css', __FILE__ ), array(), self::DB_VERSION );
 		}
 	}
