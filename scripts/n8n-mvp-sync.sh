@@ -16,7 +16,7 @@ LATEST_LOG="$REPORT_DIR/n8n-run-latest.log"
 RUN_LOG="$REPORT_DIR/n8n-run-$STAMP.log"
 RUN_ID="$STAMP-$$"
 CURRENT_STEP="startup"
-ALLOW_DESTRUCTIVE_SYNC="${WHOLESALEHUB_ALLOW_DESTRUCTIVE_SYNC:-0}"
+LEGACY_ALLOW_DESTRUCTIVE_SYNC="${WHOLESALEHUB_ALLOW_DESTRUCTIVE_SYNC:-0}"
 ALLOW_STOCK_VISIBILITY_SYNC="${WHOLESALEHUB_ALLOW_STOCK_VISIBILITY_SYNC:-0}"
 ALLOW_DRAFT_CREATE="${WHOLESALEHUB_ALLOW_DRAFT_CREATE:-0}"
 ALLOW_DESCRIPTION_SYNC="${WHOLESALEHUB_ALLOW_DESCRIPTION_SYNC:-0}"
@@ -96,7 +96,7 @@ echo "[$(date -Is)] n8n MVP sync started run_id=$RUN_ID"
 cd "$PROJECT_DIR"
 export WHOLESALEHUB_RUN_ID="$RUN_ID"
 RUN_HOUR="${WHOLESALEHUB_RUN_HOUR:-$(TZ=Asia/Seoul date +%H)}"
-echo "[$(date -Is)] run_hour=$RUN_HOUR dailyfood_mode=actual-site dry_run=$DRY_RUN destructive=$ALLOW_DESTRUCTIVE_SYNC stock_visibility=$ALLOW_STOCK_VISIBILITY_SYNC draft_create=$ALLOW_DRAFT_CREATE description_sync=$ALLOW_DESCRIPTION_SYNC category_sync=manual_only"
+echo "[$(date -Is)] run_hour=$RUN_HOUR dailyfood_mode=actual-site dry_run=$DRY_RUN hard_delete=disabled legacy_destructive_env=$LEGACY_ALLOW_DESTRUCTIVE_SYNC stock_visibility=$ALLOW_STOCK_VISIBILITY_SYNC draft_create=$ALLOW_DRAFT_CREATE description_sync=$ALLOW_DESCRIPTION_SYNC category_sync=manual_only"
 
 run_step build npm run build
 run_step retry_pending_price_reports retry_pending_price_reports
@@ -138,7 +138,7 @@ else
 fi
 
 PREFLIGHT_ARGS=(--plan "$REPORT_DIR/mvp-sync-plan.json")
-if [ "$ALLOW_DESTRUCTIVE_SYNC" = "1" ] || [ "$ALLOW_STOCK_VISIBILITY_SYNC" = "1" ]; then
+if [ "$ALLOW_STOCK_VISIBILITY_SYNC" = "1" ]; then
   PREFLIGHT_ARGS+=(--destructive)
 fi
 run_step preflight node dist/reports/mvp-sync-preflight-cli.js "${PREFLIGHT_ARGS[@]}"
@@ -154,11 +154,7 @@ run_step sync_walldo_confirmed_stockout node dist/reports/walldob2b-stock-sync-c
 run_step repair_thumbnails node dist/reports/repair-public-product-images-cli.js --execute --confirm "REPAIR_PUBLIC_PRODUCT_IMAGES"
 skip_step classify_categories "existing product categories are manual-only"
 
-if [ "$ALLOW_DESTRUCTIVE_SYNC" = "1" ]; then
-  run_step delete_source_absent node dist/reports/mvp-source-absence-delete-cli.js --execute --confirm "DELETE_SOURCE_ABSENT_NON_GROUPBUY_PRODUCTS"
-else
-  skip_step delete_source_absent "WHOLESALEHUB_ALLOW_DESTRUCTIVE_SYNC is not 1"
-fi
+skip_step delete_source_absent "permanent Woo product/variation deletion is disabled by production safety policy"
 
 if [ "$ALLOW_STOCK_VISIBILITY_SYNC" = "1" ]; then
   run_step sync_stock_visibility node dist/reports/hide-unsold-public-variations-cli.js --execute --confirm "HIDE_UNSOLD_PUBLIC_VARIATIONS"
