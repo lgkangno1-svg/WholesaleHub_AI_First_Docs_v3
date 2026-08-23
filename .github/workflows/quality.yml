@@ -21,7 +21,12 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: npm run check
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test
+      - name: Syntax-check new supplier freshness probe
+        run: node --check scripts/supplier-catalog/check-dailyfood-freshness.mjs
 
   php-shell:
     name: PHP and shell syntax
