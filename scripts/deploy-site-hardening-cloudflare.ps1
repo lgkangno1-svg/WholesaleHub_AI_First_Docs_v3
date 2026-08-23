@@ -105,6 +105,7 @@ install -m $($entry.Mode) '$remoteRoot/$stageName' '$remote'
     $validate = @'
 set -euo pipefail
 PROJECT=/home/tnfwod/projects/wholesalehub
+BASE=https://hub.avocadoss.co.kr
 bash -n "$PROJECT/scripts/n8n-supplier-catalog-sync.sh"
 bash -n "$PROJECT/scripts/n8n-mvp-sync.sh"
 node --check "$PROJECT/scripts/supplier-catalog/check-dailyfood-freshness.mjs"
@@ -116,16 +117,81 @@ docker exec avocadoss-wp wp --allow-root --path=/var/www/html eval '
 $checks = [
   "deposit_guard" => function_exists("avocadoss_guard_deposit_webhook_secret"),
   "seo_aeo" => function_exists("wholesalehub_public_faq_items"),
+  "agent_negotiation" => function_exists("wholesalehub_negotiate_home_representation"),
+  "agent_llms" => function_exists("wholesalehub_agentic_llms_markdown"),
   "approval_telegram_enabled" => defined("WHOLESALEHUB_TELEGRAM_APPROVAL_AUTO_SEND") && WHOLESALEHUB_TELEGRAM_APPROVAL_AUTO_SEND === true,
 ];
 foreach ($checks as $name => $ok) { echo $name . "=" . ($ok ? "YES" : "NO") . PHP_EOL; }
 if (in_array(false, $checks, true)) { exit(1); }
 '
 docker exec avocadoss-wp wp --allow-root --path=/var/www/html cache flush >/dev/null
-curl -fsS --max-time 30 -o /dev/null https://hub.avocadoss.co.kr/
-echo PRODUCTION_SMOKE=PASS
+
+TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' EXIT
+STAMP=$(date +%s)
+
+# Browser/raw-HTML check: meaningful SSR body, H1 before H2, identity metadata.
+curl -fsS -H 'Accept: text/html' -H 'Cache-Control: no-cache' "$BASE/?wh_agentic_smoke=$STAMP" -o "$TMP/home.html"
+grep -qi '<h1' "$TMP/home.html"
+H1_LINE=$(grep -in -m1 '<h1' "$TMP/home.html" | cut -d: -f1)
+H2_LINE=$(grep -in -m1 '<h2' "$TMP/home.html" | cut -d: -f1 || true)
+if [ -n "$H2_LINE" ] && [ "$H1_LINE" -ge "$H2_LINE" ]; then echo 'H1_ORDER=FAIL'; exit 1; fi
+TEXT_CHARS=$(sed -E 's/<[^>]+>/ /g' "$TMP/home.html" | tr -s '[:space:]' ' ' | wc -c)
+if [ "$TEXT_CHARS" -lt 500 ]; then echo "SSR_TEXT_CHARS=$TEXT_CHARS FAIL"; exit 1; fi
+grep -q '"@type":"Organization"' "$TMP/home.html"
+grep -q '"name":"도매허브"' "$TMP/home.html"
+grep -q 'property="og:image"' "$TMP/home.html"
+echo "SSR_TEXT_CHARS=$TEXT_CHARS PASS"
+
+# acceptmarkdown.com-compatible canonical negotiation.
+curl -fsS -H 'Accept: text/markdown, text/html;q=0.8' -H 'Cache-Control: no-cache' -D "$TMP/md.headers" "$BASE/?wh_agentic_smoke=$STAMP" -o "$TMP/home.md"
+grep -Eqi '^content-type:[[:space:]]*text/markdown;[[:space:]]*charset=utf-8' "$TMP/md.headers"
+grep -Eqi '^vary:.*(^|[,[:space:]])Accept([,[:space:]]|$)' "$TMP/md.headers"
+grep -q '^# 도매허브' "$TMP/home.md"
+
+curl -sS -H 'Accept: application/json' -H 'Cache-Control: no-cache' -o /dev/null -w '%{http_code}' "$BASE/?wh_agentic_smoke=$STAMP-json" | grep -qx '406'
+
+# Public machine-readable and trust endpoints.
+for path in llms.txt agent-instructions.md agent-sitemap.xml developer about contact privacy; do
+  CODE=$(curl -sS -L -H 'Cache-Control: no-cache' -o "$TMP/${path//\//_}.body" -w '%{http_code}' "$BASE/$path")
+  if [ "$CODE" != '200' ]; then echo "ENDPOINT_FAIL path=$path code=$CODE"; exit 1; fi
+  echo "ENDPOINT_OK path=$path code=$CODE"
+done
+grep -q '## When to use this site' "$TMP/llms.txt.body"
+grep -q '공개 주문 API' "$TMP/developer.body"
+grep -q '<urlset' "$TMP/agent-sitemap.xml.body"
+
+# Agent-friendly real 404 with recovery links.
+CODE=$(curl -sS -H 'Accept: text/markdown' -H 'Cache-Control: no-cache' -o "$TMP/404.md" -w '%{http_code}' "$BASE/nonexistent-agentic-smoke-$STAMP")
+if [ "$CODE" != '404' ]; then echo "AGENT_404_CODE=$CODE FAIL"; exit 1; fi
+grep -q 'llms.txt' "$TMP/404.md"
+grep -q 'wp-sitemap.xml' "$TMP/404.md"
+echo 'AGENT_404=PASS'
+
+# Origin robots guidance for major agent user agents.
+curl -fsS -H 'Cache-Control: no-cache' "$BASE/robots.txt?wh_agentic_smoke=$STAMP" -o "$TMP/robots.txt"
+for ua in ChatGPT-User ClaudeBot Google-Extended DeepSeekBot ora-agent; do
+  grep -Fq "User-agent: $ua" "$TMP/robots.txt"
+done
+
+# Public reachability through Cloudflare/WAF. Known major agents are required.
+for ua in ChatGPT-User ClaudeBot Google-Extended DeepSeekBot; do
+  CODE=$(curl -sS -A "$ua" -H 'Cache-Control: no-cache' -o /dev/null -w '%{http_code}' "$BASE/?wh_agentic_ua=$STAMP")
+  if [ "$CODE" != '200' ]; then echo "AGENT_UA_FAIL ua=$ua code=$CODE"; exit 1; fi
+  echo "AGENT_UA_OK ua=$ua code=$CODE"
+done
+
+# Ora reachability is audited, but an edge/WAF denial cannot safely be changed by this source deploy.
+ORA_CODE=$(curl -sS -A 'ora-agent' -H 'Cache-Control: no-cache' -o /dev/null -w '%{http_code}' "$BASE/?wh_agentic_ua=$STAMP")
+if [ "$ORA_CODE" = '200' ]; then
+  echo 'AGENT_UA_OK ua=ora-agent code=200'
+else
+  echo "AGENT_UA_WARNING ua=ora-agent code=$ORA_CODE edge/WAF review required"
+fi
+
+echo PRODUCTION_AGENTIC_SMOKE=PASS
 '@
-    Invoke-Checked { ssh -o "ProxyCommand=$proxy" $target $validate } "Production syntax/bootstrap/live smoke"
+    Invoke-Checked { ssh -o "ProxyCommand=$proxy" $target $validate } "Production syntax/bootstrap/live agentic smoke"
 
     if ($RunCatalogCatchup) {
         $catchup = @'
