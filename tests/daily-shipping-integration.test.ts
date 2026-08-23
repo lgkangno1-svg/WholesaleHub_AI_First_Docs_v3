@@ -1,8 +1,32 @@
-import { describe, expect, it } from "vitest"
-import { readFileSync } from "node:fs"
 import { spawnSync } from "node:child_process"
+import { readFileSync } from "node:fs"
+import { describe, expect, it } from "vitest"
 
-function parseShippingPolicy(rawText, collectedAt = new Date().toISOString()) {
+type ShippingPolicyType = "unknown" | "quantity_tiered" | "free" | "fixed"
+type ShippingValidationStatus = "review_required" | "valid"
+
+interface ShippingTier {
+  min_qty: number
+  max_qty_exclusive: number
+  fee: number
+}
+
+interface ShippingPolicy {
+  shipping_policy_type: ShippingPolicyType
+  shipping_base_fee: number
+  shipping_tiers: ShippingTier[]
+  shipping_jeju_extra_fee: number
+  shipping_remote_extra_fee: number
+  shipping_raw_text: string
+  shipping_source: "detail"
+  shipping_collected_at: string
+  shipping_validation_status: ShippingValidationStatus
+}
+
+function parseShippingPolicy(
+  rawText: unknown,
+  collectedAt = new Date().toISOString(),
+): ShippingPolicy {
   const text = String(rawText ?? "").trim()
   if (!text) {
     return {
@@ -32,16 +56,25 @@ function parseShippingPolicy(rawText, collectedAt = new Date().toISOString()) {
 
   const tierMatches = [...text.matchAll(/(\d+)\s*개\s*이상\s*~\s*(\d+)\s*개\s*미만\s*([0-9,]+)\s*원/gu)]
   if (tierMatches.length > 0 || /수량별배송비/u.test(text)) {
-    const tiers = tierMatches.map((m) => ({
-      min_qty: Number(m[1]),
-      max_qty_exclusive: Number(m[2]),
-      fee: Number(m[3].replaceAll(",", "")),
-    }))
+    const tiers: ShippingTier[] = tierMatches.flatMap((match) => {
+      const minQty = match[1]
+      const maxQty = match[2]
+      const fee = match[3]
+      if (!minQty || !maxQty || !fee) return []
+      return [
+        {
+          min_qty: Number(minQty),
+          max_qty_exclusive: Number(maxQty),
+          fee: Number(fee.replaceAll(",", "")),
+        },
+      ]
+    })
 
-    if (tiers.length > 0) {
+    const firstTier = tiers[0]
+    if (firstTier) {
       return {
         shipping_policy_type: "quantity_tiered",
-        shipping_base_fee: tiers[0].fee,
+        shipping_base_fee: firstTier.fee,
         shipping_tiers: tiers,
         shipping_jeju_extra_fee: jejuFee,
         shipping_remote_extra_fee: remoteFee,
@@ -112,7 +145,7 @@ function parseShippingPolicy(rawText, collectedAt = new Date().toISOString()) {
   }
 }
 
-function sourceSpecFields(sourceOptionLabel) {
+function sourceSpecFields(sourceOptionLabel: string) {
   const size = sourceOptionLabel.match(
     /(왕특과|왕특품|왕특|특대과|특대|특품|특과|꼬마과|꼬마|중대과|중소과|소과|소품|중과|중품|대과|대품|소|중|대|특)/u,
   )
@@ -132,7 +165,7 @@ function sourceSpecFields(sourceOptionLabel) {
   }
 }
 
-function shippingAmount(policy, quantity) {
+function shippingAmount(policy: ShippingPolicy, quantity: number): number | null {
   if (policy.shipping_validation_status !== "valid") return null
   if (policy.shipping_policy_type === "free") return 0
   if (policy.shipping_policy_type === "fixed") return policy.shipping_base_fee
@@ -140,8 +173,9 @@ function shippingAmount(policy, quantity) {
     (item) => quantity >= item.min_qty && quantity < item.max_qty_exclusive,
   )
   if (tier) return tier.fee
-  if (policy.shipping_policy_type === "quantity_tiered" && policy.shipping_tiers.length === 1) {
-    return Math.ceil(quantity / policy.shipping_tiers[0].max_qty_exclusive) * policy.shipping_base_fee
+  const firstTier = policy.shipping_tiers[0]
+  if (policy.shipping_policy_type === "quantity_tiered" && policy.shipping_tiers.length === 1 && firstTier) {
+    return Math.ceil(quantity / firstTier.max_qty_exclusive) * policy.shipping_base_fee
   }
   return null
 }
@@ -156,7 +190,9 @@ describe("Daily Renewal Crawler & Option Normalization", () => {
     ]
 
     for (let i = 0; i < options.length; i++) {
-      const spec = sourceSpecFields(options[i])
+      const option = options[i]
+      expect(option).toBeDefined()
+      const spec = sourceSpecFields(option ?? "")
       expect(spec.sourceCountLabel).toBe(`${i + 1}통`)
       expect(spec.sourcePackageLabel).toBe("")
     }
