@@ -8,6 +8,7 @@ STATUS_FILE="$RUNTIME_DIR/supplier-catalog-sync-status.json"
 LOCK_FILE="$PROJECT_DIR/reports/supplier-catalog-sync.lock"
 ADMINPLUS_RUN_DIR="$PROJECT_DIR/reports/adminplus-crawl-runs"
 SECONDARY_ONLY="${WHOLESALEHUB_SECONDARY_ONLY:-0}"
+FORCE_FULL_DAILY="${WHOLESALEHUB_FORCE_FULL_DAILY:-0}"
 CRAWLER_TIMEOUT="${WHOLESALEHUB_CRAWLER_TIMEOUT:-20m}"
 NETWORK_TIMEOUT="${WHOLESALEHUB_NETWORK_TIMEOUT:-10m}"
 SIGNAL_GRACE_SECONDS="${WHOLESALEHUB_SIGNAL_GRACE_SECONDS:-30}"
@@ -23,6 +24,8 @@ last_success_at=null
 last_failure_at=null
 RUN_HOUR="$(TZ=Asia/Seoul date +%H)"
 RUN_DATE="$(TZ=Asia/Seoul date +%F)"
+DAILY_FRESHNESS_REPORT="$REPORT_DIR/dailyfood-freshness.json"
+DAILY_FRESHNESS_BASELINE="$REPORT_DIR/dailyfood-freshness-baseline.json"
 mkdir -p "$REPORT_DIR" "$RUNTIME_DIR" "$ADMINPLUS_RUN_DIR"
 
 emit_result() {
@@ -144,6 +147,7 @@ verify_reusable_dailyfood_snapshot() {
     const expectedDate = process.argv[2];
     const snapshot = JSON.parse(fs.readFileSync(path, "utf8"));
     const generated = new Date(snapshot.generatedAt);
+    if (Number.isNaN(generated.getTime())) throw new Error("dailyfood snapshot generatedAt invalid");
     const parts = new Intl.DateTimeFormat("en-CA", {
       timeZone: "Asia/Seoul",
       year: "numeric",
@@ -156,16 +160,65 @@ verify_reusable_dailyfood_snapshot() {
       return out;
     }, {});
     const generatedDate = `${parts.year}-${parts.month}-${parts.day}`;
-    if (snapshot.complete !== true || generatedDate !== expectedDate || parts.hour !== "11") {
-      throw new Error(`dailyfood snapshot is not a complete same-day 11 KST snapshot: ${generatedDate}`);
+    if (snapshot.complete !== true || generatedDate !== expectedDate) {
+      throw new Error(`dailyfood snapshot is not a complete same-day snapshot: ${generatedDate}`);
+    }
+    if (generated.getTime() > Date.now() + 5 * 60 * 1000) {
+      throw new Error("dailyfood snapshot timestamp is unexpectedly in the future");
     }
   ' "$REPORT_DIR/dailyfood-catalog-snapshot.json" "$RUN_DATE"
+}
+
+record_dailyfood_freshness_baseline() {
+  local tmp="$DAILY_FRESHNESS_BASELINE.$$.tmp"
+  node -e '
+    const fs = require("node:fs");
+    const [reportPath, baselinePath] = process.argv.slice(1);
+    const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+    if (report.complete !== true || !report.fingerprint) throw new Error("invalid DailyFood freshness report");
+    const baseline = {
+      schemaVersion: 1,
+      recordedAt: new Date().toISOString(),
+      fingerprint: report.fingerprint,
+      listIds: Array.isArray(report.currentListIds) ? report.currentListIds : [],
+      liveListProducts: Number(report.liveListProducts || 0),
+      exportRows: Number(report.exportRows || 0),
+    };
+    fs.writeFileSync(baselinePath, JSON.stringify(baseline, null, 2) + "\n");
+  ' "$DAILY_FRESHNESS_REPORT" "$tmp"
+  mv "$tmp" "$DAILY_FRESHNESS_BASELINE"
+}
+
+mark_dailyfood_success() {
+  local dir="$ADMINPLUS_RUN_DIR/$RUN_DATE"
+  local marker="$dir/dailyfood-success.json"
+  local tmp="$marker.$$.tmp"
+  mkdir -p "$dir"
+  node -e '
+    const fs = require("node:fs");
+    const crypto = require("node:crypto");
+    const [snapshotPath, outputPath, runId] = process.argv.slice(1);
+    const raw = fs.readFileSync(snapshotPath);
+    const snapshot = JSON.parse(raw.toString("utf8"));
+    if (snapshot.complete !== true) throw new Error("cannot mark incomplete DailyFood snapshot successful");
+    fs.writeFileSync(outputPath, JSON.stringify({
+      schemaVersion: 1,
+      run_id: runId,
+      completed_at: new Date().toISOString(),
+      snapshot_sha256: crypto.createHash("sha256").update(raw).digest("hex"),
+      products: Number(snapshot.counts?.products || 0),
+      options: Number(snapshot.counts?.options || 0),
+      complete: true,
+    }, null, 2) + "\n");
+  ' "$REPORT_DIR/dailyfood-catalog-snapshot.json" "$tmp" "$RUN_ID"
+  mv "$tmp" "$marker"
 }
 
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
   step=lock
   log_event skipped_locked 75
+  notify_telegram "도매Hub 공급사 카탈로그 동기화 건너뜀: 다른 동기화가 실행 중입니다. run_id=$RUN_ID" || true
   emit_result skipped_locked 75 lock another_sync_is_running
   exit 75
 fi
@@ -175,7 +228,7 @@ trap handle_signal TERM INT
 trap 'handle_exit "$?"' EXIT
 start_step lock
 
-if [ "$RUN_HOUR" != "11" ] && [ "$RUN_HOUR" != "15" ] && [ "$RUN_HOUR" != "18" ] && [ "$RUN_HOUR" != "21" ] && [ "$SECONDARY_ONLY" != "1" ]; then
+if [ "$RUN_HOUR" != "11" ] && [ "$RUN_HOUR" != "15" ] && [ "$RUN_HOUR" != "18" ] && [ "$RUN_HOUR" != "21" ] && [ "$SECONDARY_ONLY" != "1" ] && [ "$FORCE_FULL_DAILY" != "1" ]; then
   start_step schedule
   finish completed 0 completed schedule_not_due
   exit 0
@@ -184,18 +237,32 @@ fi
 cd "$PROJECT_DIR"
 
 start_step preflight
+node --check scripts/supplier-catalog/check-dailyfood-freshness.mjs
 node --check scripts/supplier-catalog/collect-dailyfood-catalog.mjs
 node --check scripts/supplier-catalog/collect-walldob2b-catalog.mjs
 node --check scripts/supplier-catalog/build-catalog-plan.mjs
 node --check scripts/supplier-catalog/generate-daily-shipping-audit.mjs
+
+start_step dailyfood_freshness_check
+run_with_timeout "$CRAWLER_TIMEOUT" node scripts/supplier-catalog/check-dailyfood-freshness.mjs
+freshness_changed=$(node -e 'const r=require(process.argv[1]); process.stdout.write(r.changed === true ? "1" : "0")' "$DAILY_FRESHNESS_REPORT")
+full_daily=0
 if [ "$RUN_HOUR" = "11" ] && [ "$SECONDARY_ONLY" != "1" ]; then
-  if ! mkdir "$ADMINPLUS_RUN_DIR/$RUN_DATE" 2>/dev/null; then
-    start_step lock
-    finish skipped_locked 75 lock duplicate_adminplus_run
-    exit 75
-  fi
+  full_daily=1
+fi
+if [ "$FORCE_FULL_DAILY" = "1" ] || [ "$freshness_changed" = "1" ]; then
+  full_daily=1
+fi
+if [ "$full_daily" = "0" ] && ! verify_reusable_dailyfood_snapshot; then
+  full_daily=1
+fi
+
+if [ "$full_daily" = "1" ]; then
   start_step dailyfood_collect
   run_with_timeout "$CRAWLER_TIMEOUT" node scripts/supplier-catalog/collect-dailyfood-catalog.mjs
+  start_step dailyfood_success_marker
+  record_dailyfood_freshness_baseline
+  mark_dailyfood_success
 else
   start_step dailyfood_same_day_snapshot
   verify_reusable_dailyfood_snapshot
@@ -203,6 +270,7 @@ else
   run_with_timeout "$CRAWLER_TIMEOUT" node scripts/supplier-catalog/revalidate-catalog-images.mjs \
     "$REPORT_DIR/dailyfood-catalog-snapshot.json"
 fi
+
 start_step walldob2b_collect
 run_with_timeout "$CRAWLER_TIMEOUT" node scripts/supplier-catalog/collect-walldob2b-catalog.mjs
 start_step grouping
@@ -265,14 +333,18 @@ start_step shipping_audit
 node scripts/supplier-catalog/generate-daily-shipping-audit.mjs "$REPORT_DIR"
 
 step=completed
-sync_mode=11시
-if [ "$RUN_HOUR" = "18" ] || [ "$SECONDARY_ONLY" = "1" ]; then
-  sync_mode=18시/즉시
+sync_mode="${RUN_HOUR}시"
+if [ "$SECONDARY_ONLY" = "1" ]; then
+  sync_mode="${RUN_HOUR}시/즉시"
+fi
+if [ "$FORCE_FULL_DAILY" = "1" ]; then
+  sync_mode="${sync_mode}/복구"
 fi
 telegram_message=$(node -e '
   const result = require(process.argv[1]);
   const syncMode = process.argv[2];
   const audit = require(process.argv[3]);
+  const freshness = require(process.argv[4]);
   const counts = result.counts ?? {};
   const reviewRequired = (result.reviews ?? [])
     .filter((row) => !["image_failed", "sync_group_failed"].includes(row.reason))
@@ -287,6 +359,8 @@ telegram_message=$(node -e '
   const lines = [
     "Supplier Catalog Sync 완료",
     `모드 ${syncMode}`,
+    `Daily 변경 감지 ${freshness.changed === true ? "예" : "아니오"}`,
+    `Daily 신규 목록 ${Array.isArray(freshness.addedIds) ? freshness.addedIds.length : 0}`,
     `수집 상품 ${counts.collected_products ?? 0}`,
     `신규 상품 ${counts.product_created ?? 0}`,
     `가격 ${counts.price_updated ?? 0}`,
@@ -317,7 +391,7 @@ telegram_message=$(node -e '
   if (reviewRequired) lines.push(`review_required 상품 ${reviewRequired}`);
   if (failed) lines.push(`실패 상품 ${failed}`);
   process.stdout.write(lines.join("\n"));
-' "$REPORT_DIR/catalog-sync-result.json" "$sync_mode" "$REPORT_DIR/daily-shipping-audit.json")
+' "$REPORT_DIR/catalog-sync-result.json" "$sync_mode" "$REPORT_DIR/daily-shipping-audit.json" "$DAILY_FRESHNESS_REPORT")
 start_step telegram
 notify_telegram "$telegram_message"
 printf 'sent %s\n' "$(date -u +%FT%TZ)" >"$REPORT_DIR/telegram-report.status"
