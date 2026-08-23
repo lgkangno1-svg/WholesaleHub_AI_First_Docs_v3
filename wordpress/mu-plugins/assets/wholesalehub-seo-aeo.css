@@ -1,0 +1,129 @@
+.whh-card-cta {
+  margin-top: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--whh-green, #1a2f23);
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.whh-card-cta:hover,
+.whh-card-cta:focus-visible {
+  color: var(--whh-green-dark, #051a0f);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.whh-guide {
+  padding: 72px 0;
+  border-top: 1px solid var(--whh-line, #e3e2e0);
+  background: var(--whh-surface, #fff);
+}
+
+.whh-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.whh-guide-card {
+  min-height: 164px;
+  padding: 24px;
+  border: 1px solid var(--whh-line, #e3e2e0);
+  border-radius: var(--whh-radius, 12px);
+  background: var(--whh-surface, #fff);
+}
+
+.whh-guide-card span {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--whh-green, #1a2f23);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.whh-guide-card h3 {
+  margin: 16px 0 8px;
+  color: var(--whh-green-dark, #051a0f);
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+.whh-guide-card p {
+  margin: 0;
+  color: var(--whh-muted, #5f655f);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.whh-faq {
+  padding: 72px 0 84px;
+  border-top: 1px solid var(--whh-line, #e3e2e0);
+  background: var(--whh-surface-soft, #f4f3f1);
+}
+
+.whh-faq-list {
+  display: grid;
+  gap: 10px;
+}
+
+.whh-faq details {
+  border: 1px solid var(--whh-line, #e3e2e0);
+  border-radius: var(--whh-radius-sm, 8px);
+  background: var(--whh-surface, #fff);
+}
+
+.whh-faq summary {
+  position: relative;
+  padding: 18px 52px 18px 20px;
+  cursor: pointer;
+  color: var(--whh-green-dark, #051a0f);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.5;
+  list-style: none;
+}
+
+.whh-faq summary::-webkit-details-marker { display: none; }
+
+.whh-faq summary::after {
+  content: "+";
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--whh-green, #1a2f23);
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.whh-faq details[open] summary::after { content: "−"; }
+
+.whh-faq-answer {
+  padding: 0 20px 20px;
+  color: var(--whh-muted, #5f655f);
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.whh-faq-answer p { margin: 0; }
+
+@media (max-width: 900px) {
+  .whh-guide-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 560px) {
+  .whh-guide,
+  .whh-faq { padding: 52px 0; }
+  .whh-guide-grid { grid-template-columns: 1fr; }
+  .whh-guide-card { min-height: 0; }
+  .whh-faq summary { padding: 16px 46px 16px 16px; }
+  .whh-faq-answer { padding: 0 16px 18px; }
+}
