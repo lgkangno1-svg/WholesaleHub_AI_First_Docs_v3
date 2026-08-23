@@ -25,21 +25,28 @@ describe("WholesaleHub scheduled collection policy", () => {
     expect(cron?.parameters?.triggerTimes?.timezone).toBe("Asia/Seoul")
   })
 
-  it("keeps AdminPlus at 11 KST and uses a Walldo-only secondary run", async () => {
+  it("keeps the legacy MVP wrapper permanently non-destructive", async () => {
     const script = await readFile("scripts/n8n-mvp-sync.sh", "utf8")
-    expect(script).toContain('if [ "$RUN_HOUR" != "11" ] && [ "$RUN_HOUR" != "18" ]')
-    expect(script).toContain('mkdir "$ADMINPLUS_RUN_DIR/$RUN_DATE"')
-    expect(script).toContain('if [ "$RUN_HOUR" = "18" ] || [ "$SECONDARY_ONLY" = "1" ]')
-    expect(script).toContain("collect_walldob2b_catalog")
+
+    expect(script).toContain(
+      'skip_step delete_source_absent "permanent Woo product/variation deletion is disabled by production safety policy"',
+    )
+    expect(script).not.toContain("run_step delete_source_absent")
+    expect(script).toContain('ALLOW_STOCK_VISIBILITY_SYNC="${WHOLESALEHUB_ALLOW_STOCK_VISIBILITY_SYNC:-0}"')
   })
 
-  it("splits the active catalog runner into one AdminPlus run and two Walldo runs", async () => {
+  it("refreshes DailyFood when the source changes without a date-directory skip gate", async () => {
     const script = await readFile("scripts/n8n-supplier-catalog-sync.sh", "utf8")
-    expect(script).toContain('if [ "$RUN_HOUR" != "11" ] && [ "$RUN_HOUR" != "18" ]')
-    expect(script).toContain('mkdir "$ADMINPLUS_RUN_DIR/$RUN_DATE"')
+
+    expect(script).toContain("check-dailyfood-freshness.mjs")
+    expect(script).toContain('freshness_changed=$(node -e')
+    expect(script).toContain('FORCE_FULL_DAILY="${WHOLESALEHUB_FORCE_FULL_DAILY:-0}"')
     expect(script).toContain("verify_reusable_dailyfood_snapshot")
+    expect(script).toContain("mark_dailyfood_success")
     expect(script).toContain("collect-dailyfood-catalog.mjs")
     expect(script).toContain("collect-walldob2b-catalog.mjs")
+    expect(script).toContain("flock -n 9")
+    expect(script).not.toContain('mkdir "$ADMINPLUS_RUN_DIR/$RUN_DATE"')
   })
 
   it("never assigns the AdminPlus common image and keeps image-less parents private", async () => {
