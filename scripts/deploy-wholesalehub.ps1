@@ -73,12 +73,13 @@ STAMP="$(TZ=Asia/Seoul date +%Y%m%d-%H%M%S)"
 BACKUP="$PROJECT/reports/deploy-backups/$STAMP-$HEAD_SHA"
 STAGE="$PROJECT/reports/deploy-stage/$STAMP-$HEAD_SHA"
 FAILED="$PROJECT/reports/deploy-failed/$STAMP-$HEAD_SHA"
+RELEASE="$STAGE/release"
 DEPLOYED_LIST="$STAGE/deployed-plugins.txt"
 MU_EXISTING="$STAGE/mu-existing.txt"
 MU_NEW="$STAGE/mu-new.txt"
 DEPLOY_OK=0
 
-mkdir -p "$PROJECT" "$LIVE_PLUGINS" "$LIVE_MU" "$BACKUP/plugins" "$BACKUP/mu" "$STAGE/plugins" "$STAGE/mu" "$FAILED/plugins"
+mkdir -p "$PROJECT" "$LIVE_PLUGINS" "$LIVE_MU" "$BACKUP/plugins" "$BACKUP/mu" "$STAGE/plugins" "$STAGE/mu" "$FAILED/plugins" "$RELEASE"
 : > "$DEPLOYED_LIST"
 : > "$MU_EXISTING"
 : > "$MU_NEW"
@@ -125,28 +126,32 @@ trap on_exit EXIT
 [ -d "$WP_ROOT/wp-content" ] || { echo "WordPress path missing: $WP_ROOT" >&2; exit 22; }
 command -v docker >/dev/null 2>&1 || { echo "docker not found" >&2; exit 23; }
 command -v tar >/dev/null 2>&1 || { echo "tar not found" >&2; exit 24; }
+command -v node >/dev/null 2>&1 || { echo "node not found" >&2; exit 25; }
 
-# Overlay only Git-tracked release files. Runtime secrets (.env), DB/data and generated reports are not in git archive.
-tar -xf "$ARCHIVE" -C "$PROJECT"
-mkdir -p "$PROJECT/reports/runtime"
-printf '%s\n' "$HEAD_SHA" > "$PROJECT/reports/runtime/deployed-github-head.txt"
+# Validate the GitHub release in an isolated stage before touching live WordPress.
+tar -xf "$ARCHIVE" -C "$RELEASE"
+bash -n "$RELEASE/scripts/n8n-supplier-catalog-sync.sh"
+node --check "$RELEASE/scripts/supplier-catalog/collect-dailyfood-catalog.mjs"
+node --check "$RELEASE/scripts/supplier-catalog/collect-walldob2b-catalog.mjs"
+node --check "$RELEASE/scripts/supplier-catalog/build-catalog-plan.mjs"
 
 plugins=(avocadoss-performance avocadoss-supplier-order-export wholesalehub-supplier-lanes)
 for plugin in "${plugins[@]}"; do
-  src="$PROJECT/wordpress/plugins/$plugin"
+  src="$RELEASE/wordpress/plugins/$plugin"
   [ -d "$src" ] || { echo "source plugin missing: $src" >&2; exit 30; }
   mkdir -p "$STAGE/plugins/$plugin"
   cp -a "$src/." "$STAGE/plugins/$plugin/"
   if [ -e "$LIVE_PLUGINS/$plugin" ]; then
     mv "$LIVE_PLUGINS/$plugin" "$BACKUP/plugins/$plugin"
   fi
-  mv "$STAGE/plugins/$plugin" "$LIVE_PLUGINS/$plugin"
+  # Record the swap before installing the staged tree so rollback also covers an install-move failure.
   printf '%s\n' "$plugin" >> "$DEPLOYED_LIST"
+  mv "$STAGE/plugins/$plugin" "$LIVE_PLUGINS/$plugin"
 done
 
 mu_files=(avocadoss-login-recovery.php avocadoss-product-source-column.php avocadoss-security-headers.php)
 for file in "${mu_files[@]}"; do
-  src="$PROJECT/wordpress/mu-plugins/$file"
+  src="$RELEASE/wordpress/mu-plugins/$file"
   [ -f "$src" ] || { echo "source mu-plugin missing: $src" >&2; exit 31; }
   cp -a "$src" "$STAGE/mu/$file"
   if [ -f "$LIVE_MU/$file" ]; then
@@ -158,13 +163,13 @@ for file in "${mu_files[@]}"; do
   cp -a "$STAGE/mu/$file" "$LIVE_MU/$file"
 done
 
-# Exact source/live verification before any cache flush.
+# Exact staged-release/live verification before cache flush.
 for plugin in "${plugins[@]}"; do
-  diff -qr "$PROJECT/wordpress/plugins/$plugin" "$LIVE_PLUGINS/$plugin" >/dev/null
+  diff -qr "$RELEASE/wordpress/plugins/$plugin" "$LIVE_PLUGINS/$plugin" >/dev/null
   echo "VERIFY_TREE_OK $plugin"
 done
 for file in "${mu_files[@]}"; do
-  cmp -s "$PROJECT/wordpress/mu-plugins/$file" "$LIVE_MU/$file"
+  cmp -s "$RELEASE/wordpress/mu-plugins/$file" "$LIVE_MU/$file"
   echo "VERIFY_FILE_OK $file"
 done
 
@@ -201,11 +206,17 @@ case "$HTTP_CODE" in
   *) echo "live HTTP health check failed: $HTTP_CODE" >&2; exit 50 ;;
 esac
 
+# Only after live verification, overlay Git-tracked source into the MiniPC project.
+# .env, data, DB and generated reports are not part of git archive and remain untouched.
+tar -xf "$ARCHIVE" -C "$PROJECT"
+mkdir -p "$PROJECT/reports/runtime"
+printf '%s\n' "$HEAD_SHA" > "$PROJECT/reports/runtime/deployed-github-head.txt"
+
 DEPLOY_OK=1
 echo "WHOLESALEHUB_DEPLOY_OK head=$HEAD_SHA http=$HTTP_CODE backup=$BACKUP"
 '@
 
-        [System.IO.File]::WriteAllText($remoteScriptPath, $remoteScript, (New-Object System.Text.UTF8Encoding($false)))
+        [System.IO.File]::WriteAllText($remoteScriptPath, $remoteScript, [System.Text.UTF8Encoding]::new($false))
 
         Write-Host '[3/6] Release와 안전 배포 스크립트 업로드'
         scp -q $archivePath "${SshHost}:/tmp/$remoteArchiveName"
@@ -218,8 +229,12 @@ echo "WHOLESALEHUB_DEPLOY_OK head=$HEAD_SHA http=$HTTP_CODE backup=$BACKUP"
         Assert-NativeSuccess 'Production 배포 또는 live 검증 실패. 원격 스크립트가 live WordPress 파일 롤백을 시도했습니다.'
 
         Write-Host '[5/6] Production 배포 HEAD 재확인'
-        ssh $SshHost "test \"`$(cat '$RemoteProject/reports/runtime/deployed-github-head.txt')\" = '$head' && printf 'DEPLOYED_HEAD_OK %s\n' '$head'"
-        Assert-NativeSuccess 'Production deployed HEAD 검증 실패'
+        $deployedHead = (ssh $SshHost "cat '$RemoteProject/reports/runtime/deployed-github-head.txt'").Trim()
+        Assert-NativeSuccess 'Production deployed HEAD 읽기 실패'
+        if ($deployedHead -ne $head) {
+            throw "Production deployed HEAD 불일치. expected=$head actual=$deployedHead"
+        }
+        Write-Host "DEPLOYED_HEAD_OK $deployedHead"
 
         if ($RunCatalogCatchup) {
             Write-Host '[6/6] 공급사 카탈로그 즉시 catch-up (DailyFood 당일 11시 정상 스냅샷 재사용 + Walldo 재수집)'
