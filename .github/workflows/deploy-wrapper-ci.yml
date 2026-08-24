@@ -1,0 +1,51 @@
+name: deploy-wrapper-ci
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/deploy-wholesalehub.ps1'
+      - '.github/workflows/deploy-wrapper-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/deploy-wholesalehub.ps1'
+      - '.github/workflows/deploy-wrapper-ci.yml'
+
+jobs:
+  powershell-parse:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse PowerShell wrapper
+        shell: powershell
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path '.\scripts\deploy-wholesalehub.ps1'),
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            exit 1
+          }
+          Write-Host 'POWERSHELL_PARSE_OK'
+
+  embedded-bash-parse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract embedded remote Bash
+        shell: pwsh
+        run: |
+          $text = Get-Content './scripts/deploy-wholesalehub.ps1' -Raw
+          $match = [regex]::Match($text, "(?s)\$remoteScript\s*=\s*@'\r?\n(.*?)\r?\n'@")
+          if (-not $match.Success) { throw 'Embedded remote Bash here-string not found' }
+          [System.IO.File]::WriteAllText('/tmp/remote-deploy.sh', $match.Groups[1].Value, [System.Text.UTF8Encoding]::new($false))
+      - name: Parse embedded remote Bash
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n /tmp/remote-deploy.sh
+          echo 'REMOTE_BASH_PARSE_OK'
