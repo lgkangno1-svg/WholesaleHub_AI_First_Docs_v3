@@ -30,7 +30,7 @@ try {
     Push-Location $repoRoot
     try {
         if (-not (Test-Path '.git')) {
-            throw "Git 저장소 루트가 아닙니다: $repoRoot"
+            throw "Not a Git repository root: $repoRoot"
         }
 
         Get-Command git.exe -ErrorAction Stop | Out-Null
@@ -38,26 +38,26 @@ try {
         Get-Command scp.exe -ErrorAction Stop | Out-Null
 
         $head = (git rev-parse HEAD).Trim()
-        Assert-NativeSuccess '현재 Git HEAD 확인 실패'
+        Assert-NativeSuccess 'Failed to read current Git HEAD'
         $originMain = (git rev-parse origin/main).Trim()
-        Assert-NativeSuccess 'origin/main 확인 실패. 먼저 git fetch origin main 을 실행하세요.'
+        Assert-NativeSuccess 'Failed to read origin/main. Run git fetch origin main first.'
         if ($head -ne $originMain) {
-            throw "현재 HEAD가 origin/main과 다릅니다. HEAD=$head origin/main=$originMain"
+            throw "HEAD does not match origin/main. HEAD=$head origin/main=$originMain"
         }
 
         $trackedChanges = git status --porcelain --untracked-files=no
-        Assert-NativeSuccess 'Git 작업트리 상태 확인 실패'
+        Assert-NativeSuccess 'Failed to inspect Git worktree'
         if ($trackedChanges) {
-            throw "배포 전용 복제본에 추적 파일 변경이 있습니다. origin/main으로 다시 동기화한 뒤 실행하세요."
+            throw 'Tracked files are modified in the deploy clone. Reset the deploy clone to origin/main first.'
         }
 
-        Write-Host "[1/6] SSH 연결 확인: $SshHost"
+        Write-Host "[1/6] Checking SSH connection: $SshHost"
         ssh -o BatchMode=yes -o ConnectTimeout=15 $SshHost "test -d '$RemoteProject' && test -d '$RemoteWpRoot/wp-content' && printf 'REMOTE_OK\n'"
-        Assert-NativeSuccess "MiniPC 연결 또는 운영 경로 확인 실패: $SshHost"
+        Assert-NativeSuccess "MiniPC connection or production path check failed: $SshHost"
 
-        Write-Host "[2/6] GitHub HEAD 패키징: $head"
+        Write-Host "[2/6] Packaging GitHub HEAD: $head"
         git archive --format=tar --output=$archivePath HEAD
-        Assert-NativeSuccess 'Git release archive 생성 실패'
+        Assert-NativeSuccess 'Failed to create Git release archive'
 
         $remoteScript = @'
 #!/usr/bin/env bash
@@ -144,7 +144,6 @@ for plugin in "${plugins[@]}"; do
   if [ -e "$LIVE_PLUGINS/$plugin" ]; then
     mv "$LIVE_PLUGINS/$plugin" "$BACKUP/plugins/$plugin"
   fi
-  # Record the swap before installing the staged tree so rollback also covers an install-move failure.
   printf '%s\n' "$plugin" >> "$DEPLOYED_LIST"
   mv "$STAGE/plugins/$plugin" "$LIVE_PLUGINS/$plugin"
 done
@@ -163,7 +162,6 @@ for file in "${mu_files[@]}"; do
   cp -a "$STAGE/mu/$file" "$LIVE_MU/$file"
 done
 
-# Exact staged-release/live verification before cache flush.
 for plugin in "${plugins[@]}"; do
   diff -qr "$RELEASE/wordpress/plugins/$plugin" "$LIVE_PLUGINS/$plugin" >/dev/null
   echo "VERIFY_TREE_OK $plugin"
@@ -173,7 +171,6 @@ for file in "${mu_files[@]}"; do
   echo "VERIFY_FILE_OK $file"
 done
 
-# PHP syntax verification inside the actual WordPress container.
 docker exec avocadoss-wp sh -lc '
 set -eu
 for d in \
@@ -195,7 +192,6 @@ done
 docker exec avocadoss-wp wp --allow-root --path=/var/www/html plugin is-active avocadoss-performance >/dev/null
 docker exec avocadoss-wp wp --allow-root --path=/var/www/html plugin is-active wholesalehub-supplier-lanes >/dev/null
 
-# Best-effort runtime cache refresh. These are not allowed to turn a valid deploy into a failure.
 docker exec avocadoss-wp wp --allow-root --path=/var/www/html cache flush >/dev/null 2>&1 || true
 docker exec avocadoss-wp wp --allow-root --path=/var/www/html transient delete --all >/dev/null 2>&1 || true
 docker exec avocadoss-wp wp --allow-root --path=/var/www/html eval 'if (function_exists("opcache_reset")) { opcache_reset(); }' >/dev/null 2>&1 || true
@@ -206,8 +202,7 @@ case "$HTTP_CODE" in
   *) echo "live HTTP health check failed: $HTTP_CODE" >&2; exit 50 ;;
 esac
 
-# Only after live verification, overlay Git-tracked source into the MiniPC project.
-# .env, data, DB and generated reports are not part of git archive and remain untouched.
+# Overlay only Git-tracked source after live verification. Runtime secrets and data are untouched.
 tar -xf "$ARCHIVE" -C "$PROJECT"
 mkdir -p "$PROJECT/reports/runtime"
 printf '%s\n' "$HEAD_SHA" > "$PROJECT/reports/runtime/deployed-github-head.txt"
@@ -218,39 +213,39 @@ echo "WHOLESALEHUB_DEPLOY_OK head=$HEAD_SHA http=$HTTP_CODE backup=$BACKUP"
 
         [System.IO.File]::WriteAllText($remoteScriptPath, $remoteScript, [System.Text.UTF8Encoding]::new($false))
 
-        Write-Host '[3/6] Release와 안전 배포 스크립트 업로드'
+        Write-Host '[3/6] Uploading release and safe remote deploy script'
         scp -q $archivePath "${SshHost}:/tmp/$remoteArchiveName"
-        Assert-NativeSuccess 'Release archive 업로드 실패'
+        Assert-NativeSuccess 'Failed to upload release archive'
         scp -q $remoteScriptPath "${SshHost}:/tmp/$remoteScriptName"
-        Assert-NativeSuccess 'Remote deploy script 업로드 실패'
+        Assert-NativeSuccess 'Failed to upload remote deploy script'
 
-        Write-Host '[4/6] Production WordPress 원자적 배포 + 백업 + PHP lint + live HTTP 검증'
+        Write-Host '[4/6] Deploying Production WordPress with backup, PHP lint and live HTTP verification'
         ssh $SshHost "bash '/tmp/$remoteScriptName' '$head' '/tmp/$remoteArchiveName' '$RemoteProject' '$RemoteWpRoot'"
-        Assert-NativeSuccess 'Production 배포 또는 live 검증 실패. 원격 스크립트가 live WordPress 파일 롤백을 시도했습니다.'
+        Assert-NativeSuccess 'Production deploy or live verification failed. The remote script attempted live rollback.'
 
-        Write-Host '[5/6] Production 배포 HEAD 재확인'
+        Write-Host '[5/6] Verifying deployed GitHub HEAD'
         $deployedHead = (ssh $SshHost "cat '$RemoteProject/reports/runtime/deployed-github-head.txt'").Trim()
-        Assert-NativeSuccess 'Production deployed HEAD 읽기 실패'
+        Assert-NativeSuccess 'Failed to read deployed GitHub HEAD'
         if ($deployedHead -ne $head) {
-            throw "Production deployed HEAD 불일치. expected=$head actual=$deployedHead"
+            throw "Deployed HEAD mismatch. expected=$head actual=$deployedHead"
         }
         Write-Host "DEPLOYED_HEAD_OK $deployedHead"
 
         if ($RunCatalogCatchup) {
-            Write-Host '[6/6] 공급사 카탈로그 즉시 catch-up (DailyFood 당일 11시 정상 스냅샷 재사용 + Walldo 재수집)'
+            Write-Host '[6/6] Running supplier catalog catch-up using same-day DailyFood snapshot plus Walldo refresh'
             ssh $SshHost "cd '$RemoteProject' && WHOLESALEHUB_SECONDARY_ONLY=1 bash scripts/n8n-supplier-catalog-sync.sh"
             if ($LASTEXITCODE -eq 75) {
-                Write-Warning '카탈로그 동기화가 이미 실행 중이라 catch-up을 건너뛰었습니다. Production 배포 자체는 정상 완료되었습니다.'
+                Write-Warning 'Catalog sync is already running. Production deploy completed; catch-up was skipped.'
             }
             elseif ($LASTEXITCODE -ne 0) {
-                Write-Warning "Production 배포는 완료되었지만 catalog catch-up이 실패했습니다 (exit=$LASTEXITCODE). 기존 정기 스케줄은 유지됩니다."
+                Write-Warning "Production deploy completed, but catalog catch-up failed (exit=$LASTEXITCODE). Existing schedules remain unchanged."
             }
             else {
                 Write-Host 'CATALOG_CATCHUP_OK'
             }
         }
         else {
-            Write-Host '[6/6] Catalog catch-up 생략'
+            Write-Host '[6/6] Catalog catch-up skipped'
         }
 
         Write-Host ''
