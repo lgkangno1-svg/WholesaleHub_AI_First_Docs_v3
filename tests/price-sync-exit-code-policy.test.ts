@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest"
+import { describe, expect, it } from "vitest"
 import { validateMvpSyncPreflight } from "../src/reports/mvp-sync-preflight.js"
 
 describe("Price Sync Exit Code Policy & Preflight Tests", () => {

@@ -5,7 +5,23 @@ import { describe, expect, it } from "vitest"
 const uiScriptPath = "wordpress/plugins/wholesalehub-supplier-lanes/assets/supplier-lanes.js"
 const uiScript = readFileSync(uiScriptPath, "utf8")
 
-function loadUiApi() {
+type UiOffer = Record<string, string>
+
+interface SupplierLaneUiApi {
+  availableValues: (
+    offers: UiOffer[],
+    selection: Record<string, string>,
+    dimension: string,
+  ) => string[]
+  classifyMode: (offers: UiOffer[]) => string
+  matchingOffers: (
+    offers: UiOffer[],
+    selection: Record<string, string>,
+    dimensions: string[],
+  ) => UiOffer[]
+}
+
+function loadUiApi(): SupplierLaneUiApi {
   const browserWindow: Record<string, unknown> = {}
   const browserDocument = {
     readyState: "loading",
@@ -15,22 +31,10 @@ function loadUiApi() {
     document: browserDocument,
     window: browserWindow,
   })
-  return browserWindow.WholesaleHubSupplierLanes as {
-    availableValues: (
-      offers: Array<Record<string, string>>,
-      selection: Record<string, string>,
-      dimension: string,
-    ) => string[]
-    classifyMode: (offers: Array<Record<string, string>>) => string
-    matchingOffers: (
-      offers: Array<Record<string, string>>,
-      selection: Record<string, string>,
-      dimensions: string[],
-    ) => Array<Record<string, string>>
-  }
+  return browserWindow["WholesaleHubSupplierLanes"] as SupplierLaneUiApi
 }
 
-const offers = [
+const offers: UiOffer[] = [
   {
     lane: "A",
     supplier: "dailyfood",
@@ -72,7 +76,9 @@ const offers = [
 describe("Supplier Lane adaptive UI contract", () => {
   it("classifies one offer, one supplier, and multiple suppliers", () => {
     const api = loadUiApi()
-    expect(api.classifyMode([offers[0]])).toBe("single-offer")
+    const firstOffer = offers[0]
+    expect(firstOffer).toBeDefined()
+    expect(api.classifyMode(firstOffer ? [firstOffer] : [])).toBe("single-offer")
     expect(api.classifyMode(offers.slice(0, 2))).toBe("single-supplier")
     expect(api.classifyMode(offers)).toBe("multi-supplier")
   })
@@ -82,7 +88,7 @@ describe("Supplier Lane adaptive UI contract", () => {
     expect(
       api
         .matchingOffers(offers, { grade: "소", weight: "3000" }, ["grade", "weight"])
-        .map((offer) => offer.key),
+        .map((offer) => offer["key"]),
     ).toEqual(["daily-small-3", "wall-small-3"])
     expect(api.matchingOffers(offers, { grade: "소" }, ["grade", "weight"])).toEqual([])
     expect(

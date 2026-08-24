@@ -5,7 +5,7 @@ import { parseSpecLabel, sortOffersBySizeWeight } from "../src/supplier-lane/spe
 import {
   ensureSpecMappingSchema,
   syncSpecMappingForOffer,
-} from "../src/supplier-lane/spec-repository.ts"
+} from "../src/supplier-lane/spec-repository.js"
 
 const plugin = readFileSync(
   "wordpress/plugins/wholesalehub-supplier-lanes/wholesalehub-supplier-lanes.php",
@@ -67,10 +67,8 @@ describe("Option A Spec Normalization & Spec Mapping", () => {
     expect(row1.status).toBe("auto_approved")
     expect(row1.comparison_group).toBe("특품 5kg")
 
-    // Mark as manual_approved
     db.prepare("UPDATE supplier_lane_spec_mappings SET status = 'manual_approved', comparison_group = '특품 5kg 수동확정' WHERE woo_variation_id = 101").run()
 
-    // Re-sync should NOT overwrite manual_approved
     const row2 = syncSpecMappingForOffer(
       db,
       { ...offer, option_label_raw: "특품 감자 5kg [수정제목]" },
@@ -80,8 +78,8 @@ describe("Option A Spec Normalization & Spec Mapping", () => {
     expect(row2.comparison_group).toBe("특품 5kg 수동확정")
   })
 
-  it("verifies PHP plugin includes schema 1.2.0, spec_mappings table, and Option A UI rendering", () => {
-    expect(plugin).toContain("SCHEMA_VERSION = '1.2.0'")
+  it("verifies PHP plugin includes current schema 1.4.0, spec_mappings table, and Option A UI rendering", () => {
+    expect(plugin).toContain("SCHEMA_VERSION = '1.4.0'")
     expect(plugin).toContain("supplier_lane_spec_mappings")
     expect(plugin).toContain("parse_spec_label")
     expect(plugin).toContain("render_option_a_ui")
