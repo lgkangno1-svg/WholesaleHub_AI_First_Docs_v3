@@ -1,0 +1,58 @@
+name: deploy-wrapper-ci
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/deploy-wholesalehub.ps1'
+      - '.github/workflows/deploy-wrapper-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/deploy-wholesalehub.ps1'
+      - '.github/workflows/deploy-wrapper-ci.yml'
+
+jobs:
+  powershell-parse:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse PowerShell wrapper
+        shell: powershell
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path '.\scripts\deploy-wholesalehub.ps1'),
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object {
+              Write-Host ("PARSE_ERROR line={0} col={1} message={2} text={3}" -f $_.Extent.StartLineNumber, $_.Extent.StartColumnNumber, $_.Message, $_.Extent.Text)
+            }
+            exit 1
+          }
+          Write-Host 'POWERSHELL_PARSE_OK'
+
+  embedded-bash-parse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract embedded remote Bash
+        shell: pwsh
+        run: |
+          $text = Get-Content './scripts/deploy-wholesalehub.ps1' -Raw
+          $startMarker = '$remoteScript = @'''
+          $start = $text.IndexOf($startMarker)
+          if ($start -lt 0) { throw 'Embedded remote Bash start marker not found' }
+          $bodyStart = $text.IndexOf("`n", $start) + 1
+          $end = $text.IndexOf("`n'@", $bodyStart)
+          if ($bodyStart -le 0 -or $end -lt 0) { throw 'Embedded remote Bash end marker not found' }
+          $bash = $text.Substring($bodyStart, $end - $bodyStart)
+          [System.IO.File]::WriteAllText('/tmp/remote-deploy.sh', $bash, [System.Text.UTF8Encoding]::new($false))
+      - name: Parse embedded remote Bash
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n /tmp/remote-deploy.sh
+          echo 'REMOTE_BASH_PARSE_OK'
