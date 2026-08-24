@@ -1,26 +1,48 @@
 import { readFile } from "node:fs/promises"
 import { describe, expect, it } from "vitest"
 
-describe("WholesaleHub scheduled collection policy", () => {
-  it("runs the active-workflow export fallback at 11 and 18 KST", async () => {
-    const root = JSON.parse(
-      await readFile("docs/n8n-wholesalehub-mvp-sync.workflow.json", "utf8"),
-    ) as Record<string, { nodes?: Array<{ type?: string; parameters?: unknown }> }>
-    const workflow = Object.values(root)[0]
-    const cron = workflow?.nodes?.find((node) => node.type === "n8n-nodes-base.cron") as
-      | {
-          parameters?: {
-            triggerTimes?: {
-              item?: Array<{ hour?: number; minute?: number }>
-              timezone?: string
-            }
-          }
-        }
-      | undefined
+interface WorkflowNode {
+  type?: string
+  parameters?: {
+    triggerTimes?: {
+      item?: Array<{ mode?: string; hour?: number; minute?: number }>
+      timezone?: string
+    }
+  }
+}
 
+interface WorkflowExport {
+  id?: string
+  name?: string
+  active?: boolean
+  nodes?: WorkflowNode[]
+}
+
+async function readHistoricalMvpWorkflow(): Promise<WorkflowExport> {
+  const raw = JSON.parse(await readFile("docs/n8n-wholesalehub-mvp-sync.workflow.json", "utf8")) as
+    | { content?: string }
+    | WorkflowExport[]
+
+  if (Array.isArray(raw)) return raw[0] ?? {}
+  if (typeof raw.content !== "string") return {}
+
+  const decoded = JSON.parse(raw.content) as WorkflowExport[]
+  return decoded[0] ?? {}
+}
+
+describe("WholesaleHub scheduled collection policy", () => {
+  it("keeps the stored n8n MVP export explicitly historical instead of treating it as current catalog schedule", async () => {
+    const workflow = await readHistoricalMvpWorkflow()
+    const cron = workflow.nodes?.find((node) => node.type === "n8n-nodes-base.cron")
+
+    // This repository artifact is a legacy MVP/order-email workflow export, not the
+    // authoritative production Supplier Catalog Sync schedule. Keeping this assertion
+    // prevents tests from silently rewriting historical evidence to match current policy.
+    expect(workflow.name).toBe("WholesaleHub MVP Sync")
     expect(cron?.parameters?.triggerTimes?.item).toEqual([
-      { mode: "everyDay", hour: 11, minute: 0 },
-      { mode: "everyDay", hour: 18, minute: 0 },
+      { mode: "everyDay", hour: 9, minute: 0 },
+      { mode: "everyDay", hour: 15, minute: 0 },
+      { mode: "everyDay", hour: 21, minute: 0 },
     ])
     expect(cron?.parameters?.triggerTimes?.timezone).toBe("Asia/Seoul")
   })
