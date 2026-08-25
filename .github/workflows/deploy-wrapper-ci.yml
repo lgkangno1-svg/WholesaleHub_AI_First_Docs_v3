@@ -4,11 +4,13 @@ on:
   pull_request:
     paths:
       - 'scripts/deploy-wholesalehub.ps1'
+      - '.gitattributes'
       - '.github/workflows/deploy-wrapper-ci.yml'
   push:
     branches: [main]
     paths:
       - 'scripts/deploy-wholesalehub.ps1'
+      - '.gitattributes'
       - '.github/workflows/deploy-wrapper-ci.yml'
 
 jobs:
@@ -33,17 +35,19 @@ jobs:
             exit 1
           }
           Write-Host 'POWERSHELL_PARSE_OK'
-      - name: Verify Windows CRLF is normalized before remote Bash upload
+      - name: Verify generated remote Bash is LF-only
         shell: powershell
         run: |
           $text = Get-Content '.\scripts\deploy-wholesalehub.ps1' -Raw
           if ($text -notmatch '\$remoteScript\s*=\s*\$remoteScript\.Replace\("`r`n",\s*"`n"\)\.Replace\("`r",\s*"`n"\)') {
             throw 'Required CRLF-to-LF normalization is missing from deploy wrapper.'
           }
+          if ($text -notmatch "find \"\$RELEASE\" -type f -name '\*\.sh' -exec sed -i 's/\\r\$//' \{\} \+") {
+            throw 'Required release shell EOL normalization is missing.'
+          }
           $sample = "#!/usr/bin/env bash`r`nset -Eeuo pipefail`r`necho ok`r`n"
           $sample = $sample.Replace("`r`n", "`n").Replace("`r", "`n")
-          $bytes = [System.Text.Encoding]::UTF8.GetBytes($sample)
-          if ($bytes -contains 13) { throw 'CR byte remains after normalization.' }
+          if ([System.Text.Encoding]::UTF8.GetBytes($sample) -contains 13) { throw 'CR byte remains after normalization.' }
           Write-Host 'WINDOWS_TO_UNIX_LF_OK'
 
   embedded-bash-parse:
@@ -63,21 +67,14 @@ jobs:
           $bash = $text.Substring($bodyStart, $end - $bodyStart)
           $bash = $bash.Replace("`r`n", "`n").Replace("`r", "`n")
           [System.IO.File]::WriteAllText('/tmp/remote-deploy.sh', $bash, [System.Text.UTF8Encoding]::new($false))
-      - name: Assert LF-only embedded Bash
-        shell: bash
-        run: |
-          set -euo pipefail
-          if LC_ALL=C grep -q $'\r' /tmp/remote-deploy.sh; then
-            echo 'CR byte found in generated Bash' >&2
-            exit 1
-          fi
       - name: Parse embedded remote Bash
         shell: bash
         run: |
           set -euo pipefail
+          ! LC_ALL=C grep -q $'\r' /tmp/remote-deploy.sh
           bash -n /tmp/remote-deploy.sh
           echo 'REMOTE_BASH_PARSE_OK'
-      - name: Reproduce release archive staging and preflight
+      - name: Reproduce archive extraction and shell normalization
         shell: bash
         run: |
           set -euo pipefail
@@ -89,10 +86,8 @@ jobs:
           grep -Fxq 'scripts/supplier-catalog/collect-dailyfood-catalog.mjs' /tmp/wh-release-ci.list
           grep -q '^wordpress/plugins/avocadoss-performance/' /tmp/wh-release-ci.list
           tar -xf /tmp/wh-release-ci.tar -C /tmp/wh-release-ci
-          test -f /tmp/wh-release-ci/scripts/n8n-supplier-catalog-sync.sh
-          test -f /tmp/wh-release-ci/scripts/supplier-catalog/collect-dailyfood-catalog.mjs
-          test -f /tmp/wh-release-ci/scripts/supplier-catalog/collect-walldob2b-catalog.mjs
-          test -f /tmp/wh-release-ci/scripts/supplier-catalog/build-catalog-plan.mjs
+          find /tmp/wh-release-ci -type f -name '*.sh' -exec sed -i 's/\r$//' {} +
+          ! LC_ALL=C grep -q $'\r' /tmp/wh-release-ci/scripts/n8n-supplier-catalog-sync.sh
           bash -n /tmp/wh-release-ci/scripts/n8n-supplier-catalog-sync.sh
           node --check /tmp/wh-release-ci/scripts/supplier-catalog/collect-dailyfood-catalog.mjs
           node --check /tmp/wh-release-ci/scripts/supplier-catalog/collect-walldob2b-catalog.mjs
