@@ -211,7 +211,15 @@ DEPLOY_OK=1
 echo "WHOLESALEHUB_DEPLOY_OK head=$HEAD_SHA http=$HTTP_CODE backup=$BACKUP"
 '@
 
+        # Windows PowerShell here-strings can carry CRLF into the generated .sh file.
+        # Normalize to Unix LF before SCP so Bash never sees a trailing carriage return.
+        $remoteScript = $remoteScript.Replace("`r`n", "`n").Replace("`r", "`n")
         [System.IO.File]::WriteAllText($remoteScriptPath, $remoteScript, [System.Text.UTF8Encoding]::new($false))
+
+        $remoteScriptBytes = [System.IO.File]::ReadAllBytes($remoteScriptPath)
+        if ($remoteScriptBytes -contains 13) {
+            throw 'Generated remote Bash script still contains CR bytes.'
+        }
 
         Write-Host '[3/6] Uploading release and safe remote deploy script'
         scp -q $archivePath "${SshHost}:/tmp/$remoteArchiveName"
