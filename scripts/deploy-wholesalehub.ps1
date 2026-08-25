@@ -116,12 +116,13 @@ grep -Fxq 'scripts/n8n-supplier-catalog-sync.sh' "$STAGE/archive.list" || { echo
 grep -Fxq 'scripts/supplier-catalog/collect-dailyfood-catalog.mjs' "$STAGE/archive.list" || { echo 'ARCHIVE_FAIL daily-collector-missing' >&2; exit 27; }
 grep -q '^wordpress/plugins/avocadoss-performance/' "$STAGE/archive.list" || { echo 'ARCHIVE_FAIL performance-plugin-missing' >&2; exit 28; }
 
-echo "[R2] Extracting release"
+echo "[R2] Extracting release and normalizing shell EOL"
 tar -xf "$ARCHIVE" -C "$RELEASE"
-test -f "$RELEASE/scripts/n8n-supplier-catalog-sync.sh"
-test -f "$RELEASE/scripts/supplier-catalog/collect-dailyfood-catalog.mjs"
-test -f "$RELEASE/scripts/supplier-catalog/collect-walldob2b-catalog.mjs"
-test -f "$RELEASE/scripts/supplier-catalog/build-catalog-plan.mjs"
+find "$RELEASE" -type f -name '*.sh' -exec sed -i 's/\r$//' {} +
+if LC_ALL=C grep -q $'\r' "$RELEASE/scripts/n8n-supplier-catalog-sync.sh"; then
+  echo 'EOL_FAIL n8n-supplier-catalog-sync.sh still contains CR' >&2
+  exit 29
+fi
 
 echo "[R3] Running release preflight"
 bash -n "$RELEASE/scripts/n8n-supplier-catalog-sync.sh"
@@ -192,8 +193,8 @@ docker exec avocadoss-wp wp --allow-root --path=/var/www/html eval 'if (function
 HTTP_CODE="$(curl -L -sS -o /dev/null -w '%{http_code}' --max-time 30 https://hub.avocadoss.co.kr/)"
 case "$HTTP_CODE" in 2??|3??) ;; *) echo "LIVE_FAIL http=$HTTP_CODE" >&2; exit 50 ;; esac
 
-echo "[R6] Updating MiniPC source mirror after live verification"
-tar -xf "$ARCHIVE" -C "$PROJECT"
+echo "[R6] Updating MiniPC source mirror from normalized release"
+tar -C "$RELEASE" -cf - . | tar -C "$PROJECT" -xf -
 printf '%s\n' "$HEAD_SHA" > "$PROJECT/reports/runtime/deployed-github-head.txt"
 
 DEPLOY_OK=1
@@ -210,7 +211,7 @@ echo "WHOLESALEHUB_DEPLOY_OK head=$HEAD_SHA http=$HTTP_CODE backup=$BACKUP"
         scp -q $remoteScriptPath "${SshHost}:$remoteScriptFile"
         Assert-NativeSuccess 'Failed to upload remote deploy script'
 
-        Write-Host '[4/6] Deploying Production WordPress with isolated /tmp staging, backup and rollback'
+        Write-Host '[4/6] Deploying Production WordPress with shell-EOL normalization, backup and rollback'
         ssh $SshHost "bash '$remoteScriptFile' '$head' '$remoteArchive' '$RemoteProject' '$RemoteWpRoot'"
         Assert-NativeSuccess 'Production deploy or live verification failed. The remote script attempted rollback.'
 
