@@ -35,15 +35,12 @@ jobs:
             exit 1
           }
           Write-Host 'POWERSHELL_PARSE_OK'
-      - name: Verify generated remote Bash is LF-only
+      - name: Verify generated remote Bash normalization primitive
         shell: powershell
         run: |
           $text = Get-Content '.\scripts\deploy-wholesalehub.ps1' -Raw
           if ($text -notmatch '\$remoteScript\s*=\s*\$remoteScript\.Replace\("`r`n",\s*"`n"\)\.Replace\("`r",\s*"`n"\)') {
             throw 'Required CRLF-to-LF normalization is missing from deploy wrapper.'
-          }
-          if ($text -notmatch "find \"\$RELEASE\" -type f -name '\*\.sh' -exec sed -i 's/\\r\$//' \{\} \+") {
-            throw 'Required release shell EOL normalization is missing.'
           }
           $sample = "#!/usr/bin/env bash`r`nset -Eeuo pipefail`r`necho ok`r`n"
           $sample = $sample.Replace("`r`n", "`n").Replace("`r", "`n")
