@@ -4,20 +4,26 @@ on:
   pull_request:
     paths:
       - 'scripts/deploy-wholesalehub.ps1'
+      - 'scripts/supplier-catalog-watchdog.sh'
       - 'wordpress/mu-plugins/wholesalehub-meta-policy.php'
       - 'wordpress/mu-plugins/wholesalehub-frontend-regressions.php'
+      - 'wordpress/mu-plugins/wholesalehub-catalog-watchdog.php'
       - 'tests/wholesalehub-meta-policy.test.php'
       - 'tests/wholesalehub-frontend-regressions.test.php'
+      - 'tests/wholesalehub-catalog-watchdog.test.php'
       - '.gitattributes'
       - '.github/workflows/deploy-wrapper-ci.yml'
   push:
     branches: [main]
     paths:
       - 'scripts/deploy-wholesalehub.ps1'
+      - 'scripts/supplier-catalog-watchdog.sh'
       - 'wordpress/mu-plugins/wholesalehub-meta-policy.php'
       - 'wordpress/mu-plugins/wholesalehub-frontend-regressions.php'
+      - 'wordpress/mu-plugins/wholesalehub-catalog-watchdog.php'
       - 'tests/wholesalehub-meta-policy.test.php'
       - 'tests/wholesalehub-frontend-regressions.test.php'
+      - 'tests/wholesalehub-catalog-watchdog.test.php'
       - '.gitattributes'
       - '.github/workflows/deploy-wrapper-ci.yml'
 
@@ -45,6 +51,30 @@ jobs:
           php -l wordpress/mu-plugins/wholesalehub-frontend-regressions.php
           php -l tests/wholesalehub-frontend-regressions.test.php
           php tests/wholesalehub-frontend-regressions.test.php
+
+  catalog-watchdog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint and test catalog watchdogs
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l wordpress/mu-plugins/wholesalehub-catalog-watchdog.php
+          php -l tests/wholesalehub-catalog-watchdog.test.php
+          php tests/wholesalehub-catalog-watchdog.test.php
+          bash -n scripts/supplier-catalog-watchdog.sh
+          tmp="$(mktemp -d)"
+          cat > "$tmp/status.json" <<'JSON'
+          {"status":"completed","last_success_at":"2026-08-28T05:00:00Z","last_failure_at":null,"started_at":"2026-08-28T04:50:00Z"}
+          JSON
+          WHOLESALEHUB_RUNTIME_DIR="$tmp" \
+          WHOLESALEHUB_CATALOG_STATUS_FILE="$tmp/status.json" \
+          WHOLESALEHUB_CATALOG_WATCHDOG_STATE_FILE="$tmp/state.txt" \
+          WHOLESALEHUB_WATCHDOG_NOW_EPOCH=1787896800 \
+          WHOLESALEHUB_RUN_HOUR=15 \
+          WHOLESALEHUB_WATCHDOG_NO_TELEGRAM=1 \
+          bash scripts/supplier-catalog-watchdog.sh | grep -q 'WHOLESALEHUB_CATALOG_WATCHDOG='
 
   powershell-parse:
     runs-on: windows-latest
@@ -112,12 +142,14 @@ jobs:
           git archive --format=tar --output=/tmp/wh-release-ci.tar HEAD
           tar -tf /tmp/wh-release-ci.tar > /tmp/wh-release-ci.list
           grep -Fxq 'scripts/n8n-supplier-catalog-sync.sh' /tmp/wh-release-ci.list
+          grep -Fxq 'scripts/supplier-catalog-watchdog.sh' /tmp/wh-release-ci.list
           grep -Fxq 'scripts/supplier-catalog/collect-dailyfood-catalog.mjs' /tmp/wh-release-ci.list
           grep -q '^wordpress/plugins/avocadoss-performance/' /tmp/wh-release-ci.list
           tar -xf /tmp/wh-release-ci.tar -C /tmp/wh-release-ci
           find /tmp/wh-release-ci -type f -name '*.sh' -exec sed -i 's/\r$//' {} +
           ! LC_ALL=C grep -q $'\r' /tmp/wh-release-ci/scripts/n8n-supplier-catalog-sync.sh
           bash -n /tmp/wh-release-ci/scripts/n8n-supplier-catalog-sync.sh
+          bash -n /tmp/wh-release-ci/scripts/supplier-catalog-watchdog.sh
           node --check /tmp/wh-release-ci/scripts/supplier-catalog/collect-dailyfood-catalog.mjs
           node --check /tmp/wh-release-ci/scripts/supplier-catalog/collect-walldob2b-catalog.mjs
           node --check /tmp/wh-release-ci/scripts/supplier-catalog/build-catalog-plan.mjs
