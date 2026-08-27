@@ -133,6 +133,16 @@ jobs:
           ! LC_ALL=C grep -q $'\r' /tmp/remote-deploy.sh
           bash -n /tmp/remote-deploy.sh
           echo 'REMOTE_BASH_PARSE_OK'
+      - name: Guard metadata-safe MU deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'write_mu_contents() {' /tmp/remote-deploy.sh
+          grep -Fq 'write_mu_contents "$RELEASE/wordpress/mu-plugins/$file" "$LIVE_MU/$file"' /tmp/remote-deploy.sh
+          grep -Fq 'write_mu_contents "$BACKUP/mu/$file" "$LIVE_MU/$file"' /tmp/remote-deploy.sh
+          ! grep -Fq 'cp -a "$RELEASE/wordpress/mu-plugins/$file" "$LIVE_MU/$file"' /tmp/remote-deploy.sh
+          ! grep -Fq 'cp -a "$BACKUP/mu/$file" "$LIVE_MU/$file"' /tmp/remote-deploy.sh
+          echo 'MU_CONTENT_COPY_GUARD_OK'
       - name: Reproduce archive extraction and shell normalization
         shell: bash
         run: |

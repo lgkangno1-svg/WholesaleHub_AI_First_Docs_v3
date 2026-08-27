@@ -76,6 +76,19 @@ mkdir -p "$RELEASE" "$FAILED/plugins" "$BACKUP/plugins" "$BACKUP/mu" "$PROJECT/r
 : > "$MU_EXISTING"
 : > "$MU_NEW"
 
+# Production wp-content can be backed by a bind/shared filesystem that permits
+# content replacement but rejects timestamp/ownership preservation. MU plugins
+# only need their bytes deployed; keep existing metadata for existing files and
+# create new files with a normal 0644-style umask rather than using cp -a.
+write_mu_contents() {
+  local src="$1" dst="$2"
+  if [ -e "$dst" ]; then
+    cat "$src" > "$dst"
+  else
+    (umask 022; cat "$src" > "$dst")
+  fi
+}
+
 rollback_live() {
   echo "ROLLBACK: restoring previous live WordPress files" >&2
   while IFS= read -r plugin; do
@@ -85,7 +98,7 @@ rollback_live() {
   done < "$DEPLOYED_LIST"
   while IFS= read -r file; do
     [ -n "$file" ] || continue
-    [ -f "$BACKUP/mu/$file" ] && cp -a "$BACKUP/mu/$file" "$LIVE_MU/$file" || true
+    [ -f "$BACKUP/mu/$file" ] && write_mu_contents "$BACKUP/mu/$file" "$LIVE_MU/$file" || true
   done < "$MU_EXISTING"
   while IFS= read -r file; do
     [ -n "$file" ] || continue
@@ -167,7 +180,7 @@ for file in "${mu_files[@]}"; do
   else
     printf '%s\n' "$file" >> "$MU_NEW"
   fi
-  cp -a "$RELEASE/wordpress/mu-plugins/$file" "$LIVE_MU/$file"
+  write_mu_contents "$RELEASE/wordpress/mu-plugins/$file" "$LIVE_MU/$file"
 done
 
 echo "[R5] Verifying live tree and PHP"
