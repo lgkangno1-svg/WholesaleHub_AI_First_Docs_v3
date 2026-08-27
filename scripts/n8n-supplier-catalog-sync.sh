@@ -157,9 +157,9 @@ verify_reusable_dailyfood_snapshot() {
     }, {});
     const generatedDate = `${parts.year}-${parts.month}-${parts.day}`;
     if (snapshot.complete !== true || generatedDate !== expectedDate || parts.hour !== "11") {
-      throw new Error(`dailyfood snapshot is not a complete same-day 11 KST snapshot: ${generatedDate}`);
+      throw new Error(`dailyfood snapshot must be complete and match expected 11 KST snapshot date ${expectedDate}: ${generatedDate}`);
     }
-  ' "$REPORT_DIR/dailyfood-catalog-snapshot.json" "$RUN_DATE"
+  ' "$REPORT_DIR/dailyfood-catalog-snapshot.json" "$DAILYFOOD_SNAPSHOT_DATE"
 }
 
 exec 9>"$LOCK_FILE"
@@ -188,6 +188,8 @@ node --check scripts/supplier-catalog/collect-dailyfood-catalog.mjs
 node --check scripts/supplier-catalog/collect-walldob2b-catalog.mjs
 node --check scripts/supplier-catalog/build-catalog-plan.mjs
 node --check scripts/supplier-catalog/generate-daily-shipping-audit.mjs
+node --check scripts/supplier-catalog/resolve-dailyfood-snapshot-date.mjs
+DAILYFOOD_SNAPSHOT_DATE="$(node scripts/supplier-catalog/resolve-dailyfood-snapshot-date.mjs "$RUN_DATE" "$RUN_HOUR" "$SECONDARY_ONLY")"
 if [ "$RUN_HOUR" = "11" ] && [ "$SECONDARY_ONLY" != "1" ]; then
   if ! mkdir "$ADMINPLUS_RUN_DIR/$RUN_DATE" 2>/dev/null; then
     start_step lock
