@@ -1,0 +1,31 @@
+name: catalog-catchup-policy-ci
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/n8n-supplier-catalog-sync.sh'
+      - 'scripts/supplier-catalog/resolve-dailyfood-snapshot-date.mjs'
+      - 'tests/dailyfood-snapshot-date.test.mjs'
+      - '.github/workflows/catalog-catchup-policy-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/n8n-supplier-catalog-sync.sh'
+      - 'scripts/supplier-catalog/resolve-dailyfood-snapshot-date.mjs'
+      - 'tests/dailyfood-snapshot-date.test.mjs'
+      - '.github/workflows/catalog-catchup-policy-ci.yml'
+
+jobs:
+  snapshot-date-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate shell and snapshot date policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n scripts/n8n-supplier-catalog-sync.sh
+          node --check scripts/supplier-catalog/resolve-dailyfood-snapshot-date.mjs
+          node --check tests/dailyfood-snapshot-date.test.mjs
+          node tests/dailyfood-snapshot-date.test.mjs
+          grep -Fq 'resolve-dailyfood-snapshot-date.mjs' scripts/n8n-supplier-catalog-sync.sh
