@@ -5,7 +5,9 @@ on:
     paths:
       - 'scripts/deploy-wholesalehub.ps1'
       - 'wordpress/mu-plugins/wholesalehub-meta-policy.php'
+      - 'wordpress/mu-plugins/wholesalehub-frontend-regressions.php'
       - 'tests/wholesalehub-meta-policy.test.php'
+      - 'tests/wholesalehub-frontend-regressions.test.php'
       - '.gitattributes'
       - '.github/workflows/deploy-wrapper-ci.yml'
   push:
@@ -13,7 +15,9 @@ on:
     paths:
       - 'scripts/deploy-wholesalehub.ps1'
       - 'wordpress/mu-plugins/wholesalehub-meta-policy.php'
+      - 'wordpress/mu-plugins/wholesalehub-frontend-regressions.php'
       - 'tests/wholesalehub-meta-policy.test.php'
+      - 'tests/wholesalehub-frontend-regressions.test.php'
       - '.gitattributes'
       - '.github/workflows/deploy-wrapper-ci.yml'
 
@@ -29,6 +33,18 @@ jobs:
           php -l wordpress/mu-plugins/wholesalehub-meta-policy.php
           php -l tests/wholesalehub-meta-policy.test.php
           php tests/wholesalehub-meta-policy.test.php
+
+  frontend-regressions-php:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint and test WholesaleHub frontend regression guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l wordpress/mu-plugins/wholesalehub-frontend-regressions.php
+          php -l tests/wholesalehub-frontend-regressions.test.php
+          php tests/wholesalehub-frontend-regressions.test.php
 
   powershell-parse:
     runs-on: windows-latest
