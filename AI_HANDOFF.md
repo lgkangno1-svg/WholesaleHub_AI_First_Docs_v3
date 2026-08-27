@@ -49,6 +49,7 @@
 - Review 11 draft/private products before any approval to publish.
 - Decide whether daily runs use cron on the mini PC or GitHub Actions.
 - Verify real order and CS flow during production monitoring.
+- Verify the merged frontend regression guard after the next Production deploy: product search must not render the custom homepage template; order detail must not show a zero-cost `무료 배송` row when a positive WholesaleHub `배송비` fee exists; historical escaped description linebreaks must render cleanly.
 
 ## Absolute Prohibitions
 - Do not print .env, API keys, login information, or credentials.
@@ -59,7 +60,17 @@
 - Do not run orders, payments, deposits, auto-order, or AdminPlus auto-order flows.
 - Do not expose supplier_id, supplier cost, source URL, or original supplier URL to customers.
 
+## Frontend Regression Hardening — 2026-08-28
+- PR #17 merged to `main` as `b04a14bd49c9c023a69a7bfe06d27bb8996ac53a`.
+- Added `wordpress/mu-plugins/wholesalehub-frontend-regressions.php`.
+- Product search requests such as `/?s=자두&post_type=product` remove the custom `WholesaleHub_Homepage` template/style hooks so normal WooCommerce/theme search rendering wins.
+- Customer order totals hide only the zero-cost Woo `shipping` row when the order has a positive fee named `배송비`; monetary totals and any real non-zero Woo shipping remain unchanged.
+- Supplier-lane product content converts historical literal `\\r\\n`, `\\n`, and `\\r` tokens to visible line breaks at render time without mutating stored product data.
+- Added `tests/wholesalehub-frontend-regressions.test.php` and CI coverage. PR workflow `deploy-wrapper-ci` completed successfully.
+- Production deploy was not performed from the GitHub-only session; deploy through the existing safe PowerShell wrapper and verify live HTTP/UI before closing the incident.
+
 ## Recent Commits
+- b04a14b Harden product search and order shipping display
 - 4fdf778 Keep Fafane group-buy products visible
 - 9bd4ef4 Add Fafane description sync to n8n run
 - c37c4e6 Sync Fafane group-buy descriptions
