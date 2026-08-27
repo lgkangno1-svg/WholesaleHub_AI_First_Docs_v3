@@ -134,7 +134,7 @@ plugins=(avocadoss-performance avocadoss-supplier-order-export wholesalehub-supp
 for plugin in "${plugins[@]}"; do
   [ -d "$RELEASE/wordpress/plugins/$plugin" ] || { echo "RELEASE_FAIL plugin_missing=$plugin" >&2; exit 30; }
 done
-mu_files=(avocadoss-login-recovery.php avocadoss-product-source-column.php avocadoss-security-headers.php)
+mu_files=(avocadoss-login-recovery.php avocadoss-product-source-column.php avocadoss-security-headers.php wholesalehub-meta-policy.php)
 for file in "${mu_files[@]}"; do
   [ -f "$RELEASE/wordpress/mu-plugins/$file" ] || { echo "RELEASE_FAIL mu_missing=$file" >&2; exit 31; }
 done
@@ -179,7 +179,8 @@ done
 for f in \
   /var/www/html/wp-content/mu-plugins/avocadoss-login-recovery.php \
   /var/www/html/wp-content/mu-plugins/avocadoss-product-source-column.php \
-  /var/www/html/wp-content/mu-plugins/avocadoss-security-headers.php; do
+  /var/www/html/wp-content/mu-plugins/avocadoss-security-headers.php \
+  /var/www/html/wp-content/mu-plugins/wholesalehub-meta-policy.php; do
   php -l "$f" >/dev/null
 done
 '

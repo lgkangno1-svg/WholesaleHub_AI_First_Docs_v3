@@ -144,6 +144,16 @@ The automation runs supplier collection, existing variation sync, safe new optio
 - Attachments: `reports/orders/walldo-order.xlsx`, `reports/orders/dailyfood-order.xlsx`.
 - WooCommerce orders/products/prices/stock/order status changed: none.
 
+## Meta for WooCommerce
+
+- Production plugin baseline: Meta for WooCommerce `3.7.6`, active, account connection pending.
+- Pixel/CAPI core events remain owned by the official plugin; do not add duplicate `fbq()` implementations.
+- B2B product, variation, price, product-feed, Meta-managed-coupon, and Checkout publishing is fail-closed in `wordpress/mu-plugins/wholesalehub-meta-policy.php`.
+- WholesaleHub signup success emits browser `CompleteRegistration` once with only `pending_approval` and `b2b_wholesale`; custom registration CAPI is intentionally not implemented because the installed plugin has no supported public API.
+- Instagram launch UTM campaign is `wholesalehub_launch` with content variants `reel_platform_01`, `reel_excel_01`, and `reel_price_01`.
+- Never record Pixel IDs, Dataset IDs, ad-account IDs, access tokens, or customer PII in Git, logs, reports, or Telegram.
+- Detailed connection, consent, QA, and rollback notes: `docs/wordpress/meta-for-woocommerce-tracking.md`.
+
 ## Unsold Deletion Policy
 
 The MVP automation now treats options that are not sold by either walldob2b or DailyFood as delete candidates, not draft/private candidates. Safe deletion is permanent and only runs after supplier collection succeeds. DailyFood is crawled directly at 09:00 and the last successful DailyFood snapshot is reused at 15:00/21:00. If supplier collection fails or an order link exists, deletion is blocked/held.
