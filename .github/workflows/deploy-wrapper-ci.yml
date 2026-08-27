@@ -4,16 +4,32 @@ on:
   pull_request:
     paths:
       - 'scripts/deploy-wholesalehub.ps1'
+      - 'wordpress/mu-plugins/wholesalehub-meta-policy.php'
+      - 'tests/wholesalehub-meta-policy.test.php'
       - '.gitattributes'
       - '.github/workflows/deploy-wrapper-ci.yml'
   push:
     branches: [main]
     paths:
       - 'scripts/deploy-wholesalehub.ps1'
+      - 'wordpress/mu-plugins/wholesalehub-meta-policy.php'
+      - 'tests/wholesalehub-meta-policy.test.php'
       - '.gitattributes'
       - '.github/workflows/deploy-wrapper-ci.yml'
 
 jobs:
+  meta-policy-php:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint and test WholesaleHub Meta policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l wordpress/mu-plugins/wholesalehub-meta-policy.php
+          php -l tests/wholesalehub-meta-policy.test.php
+          php tests/wholesalehub-meta-policy.test.php
+
   powershell-parse:
     runs-on: windows-latest
     steps:
