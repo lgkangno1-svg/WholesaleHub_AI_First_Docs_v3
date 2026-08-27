@@ -113,30 +113,43 @@ echo "REMOTE_STAGE=$STAGE"
 echo "[R1] Validating archive inventory"
 tar -tf "$ARCHIVE" > "$STAGE/archive.list"
 grep -Fxq 'scripts/n8n-supplier-catalog-sync.sh' "$STAGE/archive.list" || { echo 'ARCHIVE_FAIL n8n-sync-missing' >&2; exit 26; }
-grep -Fxq 'scripts/supplier-catalog/collect-dailyfood-catalog.mjs' "$STAGE/archive.list" || { echo 'ARCHIVE_FAIL daily-collector-missing' >&2; exit 27; }
-grep -q '^wordpress/plugins/avocadoss-performance/' "$STAGE/archive.list" || { echo 'ARCHIVE_FAIL performance-plugin-missing' >&2; exit 28; }
+grep -Fxq 'scripts/supplier-catalog-watchdog.sh' "$STAGE/archive.list" || { echo 'ARCHIVE_FAIL catalog-watchdog-missing' >&2; exit 27; }
+grep -Fxq 'scripts/supplier-catalog/collect-dailyfood-catalog.mjs' "$STAGE/archive.list" || { echo 'ARCHIVE_FAIL daily-collector-missing' >&2; exit 28; }
+grep -q '^wordpress/plugins/avocadoss-performance/' "$STAGE/archive.list" || { echo 'ARCHIVE_FAIL performance-plugin-missing' >&2; exit 29; }
 
 echo "[R2] Extracting release and normalizing shell EOL"
 tar -xf "$ARCHIVE" -C "$RELEASE"
 find "$RELEASE" -type f -name '*.sh' -exec sed -i 's/\r$//' {} +
 if LC_ALL=C grep -q $'\r' "$RELEASE/scripts/n8n-supplier-catalog-sync.sh"; then
   echo 'EOL_FAIL n8n-supplier-catalog-sync.sh still contains CR' >&2
-  exit 29
+  exit 30
+fi
+if LC_ALL=C grep -q $'\r' "$RELEASE/scripts/supplier-catalog-watchdog.sh"; then
+  echo 'EOL_FAIL supplier-catalog-watchdog.sh still contains CR' >&2
+  exit 31
 fi
 
 echo "[R3] Running release preflight"
 bash -n "$RELEASE/scripts/n8n-supplier-catalog-sync.sh"
+bash -n "$RELEASE/scripts/supplier-catalog-watchdog.sh"
 node --check "$RELEASE/scripts/supplier-catalog/collect-dailyfood-catalog.mjs"
 node --check "$RELEASE/scripts/supplier-catalog/collect-walldob2b-catalog.mjs"
 node --check "$RELEASE/scripts/supplier-catalog/build-catalog-plan.mjs"
 
 plugins=(avocadoss-performance avocadoss-supplier-order-export wholesalehub-supplier-lanes)
 for plugin in "${plugins[@]}"; do
-  [ -d "$RELEASE/wordpress/plugins/$plugin" ] || { echo "RELEASE_FAIL plugin_missing=$plugin" >&2; exit 30; }
+  [ -d "$RELEASE/wordpress/plugins/$plugin" ] || { echo "RELEASE_FAIL plugin_missing=$plugin" >&2; exit 32; }
 done
-mu_files=(avocadoss-login-recovery.php avocadoss-product-source-column.php avocadoss-security-headers.php wholesalehub-meta-policy.php)
+mu_files=(
+  avocadoss-login-recovery.php
+  avocadoss-product-source-column.php
+  avocadoss-security-headers.php
+  wholesalehub-meta-policy.php
+  wholesalehub-frontend-regressions.php
+  wholesalehub-catalog-watchdog.php
+)
 for file in "${mu_files[@]}"; do
-  [ -f "$RELEASE/wordpress/mu-plugins/$file" ] || { echo "RELEASE_FAIL mu_missing=$file" >&2; exit 31; }
+  [ -f "$RELEASE/wordpress/mu-plugins/$file" ] || { echo "RELEASE_FAIL mu_missing=$file" >&2; exit 33; }
 done
 
 echo "[R4] Backing up and swapping live WordPress files"
@@ -180,7 +193,9 @@ for f in \
   /var/www/html/wp-content/mu-plugins/avocadoss-login-recovery.php \
   /var/www/html/wp-content/mu-plugins/avocadoss-product-source-column.php \
   /var/www/html/wp-content/mu-plugins/avocadoss-security-headers.php \
-  /var/www/html/wp-content/mu-plugins/wholesalehub-meta-policy.php; do
+  /var/www/html/wp-content/mu-plugins/wholesalehub-meta-policy.php \
+  /var/www/html/wp-content/mu-plugins/wholesalehub-frontend-regressions.php \
+  /var/www/html/wp-content/mu-plugins/wholesalehub-catalog-watchdog.php; do
   php -l "$f" >/dev/null
 done
 '
@@ -193,13 +208,15 @@ docker exec avocadoss-wp wp --allow-root --path=/var/www/html eval 'if (function
 
 HTTP_CODE="$(curl -L -sS -o /dev/null -w '%{http_code}' --max-time 30 https://hub.avocadoss.co.kr/)"
 case "$HTTP_CODE" in 2??|3??) ;; *) echo "LIVE_FAIL http=$HTTP_CODE" >&2; exit 50 ;; esac
+SEARCH_CODE="$(curl -L -sS -o /dev/null -w '%{http_code}' --max-time 30 'https://hub.avocadoss.co.kr/?s=%EC%9E%90%EB%91%90&post_type=product')"
+case "$SEARCH_CODE" in 2??|3??) ;; *) echo "LIVE_FAIL search_http=$SEARCH_CODE" >&2; exit 51 ;; esac
 
 echo "[R6] Updating MiniPC source mirror from normalized release"
 tar -C "$RELEASE" -cf - . | tar -C "$PROJECT" -xf -
 printf '%s\n' "$HEAD_SHA" > "$PROJECT/reports/runtime/deployed-github-head.txt"
 
 DEPLOY_OK=1
-echo "WHOLESALEHUB_DEPLOY_OK head=$HEAD_SHA http=$HTTP_CODE backup=$BACKUP"
+echo "WHOLESALEHUB_DEPLOY_OK head=$HEAD_SHA http=$HTTP_CODE search_http=$SEARCH_CODE backup=$BACKUP"
 '@
 
         $remoteScript = $remoteScript.Replace("`r`n", "`n").Replace("`r", "`n")
