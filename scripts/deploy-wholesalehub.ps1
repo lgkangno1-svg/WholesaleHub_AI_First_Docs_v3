@@ -76,10 +76,6 @@ mkdir -p "$RELEASE" "$FAILED/plugins" "$BACKUP/plugins" "$BACKUP/mu" "$PROJECT/r
 : > "$MU_EXISTING"
 : > "$MU_NEW"
 
-# Production wp-content can be backed by a bind/shared filesystem that permits
-# content replacement but rejects timestamp/ownership preservation. MU plugins
-# only need their bytes deployed; keep existing metadata for existing files and
-# create new files with a normal 0644-style umask rather than using cp -a.
 write_mu_contents() {
   local src="$1" dst="$2"
   if [ -e "$dst" ]; then
@@ -160,6 +156,7 @@ mu_files=(
   wholesalehub-meta-policy.php
   wholesalehub-frontend-regressions.php
   wholesalehub-catalog-watchdog.php
+  wholesalehub-bulk-home-toggle.php
 )
 for file in "${mu_files[@]}"; do
   [ -f "$RELEASE/wordpress/mu-plugins/$file" ] || { echo "RELEASE_FAIL mu_missing=$file" >&2; exit 33; }
@@ -208,7 +205,8 @@ for f in \
   /var/www/html/wp-content/mu-plugins/avocadoss-security-headers.php \
   /var/www/html/wp-content/mu-plugins/wholesalehub-meta-policy.php \
   /var/www/html/wp-content/mu-plugins/wholesalehub-frontend-regressions.php \
-  /var/www/html/wp-content/mu-plugins/wholesalehub-catalog-watchdog.php; do
+  /var/www/html/wp-content/mu-plugins/wholesalehub-catalog-watchdog.php \
+  /var/www/html/wp-content/mu-plugins/wholesalehub-bulk-home-toggle.php; do
   php -l "$f" >/dev/null
 done
 '
