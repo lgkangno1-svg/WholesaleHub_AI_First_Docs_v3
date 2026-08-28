@@ -6,9 +6,9 @@ const powershell = readFileSync("scripts/telegram-ai-diagnose.ps1", "utf8")
 
 describe("Telegram AI runtime diagnostic contract", () => {
   it("discovers the actual runtime instead of assuming a repository path", () => {
-    expect(shell).toContain("TELEGRAM/CODEX/OPENCODE PROCESS DISCOVERY")
-    expect(shell).toContain("SYSTEMD UNIT DISCOVERY")
-    expect(shell).toContain("SOURCE CANDIDATE DISCOVERY")
+    expect(shell).toContain("AI PROCESS DISCOVERY (ARGS OMITTED)")
+    expect(shell).toContain("SYSTEMD UNIT DISCOVERY (EXEC ARGS OMITTED)")
+    expect(shell).toContain("SOURCE CANDIDATE DISCOVERY (CONTENT OMITTED)")
     expect(shell).toContain("OpenCode \\(DeepSeek\\)")
     expect(shell).toContain("gpt-5\\.6-terra")
     expect(shell).toContain("/codex")
@@ -23,12 +23,24 @@ describe("Telegram AI runtime diagnostic contract", () => {
     expect(shell).toContain("UTF8_LOCALE_AVAILABLE")
   })
 
-  it("never intentionally prints OpenCode credential values", () => {
+  it("never intentionally prints OpenCode credential/config payloads", () => {
     expect(shell).toContain("OPENCODE_AUTH_STORE=PRESENT")
     expect(shell).toContain("jq -r 'keys[]'")
     expect(shell).not.toContain("cat \"$auth\"")
-    expect(shell).toContain("[REDACTED]")
+    expect(shell).not.toContain("grep -En '\\"(model|provider|agent)")
+    expect(shell).toContain("OPENCODE_CONFIG_DETAILS=SKIPPED_NO_JQ")
     expect(shell).toContain("NO CREDENTIAL VALUES")
+  })
+
+  it("omits process arguments, systemd ExecStart, candidate contents and raw journal lines", () => {
+    expect(shell).toContain("ps -eo pid=,user=,comm=")
+    expect(shell).not.toContain("ps -eo pid=,user=,args=")
+    expect(shell).not.toContain("-p ExecStart")
+    expect(shell).toContain("CANDIDATE_TAGS=$(keyword_tags \"$file\")")
+    expect(shell).not.toContain("grep -En 'OpenCode")
+    expect(shell).toContain("RECENT ERROR SIGNAL COUNTS (LOG CONTENT OMITTED)")
+    expect(shell).toContain("JOURNAL_MATCH_COUNT=")
+    expect(shell).not.toContain("tail -n 80")
   })
 
   it("runs the DeepSeek smoke in an isolated temporary directory", () => {
