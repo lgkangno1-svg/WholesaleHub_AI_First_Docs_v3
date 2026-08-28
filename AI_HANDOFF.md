@@ -49,8 +49,8 @@
 - Review 11 draft/private products before any approval to publish.
 - Decide whether daily runs use cron on the mini PC or GitHub Actions.
 - Verify real order and CS flow during production monitoring.
-- Verify the merged frontend regression guard after the next Production deploy: product search must not render the custom homepage template; order detail must not show a zero-cost `무료 배송` row when a positive WholesaleHub `배송비` fee exists; historical escaped description linebreaks must render cleanly.
-- After deploying the product-first/search-visibility follow-up, run `bash scripts/search-visibility-smoke.sh https://hub.avocadoss.co.kr` and require `SEARCH_VISIBILITY_SMOKE=PASS`.
+- Verify the merged frontend regression guard during normal production use: product search must not render the custom homepage template; order detail must not show a zero-cost `무료 배송` row when a positive WholesaleHub `배송비` fee exists; historical escaped description linebreaks must render cleanly.
+- Pull the latest GitHub `main` onto the MiniPC source mirror before the next smoke run so the sitemap redirect-aware test script is used; no storefront redeploy is required solely for this test-script change.
 - Register/verify the domain in Google Search Console, Bing Webmaster Tools and Naver Search Advisor, submit `https://hub.avocadoss.co.kr/wp-sitemap.xml`, and record a 14-day baseline for impressions/clicks/index coverage. These account-bound tasks cannot be completed from repository code alone.
 
 ## Absolute Prohibitions
@@ -69,7 +69,6 @@
 - Customer order totals hide only the zero-cost Woo `shipping` row when the order has a positive fee named `배송비`; monetary totals and any real non-zero Woo shipping remain unchanged.
 - Supplier-lane product content converts historical literal `\\r\\n`, `\\n`, and `\\r` tokens to visible line breaks at render time without mutating stored product data.
 - Added `tests/wholesalehub-frontend-regressions.test.php` and CI coverage. PR workflow `deploy-wrapper-ci` completed successfully.
-- Production deploy was not performed from the GitHub-only session; deploy through the existing safe PowerShell wrapper and verify live HTTP/UI before closing the incident.
 
 ## SEO · AEO · GEO · LLMO · NEO Hardening — 2026-08-28
 - Methodology reviewed from the public MIT-licensed `leopard627/fire-your-seo-agency` skill. Only changes compatible with WholesaleHub's real B2B behavior were adopted; no backlink spam, cloaking, fake schema, hidden SEO copy, invented testimonials or unsupported price claims were added.
@@ -80,7 +79,6 @@
 - Adds root canonical, meta description, OG metadata, optional real-image `og:image`, and `WebSite` + `SearchAction` JSON-LD. WooCommerce remains the owner of Product/Breadcrumb schema to avoid duplicate product graphs.
 - Public AI guidance explicitly tells agents not to infer hidden wholesale prices, supplier names, source IDs or supplier costs.
 - PR #21 merged as `87fda2fc74e14f4ec2814f7d2fcdde1dac5b2b1f`; PR #22 merged as `db67a3ae64e9c1ca173413268ec5f83ead593cf2`.
-- Production deployment of `db67a3a` succeeded, but public smoke exposed a real Markdown negotiation failure: `Accept: text/markdown` on `/` returned `text/html`.
 
 ## Product-First Homepage + Markdown Follow-up — 2026-08-28
 - User priority: merchandising and clean product discovery outrank promotional/SEO explainer blocks on the visible homepage.
@@ -90,9 +88,18 @@
 - Product sections appear immediately after the hero. Each product card keeps image/title/price/shipping facts and adds a clear `상품 보기 →` link.
 - Search/AI context remains in metadata, JSON-LD, `/llms.txt`, `/llms-full.txt`, and Markdown representation rather than visible promotional blocks.
 - Markdown root negotiation no longer depends on `is_front_page()`. The storefront may be represented by WooCommerce `is_shop()`, so canonical path `/` is now the stable root identity for metadata and `Accept: text/markdown` handling.
-- Static contract and public smoke were updated to enforce product-first output and to verify the visible SEO guide does not return.
+- PR #23 merged to `main` as `0ac5ddd6604b0a5c79337a8b1b6d862f580834ac`.
+
+## Production Verification — 2026-08-28
+- Production deployment of `0ac5ddd6604b0a5c79337a8b1b6d862f580834ac` completed successfully through `scripts/deploy-wholesalehub.ps1`.
+- Deployment checks passed: source/archive preflight, live plugin tree verification, managed MU-plugin verification, PHP validation, deployed HEAD verification, homepage HTTP 200, and search HTTP 200.
+- Public smoke after deployment passed homepage product-first rendering, homepage Markdown negotiation (`text/markdown; charset=utf-8` with `Vary: Accept,Accept-Encoding`), robots, `/llms.txt`, and `/llms-full.txt`.
+- Smoke stopped at sitemap because the public `/wp-sitemap.xml` returns a legitimate HTTP 301 canonical redirect before the final XML response; the old test did not follow redirects.
+- `scripts/search-visibility-smoke.sh` now uses `curl -L` only for the sitemap endpoint and still requires the final response to be 2xx and contain `<sitemapindex>`. This is a test-harness correction, not a storefront behavior change.
+- No catalog catch-up was run during the product-first deployment; no product/order/payment/refund/Telegram logic was changed.
 
 ## Recent Commits
+- 0ac5ddd Product-first homepage + root Markdown negotiation fix
 - db67a3a Add post-deploy search visibility smoke
 - 87fda2f Apply fire-your-seo-agency visibility hardening
 - 6a61568 Fix midnight DailyFood catalog catch-up
