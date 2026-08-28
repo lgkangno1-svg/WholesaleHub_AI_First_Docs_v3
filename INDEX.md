@@ -1,10 +1,15 @@
 # 문서 색인
 
+## 최상위 기준
+- `PROJECT_NORTH_STAR.md` — 개발 목적, 제품 기획, 개선 우선순위, 안전/배포/완료 기준의 canonical source
+- `AGENTS.md` — 모든 AI/개발자의 공통 실행 규칙
+- `AI_HANDOFF.md` — 현재 운영 상태, 최근 변경, 다음 작업
+
 ## 공통
 - README.md
-- AGENTS.md
 - CODEX.md
 - ANTIGRAVITY.md
+- OPERATIONS.md
 
 ## PRD
 - PRD/00_Project_Overview.md
@@ -49,3 +54,8 @@
 ## SQL
 - sql/schema.sql
 - sql/seed_suppliers.sql
+
+## 유지 규칙
+- 모든 기능 작업 전 `PROJECT_NORTH_STAR.md` → `AGENTS.md` → `AI_HANDOFF.md` 순서로 확인합니다.
+- 현재 구현 상태는 `AI_HANDOFF.md`에 계속 갱신합니다.
+- 제품 목표/정책/개선 기준 자체가 바뀌면 같은 PR에서 `PROJECT_NORTH_STAR.md`를 갱신합니다.
