@@ -34,16 +34,26 @@ contains() {
   grep -Fq -- "$needle" "$file" || fail "missing=$(printf '%q' "$needle") file=$file"
 }
 
+not_contains() {
+  local file=$1
+  local needle=$2
+  if grep -Fq -- "$needle" "$file"; then
+    fail "unexpected=$(printf '%q' "$needle") file=$file"
+  fi
+}
+
 fetch home "$BASE_URL/"
 HOME_CODE="$(status_code "$TMP_DIR/home.headers")"
 [[ "$HOME_CODE" =~ ^2[0-9][0-9]$ ]] || fail "home_http=$HOME_CODE"
 contains "$TMP_DIR/home.body" '<h1>'
-contains "$TMP_DIR/home.body" '도매허브는 어떤 서비스인가요?'
+contains "$TMP_DIR/home.body" '최근 업데이트 상품'
+contains "$TMP_DIR/home.body" '상품 보기'
+not_contains "$TMP_DIR/home.body" '도매허브는 어떤 서비스인가요?'
 contains "$TMP_DIR/home.body" 'rel="canonical"'
 contains "$TMP_DIR/home.body" 'application/ld+json'
 contains "$TMP_DIR/home.body" 'SearchAction'
 
-echo "SEARCH_VISIBILITY_HOME_OK http=$HOME_CODE"
+echo "SEARCH_VISIBILITY_HOME_OK http=$HOME_CODE product_first=yes"
 
 fetch markdown "$BASE_URL/" -H 'Accept: text/markdown'
 MARKDOWN_CODE="$(status_code "$TMP_DIR/markdown.headers")"
