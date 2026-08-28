@@ -50,6 +50,7 @@
 - Decide whether daily runs use cron on the mini PC or GitHub Actions.
 - Verify real order and CS flow during production monitoring.
 - Verify the merged frontend regression guard after the next Production deploy: product search must not render the custom homepage template; order detail must not show a zero-cost `무료 배송` row when a positive WholesaleHub `배송비` fee exists; historical escaped description linebreaks must render cleanly.
+- After the search-visibility patch is deployed, register/verify the domain in Google Search Console, Bing Webmaster Tools and Naver Search Advisor, submit `https://hub.avocadoss.co.kr/wp-sitemap.xml`, and record a 14-day baseline for impressions/clicks/index coverage. These account-bound tasks cannot be completed from repository code alone.
 
 ## Absolute Prohibitions
 - Do not print .env, API keys, login information, or credentials.
@@ -69,7 +70,22 @@
 - Added `tests/wholesalehub-frontend-regressions.test.php` and CI coverage. PR workflow `deploy-wrapper-ci` completed successfully.
 - Production deploy was not performed from the GitHub-only session; deploy through the existing safe PowerShell wrapper and verify live HTTP/UI before closing the incident.
 
+## SEO · AEO · GEO · LLMO · NEO Hardening — 2026-08-28
+- Methodology reviewed from the public MIT-licensed `leopard627/fire-your-seo-agency` skill. Only changes compatible with WholesaleHub's real B2B behavior were adopted; no backlink spam, cloaking, fake schema, hidden SEO copy, invented testimonials or unsupported price claims were added.
+- Backup branch before this work: `backup/pre-fire-seo-agency-20260828`.
+- `wordpress/mu-plugins/avocadoss-security-headers.php` now also owns conservative search visibility behavior while retaining all existing security headers.
+- Adds `/llms.txt` and `/llms-full.txt`, explicit AI/search crawler robots policy (OAI/ChatGPT/Claude/Perplexity/Google-Extended/DeepSeek/Yeti/ora-agent), WordPress sitemap declaration, Markdown `Accept` negotiation for the homepage, and Markdown 404 recovery while preserving real HTTP 404 status.
+- Adds `noindex,follow` for internal search, cart, checkout and account surfaces; no authentication boundary is weakened.
+- Adds front-page canonical, meta description, OG metadata, optional real-image `og:image`, and `WebSite` + `SearchAction` JSON-LD. WooCommerce remains the owner of Product/Breadcrumb schema to avoid duplicate product graphs.
+- `wordpress/plugins/avocadoss-performance/templates/wholesalehub-front-page.php` adds a visible answer-first “도매허브는 어떤 서비스인가요?” section with factual B2B eligibility, public-vs-approved pricing, Excel bulk ordering, and post-purchase claim guidance. This is visible human content, not hidden AI-only copy.
+- `tests/search-visibility-policy.test.php` and `.github/workflows/search-visibility-ci.yml` protect the public visibility contract and prohibit accidental exaggerated lowest-price/profit claims.
+- Public AI guidance explicitly tells agents not to infer hidden wholesale prices, supplier names, source IDs or supplier costs.
+- Production must still be deployed through the safe PowerShell wrapper. After deployment verify HTML/Markdown/robots/llms/sitemap/404 endpoints from the public origin before calling the work complete.
+
 ## Recent Commits
+- 6a61568 Fix midnight DailyFood catalog catch-up
+- 00e4cd2 Fix Production MU deploy on restricted filesystem
+- d183c4b Add redundant supplier catalog freshness watchdog
 - b04a14b Harden product search and order shipping display
 - 4fdf778 Keep Fafane group-buy products visible
 - 9bd4ef4 Add Fafane description sync to n8n run
@@ -77,5 +93,3 @@
 - 1f5a1b1 Apply hub margin in MVP sync plan
 - 9a445e6 Redirect customer logins to homepage
 - 59b060c Exclude marketing empty box products
-- aed2f3c Update rebuild-public-catalog-v2-cli to use direct site crawler and update handoff
-- c197b4b Refactor DailyFood direct site crawler
