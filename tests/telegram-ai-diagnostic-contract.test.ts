@@ -26,8 +26,8 @@ describe("Telegram AI runtime diagnostic contract", () => {
   it("never intentionally prints OpenCode credential/config payloads", () => {
     expect(shell).toContain("OPENCODE_AUTH_STORE=PRESENT")
     expect(shell).toContain("jq -r 'keys[]'")
-    expect(shell).not.toContain("cat \"$auth\"")
-    expect(shell).not.toContain("grep -En '\\"(model|provider|agent)")
+    expect(shell).not.toContain('cat "$auth"')
+    expect(shell).not.toContain("grep -En")
     expect(shell).toContain("OPENCODE_CONFIG_DETAILS=SKIPPED_NO_JQ")
     expect(shell).toContain("NO CREDENTIAL VALUES")
   })
@@ -36,8 +36,7 @@ describe("Telegram AI runtime diagnostic contract", () => {
     expect(shell).toContain("ps -eo pid=,user=,comm=")
     expect(shell).not.toContain("ps -eo pid=,user=,args=")
     expect(shell).not.toContain("-p ExecStart")
-    expect(shell).toContain("CANDIDATE_TAGS=$(keyword_tags \"$file\")")
-    expect(shell).not.toContain("grep -En 'OpenCode")
+    expect(shell).toContain('CANDIDATE_TAGS=$(keyword_tags "$file")')
     expect(shell).toContain("RECENT ERROR SIGNAL COUNTS (LOG CONTENT OMITTED)")
     expect(shell).toContain("JOURNAL_MATCH_COUNT=")
     expect(shell).not.toContain("tail -n 80")
@@ -45,7 +44,7 @@ describe("Telegram AI runtime diagnostic contract", () => {
 
   it("runs the DeepSeek smoke in an isolated temporary directory", () => {
     expect(shell).toContain("ISOLATED OPENCODE DEEPSEEK SMOKE")
-    expect(shell).toContain("smoke_dir=\"$(mktemp -d)\"")
+    expect(shell).toContain('smoke_dir="$(mktemp -d)"')
     expect(shell).toContain("openrouter/deepseek/deepseek-v4-flash")
     expect(shell).toContain("Do not create or modify files")
     expect(shell).toContain("OPENCODE_DEEPSEEK_SMOKE_FILES_AFTER")
