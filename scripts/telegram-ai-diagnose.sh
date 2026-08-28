@@ -11,8 +11,7 @@ redact() {
   sed -E \
     -e 's/([A-Za-z0-9_]*(TOKEN|SECRET|PASSWORD|PASSWD|API_KEY|APIKEY|AUTHORIZATION|BOT_TOKEN)[A-Za-z0-9_]*=)[^[:space:]]+/\1[REDACTED]/Ig' \
     -e 's/(Bearer[[:space:]]+)[A-Za-z0-9._~+\/-]+/\1[REDACTED]/Ig' \
-    -e 's/([?&](token|key|secret|api_key)=)[^&[:space:]]+/\1[REDACTED]/Ig' \
-    -e 's/(https?:\/\/[^[:space:]@]+):[^[:space:]@]+@/\1:[REDACTED]@/g'
+    -e 's/([?&](token|key|secret|api_key)=)[^&[:space:]]+/\1[REDACTED]/Ig'
 }
 
 section() {
@@ -32,6 +31,22 @@ safe_run() {
   fi
   printf 'EXIT=%s\n' "$code"
   return 0
+}
+
+keyword_tags() {
+  local file="$1"
+  local tags=()
+  grep -qE 'OpenCode \(DeepSeek\)|deepseek' "$file" 2>/dev/null && tags+=(opencode_deepseek) || true
+  grep -qE 'Codex \(Terra\)|gpt-5\.6-terra|/codex' "$file" 2>/dev/null && tags+=(codex) || true
+  grep -qE 'Antigravity \(Gemini\)|gemini' "$file" 2>/dev/null && tags+=(gemini) || true
+  grep -qE 'bwrap|unprivileged_userns|userns' "$file" 2>/dev/null && tags+=(sandbox) || true
+  if ((${#tags[@]})); then
+    local joined
+    joined="$(IFS=,; printf '%s' "${tags[*]}")"
+    printf '%s\n' "$joined"
+  else
+    printf '%s\n' unknown
+  fi
 }
 
 exec > >(tee "$REPORT") 2>&1
@@ -99,9 +114,9 @@ auth="$HOME/.local/share/opencode/auth.json"
 if [[ -f "$auth" ]]; then
   echo 'OPENCODE_AUTH_STORE=PRESENT'
   if command -v jq >/dev/null 2>&1; then
-    jq -r 'keys[]' "$auth" 2>/dev/null | sed 's/^/OPENCODE_AUTH_PROVIDER=/' | redact || true
+    jq -r 'keys[]' "$auth" 2>/dev/null | sed 's/^/OPENCODE_AUTH_PROVIDER=/' || true
   else
-    echo 'JQ=NOT_FOUND; provider names not enumerated'
+    echo 'OPENCODE_AUTH_PROVIDERS=SKIPPED_NO_JQ'
   fi
 else
   echo 'OPENCODE_AUTH_STORE=ABSENT'
@@ -109,7 +124,13 @@ fi
 for cfg in "$HOME/.config/opencode/opencode.json" "$HOME/.config/opencode/config.json" "$ROOT/opencode.json" "$ROOT/.opencode/opencode.json"; do
   [[ -f "$cfg" ]] || continue
   echo "OPENCODE_CONFIG=$cfg"
-  grep -En '"(model|provider|agent)"[[:space:]]*:' "$cfg" 2>/dev/null | head -n 80 | redact || true
+  if command -v jq >/dev/null 2>&1; then
+    jq -r 'if (.model? | type) == "string" then "OPENCODE_MODEL=" + .model else empty end' "$cfg" 2>/dev/null || true
+    jq -r 'if (.provider? | type) == "object" then .provider | keys[] | "OPENCODE_CONFIG_PROVIDER=" + . else empty end' "$cfg" 2>/dev/null || true
+    jq -r 'if (.agent? | type) == "object" then .agent | keys[] | "OPENCODE_CONFIG_AGENT=" + . else empty end' "$cfg" 2>/dev/null || true
+  else
+    echo 'OPENCODE_CONFIG_DETAILS=SKIPPED_NO_JQ'
+  fi
 done
 
 section "6. REPOSITORY AI HELPERS"
@@ -122,14 +143,13 @@ for file in scripts/ai-worker.sh scripts/ai-direct-worker.sh scripts/openrouter-
   fi
 done
 
-section "7. TELEGRAM/CODEX/OPENCODE PROCESS DISCOVERY"
-(ps -eo pid=,user=,args= 2>/dev/null || true) \
+section "7. AI PROCESS DISCOVERY (ARGS OMITTED)"
+(ps -eo pid=,user=,comm= 2>/dev/null || true) \
   | grep -Ei 'telegram|codex|opencode|antigravity|gemini|bot' \
-  | grep -Ev 'grep -E|telegram-ai-diagnose' \
   | head -n 80 \
   | redact || true
 
-section "8. SYSTEMD UNIT DISCOVERY"
+section "8. SYSTEMD UNIT DISCOVERY (EXEC ARGS OMITTED)"
 units_tmp="$(mktemp)"
 {
   systemctl --user list-unit-files --type=service --no-legend 2>/dev/null || true
@@ -142,10 +162,10 @@ else
     [[ -n "$unit" ]] || continue
     echo "UNIT=$unit"
     set +e
-    info="$(systemctl --user show "$unit" -p FragmentPath -p ExecStart -p WorkingDirectory -p ActiveState -p SubState 2>/dev/null)"
+    info="$(systemctl --user show "$unit" -p FragmentPath -p WorkingDirectory -p ActiveState -p SubState 2>/dev/null)"
     code=$?
     if [[ $code -ne 0 || -z "$info" ]]; then
-      info="$(systemctl show "$unit" -p FragmentPath -p ExecStart -p WorkingDirectory -p User -p ActiveState -p SubState 2>/dev/null)"
+      info="$(systemctl show "$unit" -p FragmentPath -p WorkingDirectory -p User -p ActiveState -p SubState 2>/dev/null)"
     fi
     set -e
     printf '%s\n' "$info" | redact
@@ -153,7 +173,7 @@ else
 fi
 rm -f "$units_tmp"
 
-section "9. SOURCE CANDIDATE DISCOVERY"
+section "9. SOURCE CANDIDATE DISCOVERY (CONTENT OMITTED)"
 candidates="$(mktemp)"
 find "$HOME" -maxdepth 6 -type f \
   \( -name '*.py' -o -name '*.js' -o -name '*.mjs' -o -name '*.cjs' -o -name '*.ts' -o -name '*.sh' -o -name '*.service' \) \
@@ -173,19 +193,24 @@ else
     [[ -n "$file" ]] || continue
     echo "CANDIDATE=$file"
     sha256sum "$file" 2>/dev/null | sed 's/^/CANDIDATE_SHA256=/' || true
-    grep -En 'OpenCode \(DeepSeek\)|Codex \(Terra\)|Antigravity \(Gemini\)|gpt-5\.6-terra|/codex|bwrap|unprivileged_userns' "$file" 2>/dev/null \
-      | head -n 20 \
-      | redact || true
+    echo "CANDIDATE_TAGS=$(keyword_tags "$file")"
   done < "$candidates"
 fi
 rm -f "$candidates"
 
-section "10. RECENT MATCHED ERROR SIGNALS"
+section "10. RECENT ERROR SIGNAL COUNTS (LOG CONTENT OMITTED)"
 if command -v journalctl >/dev/null 2>&1; then
+  journal_tmp="$(mktemp)"
   journalctl --since '-24 hours' --no-pager -p warning..alert 2>/dev/null \
     | grep -Ei 'telegram|codex|opencode|bwrap|namespace|userns|unicode|utf-8|encoding|gemini|antigravity' \
-    | tail -n 80 \
-    | redact || true
+    > "$journal_tmp" || true
+  echo "JOURNAL_MATCH_COUNT=$(wc -l < "$journal_tmp" | tr -d ' ')"
+  for key in telegram codex opencode bwrap namespace userns unicode utf-8 encoding gemini antigravity; do
+    safe_key="$(printf '%s' "$key" | tr '[:lower:]-' '[:upper:]_')"
+    count="$(grep -Eic "$key" "$journal_tmp" 2>/dev/null || true)"
+    echo "JOURNAL_${safe_key}_COUNT=$count"
+  done
+  rm -f "$journal_tmp"
 else
   echo 'JOURNALCTL=NOT_FOUND'
 fi
@@ -215,7 +240,7 @@ echo 'USERNS: UNPRIVILEGED_USERNS_SMOKE_EXIT=0 means the kernel permits a basic 
 echo 'BWRAP: a bwrap version alone does not prove sandbox creation works; source/service discovery identifies the actual invocation.'
 echo 'UTF8: LANG/LC_ALL and Python stdout should resolve to UTF-8 to avoid garbled Korean output.'
 echo 'OPENCODE: the isolated smoke runs outside the project and must leave the temp directory unchanged.'
-echo 'SECURITY: credential values are never intentionally printed; only provider names/config model lines are reported.'
+echo 'SECURITY: process args, service ExecStart, candidate source contents, raw config lines, raw journal lines, and credential values are intentionally omitted.'
 
 echo "REPORT=$REPORT"
 echo 'WHOLESALEHUB_TELEGRAM_AI_DIAGNOSTIC=DONE'
