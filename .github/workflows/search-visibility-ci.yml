@@ -1,0 +1,35 @@
+name: search-visibility-ci
+
+on:
+  pull_request:
+    paths:
+      - 'wordpress/mu-plugins/avocadoss-security-headers.php'
+      - 'wordpress/plugins/avocadoss-performance/templates/wholesalehub-front-page.php'
+      - 'tests/search-visibility-policy.test.php'
+      - '.github/workflows/search-visibility-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'wordpress/mu-plugins/avocadoss-security-headers.php'
+      - 'wordpress/plugins/avocadoss-performance/templates/wholesalehub-front-page.php'
+      - 'tests/search-visibility-policy.test.php'
+      - '.github/workflows/search-visibility-ci.yml'
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+      - name: PHP syntax
+        run: |
+          set -euo pipefail
+          php -l wordpress/mu-plugins/avocadoss-security-headers.php
+          php -l wordpress/plugins/avocadoss-performance/templates/wholesalehub-front-page.php
+          php -l tests/search-visibility-policy.test.php
+      - name: Search visibility regression contract
+        run: php tests/search-visibility-policy.test.php
