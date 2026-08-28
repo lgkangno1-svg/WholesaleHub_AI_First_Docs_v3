@@ -50,7 +50,8 @@
 - Decide whether daily runs use cron on the mini PC or GitHub Actions.
 - Verify real order and CS flow during production monitoring.
 - Verify the merged frontend regression guard after the next Production deploy: product search must not render the custom homepage template; order detail must not show a zero-cost `무료 배송` row when a positive WholesaleHub `배송비` fee exists; historical escaped description linebreaks must render cleanly.
-- After the search-visibility patch is deployed, register/verify the domain in Google Search Console, Bing Webmaster Tools and Naver Search Advisor, submit `https://hub.avocadoss.co.kr/wp-sitemap.xml`, and record a 14-day baseline for impressions/clicks/index coverage. These account-bound tasks cannot be completed from repository code alone.
+- After deploying the product-first/search-visibility follow-up, run `bash scripts/search-visibility-smoke.sh https://hub.avocadoss.co.kr` and require `SEARCH_VISIBILITY_SMOKE=PASS`.
+- Register/verify the domain in Google Search Console, Bing Webmaster Tools and Naver Search Advisor, submit `https://hub.avocadoss.co.kr/wp-sitemap.xml`, and record a 14-day baseline for impressions/clicks/index coverage. These account-bound tasks cannot be completed from repository code alone.
 
 ## Absolute Prohibitions
 - Do not print .env, API keys, login information, or credentials.
@@ -73,16 +74,27 @@
 ## SEO · AEO · GEO · LLMO · NEO Hardening — 2026-08-28
 - Methodology reviewed from the public MIT-licensed `leopard627/fire-your-seo-agency` skill. Only changes compatible with WholesaleHub's real B2B behavior were adopted; no backlink spam, cloaking, fake schema, hidden SEO copy, invented testimonials or unsupported price claims were added.
 - Backup branch before this work: `backup/pre-fire-seo-agency-20260828`.
-- `wordpress/mu-plugins/avocadoss-security-headers.php` now also owns conservative search visibility behavior while retaining all existing security headers.
+- `wordpress/mu-plugins/avocadoss-security-headers.php` owns conservative search visibility behavior while retaining all existing security headers.
 - Adds `/llms.txt` and `/llms-full.txt`, explicit AI/search crawler robots policy (OAI/ChatGPT/Claude/Perplexity/Google-Extended/DeepSeek/Yeti/ora-agent), WordPress sitemap declaration, Markdown `Accept` negotiation for the homepage, and Markdown 404 recovery while preserving real HTTP 404 status.
 - Adds `noindex,follow` for internal search, cart, checkout and account surfaces; no authentication boundary is weakened.
-- Adds front-page canonical, meta description, OG metadata, optional real-image `og:image`, and `WebSite` + `SearchAction` JSON-LD. WooCommerce remains the owner of Product/Breadcrumb schema to avoid duplicate product graphs.
-- `wordpress/plugins/avocadoss-performance/templates/wholesalehub-front-page.php` adds a visible answer-first “도매허브는 어떤 서비스인가요?” section with factual B2B eligibility, public-vs-approved pricing, Excel bulk ordering, and post-purchase claim guidance. This is visible human content, not hidden AI-only copy.
-- `tests/search-visibility-policy.test.php` and `.github/workflows/search-visibility-ci.yml` protect the public visibility contract and prohibit accidental exaggerated lowest-price/profit claims.
+- Adds root canonical, meta description, OG metadata, optional real-image `og:image`, and `WebSite` + `SearchAction` JSON-LD. WooCommerce remains the owner of Product/Breadcrumb schema to avoid duplicate product graphs.
 - Public AI guidance explicitly tells agents not to infer hidden wholesale prices, supplier names, source IDs or supplier costs.
-- Production must still be deployed through the safe PowerShell wrapper. After deployment verify HTML/Markdown/robots/llms/sitemap/404 endpoints from the public origin before calling the work complete.
+- PR #21 merged as `87fda2fc74e14f4ec2814f7d2fcdde1dac5b2b1f`; PR #22 merged as `db67a3ae64e9c1ca173413268ec5f83ead593cf2`.
+- Production deployment of `db67a3a` succeeded, but public smoke exposed a real Markdown negotiation failure: `Accept: text/markdown` on `/` returned `text/html`.
+
+## Product-First Homepage + Markdown Follow-up — 2026-08-28
+- User priority: merchandising and clean product discovery outrank promotional/SEO explainer blocks on the visible homepage.
+- Backup branch before this follow-up: `backup/pre-product-first-home-20260828`.
+- Removed the oversized four-card `도매허브는 어떤 서비스인가요?` block from the visible homepage instead of letting SEO content occupy prime merchandising space.
+- Hero navigation now points to recent updates, price drops, business-popular products, and categories.
+- Product sections appear immediately after the hero. Each product card keeps image/title/price/shipping facts and adds a clear `상품 보기 →` link.
+- Search/AI context remains in metadata, JSON-LD, `/llms.txt`, `/llms-full.txt`, and Markdown representation rather than visible promotional blocks.
+- Markdown root negotiation no longer depends on `is_front_page()`. The storefront may be represented by WooCommerce `is_shop()`, so canonical path `/` is now the stable root identity for metadata and `Accept: text/markdown` handling.
+- Static contract and public smoke were updated to enforce product-first output and to verify the visible SEO guide does not return.
 
 ## Recent Commits
+- db67a3a Add post-deploy search visibility smoke
+- 87fda2f Apply fire-your-seo-agency visibility hardening
 - 6a61568 Fix midnight DailyFood catalog catch-up
 - 00e4cd2 Fix Production MU deploy on restricted filesystem
 - d183c4b Add redundant supplier catalog freshness watchdog
