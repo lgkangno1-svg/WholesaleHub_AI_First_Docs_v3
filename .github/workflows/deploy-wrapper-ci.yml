@@ -5,12 +5,17 @@ on:
     paths:
       - 'scripts/deploy-wholesalehub.ps1'
       - 'scripts/supplier-catalog-watchdog.sh'
+      - 'scripts/telegram-ai-diagnose.sh'
+      - 'scripts/telegram-ai-diagnose.ps1'
       - 'wordpress/mu-plugins/wholesalehub-meta-policy.php'
       - 'wordpress/mu-plugins/wholesalehub-frontend-regressions.php'
       - 'wordpress/mu-plugins/wholesalehub-catalog-watchdog.php'
+      - 'wordpress/mu-plugins/wholesalehub-bulk-home-toggle.php'
       - 'tests/wholesalehub-meta-policy.test.php'
       - 'tests/wholesalehub-frontend-regressions.test.php'
       - 'tests/wholesalehub-catalog-watchdog.test.php'
+      - 'tests/bulk-home-collapse.test.ts'
+      - 'tests/telegram-ai-diagnostic-contract.test.ts'
       - '.gitattributes'
       - '.github/workflows/deploy-wrapper-ci.yml'
   push:
@@ -18,12 +23,17 @@ on:
     paths:
       - 'scripts/deploy-wholesalehub.ps1'
       - 'scripts/supplier-catalog-watchdog.sh'
+      - 'scripts/telegram-ai-diagnose.sh'
+      - 'scripts/telegram-ai-diagnose.ps1'
       - 'wordpress/mu-plugins/wholesalehub-meta-policy.php'
       - 'wordpress/mu-plugins/wholesalehub-frontend-regressions.php'
       - 'wordpress/mu-plugins/wholesalehub-catalog-watchdog.php'
+      - 'wordpress/mu-plugins/wholesalehub-bulk-home-toggle.php'
       - 'tests/wholesalehub-meta-policy.test.php'
       - 'tests/wholesalehub-frontend-regressions.test.php'
       - 'tests/wholesalehub-catalog-watchdog.test.php'
+      - 'tests/bulk-home-collapse.test.ts'
+      - 'tests/telegram-ai-diagnostic-contract.test.ts'
       - '.gitattributes'
       - '.github/workflows/deploy-wrapper-ci.yml'
 
@@ -76,25 +86,48 @@ jobs:
           WHOLESALEHUB_WATCHDOG_NO_TELEGRAM=1 \
           bash scripts/supplier-catalog-watchdog.sh | grep -q 'WHOLESALEHUB_CATALOG_WATCHDOG='
 
+  bulk-home-and-telegram-ai:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Lint new runtime helpers
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l wordpress/mu-plugins/wholesalehub-bulk-home-toggle.php
+          bash -n scripts/telegram-ai-diagnose.sh
+      - name: Run focused regression contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npx vitest run tests/bulk-home-collapse.test.ts tests/telegram-ai-diagnostic-contract.test.ts
+
   powershell-parse:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Parse PowerShell wrapper
+      - name: Parse PowerShell wrappers
         shell: powershell
         run: |
-          $tokens = $null
-          $errors = $null
-          [System.Management.Automation.Language.Parser]::ParseFile(
-            (Resolve-Path '.\scripts\deploy-wholesalehub.ps1'),
-            [ref]$tokens,
-            [ref]$errors
-          ) | Out-Null
-          if ($errors.Count -gt 0) {
-            $errors | ForEach-Object {
-              Write-Host ("PARSE_ERROR line={0} col={1} message={2} text={3}" -f $_.Extent.StartLineNumber, $_.Extent.StartColumnNumber, $_.Message, $_.Extent.Text)
+          foreach ($path in @('.\scripts\deploy-wholesalehub.ps1', '.\scripts\telegram-ai-diagnose.ps1')) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $path),
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object {
+                Write-Host ("PARSE_ERROR file={0} line={1} col={2} message={3} text={4}" -f $path, $_.Extent.StartLineNumber, $_.Extent.StartColumnNumber, $_.Message, $_.Extent.Text)
+              }
+              exit 1
             }
-            exit 1
           }
           Write-Host 'POWERSHELL_PARSE_OK'
       - name: Verify generated remote Bash normalization primitive
@@ -140,6 +173,7 @@ jobs:
           grep -Fq 'write_mu_contents() {' /tmp/remote-deploy.sh
           grep -Fq 'write_mu_contents "$RELEASE/wordpress/mu-plugins/$file" "$LIVE_MU/$file"' /tmp/remote-deploy.sh
           grep -Fq 'write_mu_contents "$BACKUP/mu/$file" "$LIVE_MU/$file"' /tmp/remote-deploy.sh
+          grep -Fq 'wholesalehub-bulk-home-toggle.php' /tmp/remote-deploy.sh
           ! grep -Fq 'cp -a "$RELEASE/wordpress/mu-plugins/$file" "$LIVE_MU/$file"' /tmp/remote-deploy.sh
           ! grep -Fq 'cp -a "$BACKUP/mu/$file" "$LIVE_MU/$file"' /tmp/remote-deploy.sh
           echo 'MU_CONTENT_COPY_GUARD_OK'
@@ -153,6 +187,8 @@ jobs:
           tar -tf /tmp/wh-release-ci.tar > /tmp/wh-release-ci.list
           grep -Fxq 'scripts/n8n-supplier-catalog-sync.sh' /tmp/wh-release-ci.list
           grep -Fxq 'scripts/supplier-catalog-watchdog.sh' /tmp/wh-release-ci.list
+          grep -Fxq 'scripts/telegram-ai-diagnose.sh' /tmp/wh-release-ci.list
+          grep -Fxq 'wordpress/mu-plugins/wholesalehub-bulk-home-toggle.php' /tmp/wh-release-ci.list
           grep -Fxq 'scripts/supplier-catalog/collect-dailyfood-catalog.mjs' /tmp/wh-release-ci.list
           grep -q '^wordpress/plugins/avocadoss-performance/' /tmp/wh-release-ci.list
           tar -xf /tmp/wh-release-ci.tar -C /tmp/wh-release-ci
@@ -160,6 +196,8 @@ jobs:
           ! LC_ALL=C grep -q $'\r' /tmp/wh-release-ci/scripts/n8n-supplier-catalog-sync.sh
           bash -n /tmp/wh-release-ci/scripts/n8n-supplier-catalog-sync.sh
           bash -n /tmp/wh-release-ci/scripts/supplier-catalog-watchdog.sh
+          bash -n /tmp/wh-release-ci/scripts/telegram-ai-diagnose.sh
+          php -l /tmp/wh-release-ci/wordpress/mu-plugins/wholesalehub-bulk-home-toggle.php
           node --check /tmp/wh-release-ci/scripts/supplier-catalog/collect-dailyfood-catalog.mjs
           node --check /tmp/wh-release-ci/scripts/supplier-catalog/collect-walldob2b-catalog.mjs
           node --check /tmp/wh-release-ci/scripts/supplier-catalog/build-catalog-plan.mjs
