@@ -27,6 +27,17 @@ function wh_search_visibility_path() {
 }
 
 /**
+ * The storefront's public root can be rendered through WooCommerce's shop
+ * condition instead of WordPress's is_front_page() flag. Path identity is the
+ * stable signal for metadata and Accept negotiation on the canonical root.
+ *
+ * @return bool
+ */
+function wh_search_visibility_is_public_home() {
+	return '/' === wh_search_visibility_path();
+}
+
+/**
  * Whether a client explicitly requested the Markdown representation.
  *
  * @return bool
@@ -168,12 +179,12 @@ add_filter(
 );
 
 /**
- * Improve the front-page title without changing product/category titles.
+ * Improve the public-root title without changing product/category titles.
  */
 add_filter(
 	'document_title_parts',
 	function ( $parts ) {
-		if ( is_front_page() ) {
+		if ( wh_search_visibility_is_public_home() ) {
 			$identity       = wh_search_visibility_identity();
 			$parts['title'] = $identity['title'];
 			unset( $parts['tagline'] );
@@ -184,13 +195,13 @@ add_filter(
 );
 
 /**
- * Conservative front-page meta, discovery links and WebSite structured data.
+ * Conservative public-root meta, discovery links and WebSite structured data.
  * WooCommerce remains the owner of Product/Breadcrumb structured data.
  */
 add_action(
 	'wp_head',
 	function () {
-		if ( ! is_front_page() ) {
+		if ( ! wh_search_visibility_is_public_home() ) {
 			return;
 		}
 
@@ -368,7 +379,7 @@ add_action(
 			exit;
 		}
 
-		if ( is_front_page() && wh_search_visibility_wants_markdown() ) {
+		if ( wh_search_visibility_is_public_home() && wh_search_visibility_wants_markdown() ) {
 			status_header( 200 );
 			header( 'Content-Type: text/markdown; charset=utf-8', true );
 			header( 'Cache-Control: public, max-age=120', true );
