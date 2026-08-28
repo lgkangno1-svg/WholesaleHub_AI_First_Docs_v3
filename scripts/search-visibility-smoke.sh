@@ -94,12 +94,14 @@ contains "$TMP_DIR/llmsfull.body" '인증을 우회해서는 안 되며'
 
 echo "SEARCH_VISIBILITY_LLMS_FULL_OK http=$LLMS_FULL_CODE"
 
-fetch sitemap "$BASE_URL/wp-sitemap.xml"
+# WordPress/CDN layers can legitimately canonicalize the sitemap with a 301.
+# Follow only this public machine-readable endpoint and validate the final 2xx XML body.
+fetch sitemap "$BASE_URL/wp-sitemap.xml" -L
 SITEMAP_CODE="$(status_code "$TMP_DIR/sitemap.headers")"
 [[ "$SITEMAP_CODE" =~ ^2[0-9][0-9]$ ]] || fail "sitemap_http=$SITEMAP_CODE"
 contains "$TMP_DIR/sitemap.body" '<sitemapindex'
 
-echo "SEARCH_VISIBILITY_SITEMAP_OK http=$SITEMAP_CODE"
+echo "SEARCH_VISIBILITY_SITEMAP_OK http=$SITEMAP_CODE redirect_followed=yes"
 
 NOT_FOUND="$BASE_URL/__wholesalehub_search_visibility_missing_$(date +%s)__"
 fetch missing "$NOT_FOUND" -H 'Accept: text/markdown'
