@@ -52,6 +52,8 @@
 - Verify the merged frontend regression guard during normal production use: product search must not render the custom homepage template; order detail must not show a zero-cost `무료 배송` row when a positive WholesaleHub `배송비` fee exists; historical escaped description linebreaks must render cleanly.
 - Pull the latest GitHub `main` onto the MiniPC source mirror before the next smoke run so the sitemap redirect-aware test script is used; no storefront redeploy is required solely for this test-script change.
 - Register/verify the domain in Google Search Console, Bing Webmaster Tools and Naver Search Advisor, submit `https://hub.avocadoss.co.kr/wp-sitemap.xml`, and record a 14-day baseline for impressions/clicks/index coverage. These account-bound tasks cannot be completed from repository code alone.
+- Deploy the merged bulk-order collapse helper to Production and verify desktop/mobile behavior.
+- Run the safe Telegram/Codex/OpenCode runtime diagnostic from the Windows deploy clone, return the generated report, then repair the proven MiniPC bot source/service. Do not guess the bot source or globally weaken kernel security before this evidence is collected.
 
 ## Absolute Prohibitions
 - Do not print .env, API keys, login information, or credentials.
@@ -98,7 +100,24 @@
 - `scripts/search-visibility-smoke.sh` now uses `curl -L` only for the sitemap endpoint and still requires the final response to be 2xx and contain `<sitemapindex>`. This is a test-harness correction, not a storefront behavior change.
 - No catalog catch-up was run during the product-first deployment; no product/order/payment/refund/Telegram logic was changed.
 
+## Bulk-order Collapse + Telegram AI Runtime Incident — 2026-08-28
+- Backup branch before implementation: `backup/pre-telegram-ai-bulk-collapse-20260828`.
+- PR #25 merged as `027117784f61d5513db0cf8fa6c4df9a84ceeff5`.
+- Added `wordpress/mu-plugins/wholesalehub-bulk-home-toggle.php` as progressive enhancement for the existing `.wh-bulk-home` quick/bulk-order panel.
+- Desktop defaults expanded; screens `<=768px` default collapsed so the fixed card does not cover the storefront. A visitor's explicit state is retained in `localStorage` when available, and the control remains functional if storage is blocked.
+- The toggle is a real button with `aria-controls`, `aria-expanded`, `빠른주문 메뉴 접기`, and `빠른주문 메뉴 펼치기`; bulk-order links and checkout/upload handlers are unchanged.
+- `scripts/deploy-wholesalehub.ps1` now includes the new MU helper in backup, rollback, byte verification and container PHP lint.
+- Added `scripts/telegram-ai-diagnose.sh` and `scripts/telegram-ai-diagnose.ps1` to discover the actual MiniPC Telegram/Codex/OpenCode runtime rather than guessing a source path.
+- Diagnostic evidence covers UTF-8 locale, user namespaces, `bwrap`, Codex/OpenCode/Gemini binaries, OpenCode provider/config shape, source candidate paths, service metadata, error-signal counts, and an optional isolated OpenCode DeepSeek V4 Flash PONG smoke.
+- PR #26 merged as `1aeddb25b594bcb393558d8d7cde6dd16950ffd8` before any runtime diagnostic was requested from the user. It hardened the report to omit process arguments, systemd `ExecStart`, raw OpenCode configs, candidate source contents, raw journal lines, and credential values.
+- Full runtime repair handoff: `docs/TELEGRAM_AI_RUNTIME_HANDOFF_2026-08-28.md`.
+- GitHub CI for the combined deployment/runtime-diagnostic contracts is green. This does **not** mean the Telegram runtime is repaired: the actual MiniPC bot service/source has not yet been observed from this connector session.
+- Do not globally enable `kernel.unprivileged_userns_clone` or weaken host sandboxing based solely on the screenshot. First run the metadata-only diagnostic, identify the exact service and invocation, then apply the narrowest repair.
+- Production does not contain the new collapse helper until the Windows deploy clone runs `scripts/deploy-wholesalehub.ps1` from the latest `main`.
+
 ## Recent Commits
+- 1aeddb2 Minimize Telegram AI diagnostic output + runtime handoff
+- 0271177 Add bulk-order collapse and Telegram AI runtime diagnostics
 - 0ac5ddd Product-first homepage + root Markdown negotiation fix
 - db67a3a Add post-deploy search visibility smoke
 - 87fda2f Apply fire-your-seo-agency visibility hardening
