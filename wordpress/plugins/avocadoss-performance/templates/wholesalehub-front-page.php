@@ -36,6 +36,7 @@ $render_cards = static function ( $ids, $badge = '' ) use ( $settings ) {
 					<li><?php echo esc_html( $settings['shipping_text'] ); ?></li>
 					<li><?php echo esc_html( preg_replace( '/^결제 후\s*/u', '', $settings['fulfillment_text'] ) ); ?></li>
 				</ul>
+				<a class="whh-more" href="<?php echo esc_url( get_permalink( $product_id ) ); ?>">상품 보기 →</a>
 			</div>
 		</article>
 		<?php
@@ -62,31 +63,13 @@ get_header();
 						<button type="submit" aria-label="검색">검색</button>
 					</form>
 					<div class="whh-hero-actions">
-						<a href="#wholesalehub-guide">이용 방법</a>
 						<?php if ( $recent_ids ) : ?><a href="#recent-updates">최근 업데이트</a><?php endif; ?>
 						<?php if ( $drop_ids ) : ?><a href="#recent-price-drops">가격 인하</a><?php endif; ?>
 						<?php if ( $popular_ids ) : ?><a href="#business-popular">사업자 인기</a><?php endif; ?>
+						<a href="#product-categories">카테고리</a>
 					</div>
 				</div>
 				<div class="whh-hero-panel" aria-hidden="true"><span>도매 상품 탐색</span><strong>필요한 품목을<br>더 빠르게 비교하세요</strong><div class="whh-panel-lines"><i></i><i></i><i></i></div></div>
-			</div>
-		</section>
-
-		<section id="wholesalehub-guide" class="whh-products-section whh-products-muted" aria-labelledby="wholesalehub-guide-title">
-			<div class="whh-shell">
-				<div class="whh-section-heading">
-					<div>
-						<p class="whh-kicker">도매허브 이용 안내</p>
-						<h2 id="wholesalehub-guide-title">도매허브는 어떤 서비스인가요?</h2>
-					</div>
-					<p>도매허브는 온라인 셀러와 사업자가 도매상품을 찾고, 상품 옵션과 배송조건을 확인하고, 반복 주문과 주문내역 관리를 한곳에서 처리하도록 돕는 사업자 전용 B2B 도매 플랫폼입니다.</p>
-				</div>
-				<div class="whh-product-grid">
-					<article class="whh-product-card"><div class="whh-product-body"><h3>누가 이용할 수 있나요?</h3><p>사업자 회원이 가입 후 승인을 받으면 도매가 확인과 구매 기능을 이용할 수 있습니다. 공개 화면에서는 상품명과 카테고리 등 탐색 정보를 먼저 확인할 수 있습니다.</p></div></article>
-					<article class="whh-product-card"><div class="whh-product-body"><h3>무엇을 비교할 수 있나요?</h3><p>상품별 공개 설명과 구성 조건, 배송 관련 안내를 확인해 필요한 품목을 비교할 수 있습니다. 도매 단가는 승인된 회원에게만 표시됩니다.</p></div></article>
-					<article class="whh-product-card"><div class="whh-product-body"><h3>여러 상품을 한 번에 주문할 수 있나요?</h3><p>엑셀 대량주문 기능을 이용하면 여러 상품과 배송지를 한 번에 정리해 주문할 수 있어 반복 사입 업무를 줄이는 데 도움이 됩니다.</p></div></article>
-					<article class="whh-product-card"><div class="whh-product-body"><h3>주문 후 문제가 생기면 어떻게 하나요?</h3><p>주문내역에서 구매 정보를 확인하고, 불량이나 환불 요청이 필요한 경우 주문 항목 기준으로 증빙자료를 첨부해 접수할 수 있습니다.</p></div></article>
-				</div>
 			</div>
 		</section>
 
@@ -102,7 +85,7 @@ get_header();
 		<section id="business-popular" class="whh-products-section"><div class="whh-shell"><div class="whh-section-heading"><div><p class="whh-kicker">사업자 인기</p><h2>사업자 인기 상품</h2></div><p>최근 실제 주문량이 많은 상품입니다.</p></div><?php $render_cards( $popular_ids, '사업자 인기' ); ?></div></section>
 		<?php endif; ?>
 
-		<section class="whh-categories" aria-labelledby="whh-category-title">
+		<section id="product-categories" class="whh-categories" aria-labelledby="whh-category-title">
 			<div class="whh-shell">
 				<div class="whh-section-heading compact"><div><p class="whh-kicker">상품 카테고리</p><h2 id="whh-category-title">카테고리별 상품 탐색</h2></div></div>
 				<div class="whh-category-grid">
