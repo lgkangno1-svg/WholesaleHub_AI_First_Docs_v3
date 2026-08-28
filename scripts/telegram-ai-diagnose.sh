@@ -90,10 +90,7 @@ for bin in codex opencode gemini node npm npx; do
   path="$(command -v "$bin" 2>/dev/null || true)"
   echo "${bin^^}_PATH=${path:-NOT_FOUND}"
   if [[ -n "$path" ]]; then
-    case "$bin" in
-      node|npm|npx) safe_run "${bin^^}_VERSION" "$bin" --version ;;
-      *) safe_run "${bin^^}_VERSION" "$bin" --version ;;
-    esac
+    safe_run "${bin^^}_VERSION" "$bin" --version
   fi
 done
 
@@ -134,7 +131,6 @@ section "7. TELEGRAM/CODEX/OPENCODE PROCESS DISCOVERY"
 
 section "8. SYSTEMD UNIT DISCOVERY"
 units_tmp="$(mktemp)"
-trap 'rm -f "$units_tmp"' RETURN 2>/dev/null || true
 {
   systemctl --user list-unit-files --type=service --no-legend 2>/dev/null || true
   systemctl list-unit-files --type=service --no-legend 2>/dev/null || true
