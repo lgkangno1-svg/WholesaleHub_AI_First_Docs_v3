@@ -4,8 +4,7 @@ import { pathToFileURL } from "node:url"
 import ky from "ky"
 import { z } from "zod"
 
-const CONFIRM = "DELETE_SOURCE_ABSENT_NON_GROUPBUY_PRODUCTS"
-const GROUPBUY_CATEGORY = "공동구매"
+const CONFIRM = "DELETE_SOURCE_ABSENT_PRODUCTS"
 const MIN_DAILYFOOD_OPTIONS = 380
 export const ABS_MIN_WALLDO_PRODUCTS = 15
 export const ABS_MIN_WALLDO_OPTIONS = 100
@@ -27,7 +26,6 @@ type DeleteRow = {
     | "delete_variation"
     | "delete_product_empty_after_variations"
     | "keep"
-    | "skip_groupbuy"
   deleted: "yes" | "no" | "skipped"
   reason_korean: string
 }
@@ -163,7 +161,6 @@ async function main(): Promise<void> {
   if (gate.blocked) {
     const summary = createSummary(plan, keep, gate, ZERO_ABSENCE_STATS, {
       scannedProducts: 0,
-      skippedGroupbuy: 0,
       keptProducts: 0,
       deletedProducts: 0,
       deletedVariations: 0,
@@ -191,24 +188,8 @@ async function main(): Promise<void> {
   const absentKeys = new Set<string>()
   let deletedProducts = 0
   let deletedVariations = 0
-  let skippedGroupbuy = 0
   let keptProducts = 0
   for (const product of products) {
-    const categories = product.categories.map((category) => category.name)
-    if (categories.includes(GROUPBUY_CATEGORY)) {
-      skippedGroupbuy += 1
-      rows.push(
-        row(
-          product,
-          null,
-          "skip_groupbuy",
-          "skipped",
-          "공동구매 상품은 DailyFood/월억 자동동기화 삭제 대상에서 제외",
-        ),
-      )
-      presentKeys.add(productKey(product.id))
-      continue
-    }
     if (isMvpCreatedProduct(product)) {
       keptProducts += 1
       rows.push(
@@ -335,7 +316,6 @@ async function main(): Promise<void> {
   await writeAbsenceState(args.statePath, absence.state)
   const summary = createSummary(plan, keep, gate, absence.stats, {
     scannedProducts: products.length,
-    skippedGroupbuy,
     keptProducts,
     deletedProducts,
     deletedVariations,
@@ -676,7 +656,6 @@ function createSummary(
   absence: AbsenceStats,
   counts: {
     scannedProducts: number
-    skippedGroupbuy: number
     keptProducts: number
     deletedProducts: number
     deletedVariations: number
@@ -691,7 +670,7 @@ function createSummary(
     keepVariations: keep.variations.size,
     ...counts,
     wooCommerceChanged: counts.deletedProducts > 0 || counts.deletedVariations > 0,
-    rule: "DailyFood/월억 최신 source plan에서 2회 연속 부재한 비공동구매 상품/옵션은 삭제",
+    rule: "DailyFood/월억 최신 source plan에서 2회 연속 부재한 상품/옵션은 삭제",
     walldoGate: {
       result: gate.blocked ? "blocked" : "passed",
       currentProducts: gate.currentProducts,
@@ -766,7 +745,6 @@ function markdown(summary: Record<string, unknown>): string {
     `- dailyfood_options: ${summary["dailyFoodOptions"]}`,
     `- walldo_options: ${summary["walldoOptions"]}`,
     `- scanned_products: ${summary["scannedProducts"]}`,
-    `- skipped_groupbuy: ${summary["skippedGroupbuy"]}`,
     `- kept_products: ${summary["keptProducts"]}`,
     `- deleted_products: ${summary["deletedProducts"]}`,
     `- deleted_variations: ${summary["deletedVariations"]}`,

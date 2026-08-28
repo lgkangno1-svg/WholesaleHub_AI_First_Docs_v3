@@ -91,7 +91,6 @@ get_header();
 					<a href="<?php echo esc_url( home_url( '/product-category/%ec%88%98%ec%82%b0%eb%ac%bc/' ) ); ?>"><span>02</span><b>수산물</b><em>→</em></a>
 					<a href="<?php echo esc_url( home_url( '/product-category/%ec%b6%95%ec%82%b0%eb%ac%bc/' ) ); ?>"><span>03</span><b>축산물</b><em>→</em></a>
 					<a href="<?php echo esc_url( home_url( '/product-category/%ea%b0%80%ea%b3%b5%ec%8b%9d%ed%92%88/' ) ); ?>"><span>04</span><b>가공식품</b><em>→</em></a>
-					<a href="<?php echo esc_url( home_url( '/product-category/%ea%b3%b5%eb%8f%99%ea%b5%ac%eb%a7%a4/' ) ); ?>"><span>05</span><b>공동구매</b><em>→</em></a>
 				</div>
 			</div>
 		</section>

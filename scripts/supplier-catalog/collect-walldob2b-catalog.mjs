@@ -131,6 +131,7 @@ for (const productId of productIds) {
           ]
             .map((match) => match[1] ?? "")
             .filter(Boolean),
+          soldOutOptionKeys: soldOutOptionKeys(detailHtml),
         }
         lastReason = ""
         break
@@ -149,6 +150,7 @@ for (const productId of productIds) {
       soldOut: false,
       shippingFee: 0,
       providerOptionValues: [],
+      soldOutOptionKeys: [],
       imageCandidates: [],
     }
     exclusions.push({
@@ -174,12 +176,16 @@ for (const row of rawRows) {
     imageCandidates: detail.imageCandidates,
     options: [],
   }
+  const optionSoldOut =
+    detail.soldOut ||
+    (detail.soldOutOptionKeys ?? []).includes(optionKey(row.optionName)) ||
+    row.stockStatus === "out_of_stock"
   group.options.push({
     sourceOptionId: row.sourceOptionId,
     sourceIdType: "authoritative",
     optionName: row.optionName,
     price: row.price,
-    stockStatus: detail.soldOut || row.stockStatus === "out_of_stock" ? "out_of_stock" : "in_stock",
+    stockStatus: optionSoldOut ? "out_of_stock" : "in_stock",
     shippingFee: detail.shippingFee,
     providerOptionValues: detail.providerOptionValues,
     specs: parseSpecs(`${row.productName} ${row.optionName}`),
@@ -257,6 +263,27 @@ function stripTags(value) {
     .replace(/&nbsp;/giu, " ")
     .replace(/\s+/gu, " ")
     .trim()
+}
+
+function optionKey(value) {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .replace(/[^0-9A-Za-z가-힣]/gu, "")
+    .toLowerCase()
+}
+
+function soldOutOptionKeys(detailHtml) {
+  const keys = new Set()
+  for (const match of detailHtml.matchAll(/<option\b([^>]*)>([\s\S]*?)<\/option>/giu)) {
+    const label = stripTags(match[2] ?? "")
+    if (!/품절|sold\s*out/iu.test(label)) continue
+    const attributes = match[1] ?? ""
+    const value = /value=["']([^"']*)["']/iu.exec(attributes)?.[1] ?? ""
+    const name = (value.split(",")[0] ?? "").trim()
+    const normalized = optionKey(name || label.replace(/품절|sold\s*out/giu, ""))
+    if (normalized) keys.add(normalized)
+  }
+  return [...keys]
 }
 
 function duplicateCount(values) {

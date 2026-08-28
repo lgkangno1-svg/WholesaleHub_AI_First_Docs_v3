@@ -98,6 +98,16 @@ final class Avocadoss_Customer_Claims {
         add_action( 'admin_post_wh_claim_status', array( __CLASS__, 'change_status' ) );
         add_action( 'woocommerce_admin_order_data_after_order_details', array( __CLASS__, 'render_admin_claims' ) );
 
+        // 주문상세(불량/환불 요청) 화면에서 청구/배송 주소 블록을 숨깁니다.
+        add_filter(
+            'wc_get_template',
+            static function ( $template, $template_name ) {
+                return 'order/order-details-customer.php' === $template_name ? '' : $template;
+            },
+            10,
+            2
+        );
+
         if ( defined( 'WP_CLI' ) && WP_CLI ) {
             WP_CLI::add_command( 'avocadoss claims-retry', array( __CLASS__, 'cli_retry' ) );
         }

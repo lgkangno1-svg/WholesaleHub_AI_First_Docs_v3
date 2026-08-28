@@ -343,7 +343,7 @@ final class WholesaleHub_Homepage {
 		if ( ! $price_ok || ! $stock_ok ) {
 			return false;
 		}
-		if ( 'visible' !== $product->get_catalog_visibility() || has_term( '공동구매', 'product_cat', $product_id ) ) {
+		if ( 'visible' !== $product->get_catalog_visibility() ) {
 			return false;
 		}
 		$title = get_the_title( $product_id );
@@ -401,7 +401,6 @@ final class WholesaleHub_Homepage {
 	}
 
 	public static function latest_product_ids( $limit ) {
-		$excluded = get_term_by( 'name', '공동구매', 'product_cat' );
 		$tax_query = array(
 			array(
 				'taxonomy' => 'product_visibility',
@@ -410,9 +409,6 @@ final class WholesaleHub_Homepage {
 				'operator' => 'NOT IN',
 			),
 		);
-		if ( $excluded && ! is_wp_error( $excluded ) ) {
-			$tax_query[] = array( 'taxonomy' => 'product_cat', 'field' => 'term_id', 'terms' => array( (int) $excluded->term_id ), 'operator' => 'NOT IN' );
-		}
 		$query = new WP_Query(
 			array(
 				'post_type'              => 'product',

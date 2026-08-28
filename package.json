@@ -82,7 +82,6 @@
     "mvp:hide-unsold-public": "npm run build && node dist/reports/hide-unsold-public-variations-cli.js",
     "dailyfood:direct-crawl": "npm run build && node dist/reports/dailyfood-direct-site-crawl-cli.js",
     "supplier:detail-image-crawl": "npm run build && node dist/reports/supplier-detail-image-crawl-cli.js",
-    "groupbuy:sync-fafane-descriptions": "npm run build && node dist/reports/fafane-description-sync-cli.js",
     "mvp:delete-source-absent": "npm run build && node dist/reports/mvp-source-absence-delete-cli.js"
   },
   "dependencies": {

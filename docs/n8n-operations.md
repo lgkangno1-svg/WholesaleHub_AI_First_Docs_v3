@@ -36,14 +36,13 @@ After import, open the SSH node and select the n8n SSH credential for the mini P
 - Run customer-facing QA.
 - Copy review reports to the Windows desktop review folder when available.
 - Refresh handoff and final summary docs.
-- Fafane 공동구매 상품 설명 크롤링, WooCommerce 상품 설명 동기화, catalog visibility visible 보정.
 
 ## Excluded From Automation
 - Public product creation.
 - Draft/private product publish.
 - Product deletion.
 - Existing product name, option name, image, or stock quantity edits.
-- Product description/catalog visibility edits except the explicit Fafane 공동구매 sync step.
+- Product description/catalog visibility edits.
 - review_needed / blocked rows.
 - Livestock/meat excluded rows.
 - Order, payment, deposit, auto-order, or AdminPlus auto-order flows.

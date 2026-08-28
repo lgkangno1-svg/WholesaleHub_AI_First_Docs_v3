@@ -155,7 +155,7 @@ run_step repair_thumbnails node dist/reports/repair-public-product-images-cli.js
 skip_step classify_categories "existing product categories are manual-only"
 
 if [ "$ALLOW_DESTRUCTIVE_SYNC" = "1" ]; then
-  run_step delete_source_absent node dist/reports/mvp-source-absence-delete-cli.js --execute --confirm "DELETE_SOURCE_ABSENT_NON_GROUPBUY_PRODUCTS"
+  run_step delete_source_absent node dist/reports/mvp-source-absence-delete-cli.js --execute --confirm "DELETE_SOURCE_ABSENT_PRODUCTS"
 else
   skip_step delete_source_absent "WHOLESALEHUB_ALLOW_DESTRUCTIVE_SYNC is not 1"
 fi
