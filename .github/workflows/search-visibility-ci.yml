@@ -6,6 +6,7 @@ on:
       - 'wordpress/mu-plugins/avocadoss-security-headers.php'
       - 'wordpress/plugins/avocadoss-performance/templates/wholesalehub-front-page.php'
       - 'tests/search-visibility-policy.test.php'
+      - 'scripts/search-visibility-smoke.sh'
       - '.github/workflows/search-visibility-ci.yml'
   push:
     branches: [main]
@@ -13,6 +14,7 @@ on:
       - 'wordpress/mu-plugins/avocadoss-security-headers.php'
       - 'wordpress/plugins/avocadoss-performance/templates/wholesalehub-front-page.php'
       - 'tests/search-visibility-policy.test.php'
+      - 'scripts/search-visibility-smoke.sh'
       - '.github/workflows/search-visibility-ci.yml'
 
 jobs:
@@ -33,3 +35,5 @@ jobs:
           php -l tests/search-visibility-policy.test.php
       - name: Search visibility regression contract
         run: php tests/search-visibility-policy.test.php
+      - name: Public deployment smoke syntax
+        run: bash -n scripts/search-visibility-smoke.sh
