@@ -6,6 +6,7 @@ on:
       - 'scripts/n8n-supplier-catalog-sync.sh'
       - 'scripts/supplier-catalog/resolve-dailyfood-snapshot-date.mjs'
       - 'tests/dailyfood-snapshot-date.test.mjs'
+      - 'tests/dailyfood-every-sync-refresh.test.mjs'
       - '.github/workflows/catalog-catchup-policy-ci.yml'
   push:
     branches: [main]
@@ -13,6 +14,7 @@ on:
       - 'scripts/n8n-supplier-catalog-sync.sh'
       - 'scripts/supplier-catalog/resolve-dailyfood-snapshot-date.mjs'
       - 'tests/dailyfood-snapshot-date.test.mjs'
+      - 'tests/dailyfood-every-sync-refresh.test.mjs'
       - '.github/workflows/catalog-catchup-policy-ci.yml'
 
 jobs:
@@ -20,12 +22,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Validate shell and snapshot date policy
+      - name: Validate shell and DailyFood refresh policies
         shell: bash
         run: |
           set -euo pipefail
           bash -n scripts/n8n-supplier-catalog-sync.sh
           node --check scripts/supplier-catalog/resolve-dailyfood-snapshot-date.mjs
           node --check tests/dailyfood-snapshot-date.test.mjs
+          node --check tests/dailyfood-every-sync-refresh.test.mjs
           node tests/dailyfood-snapshot-date.test.mjs
-          grep -Fq 'resolve-dailyfood-snapshot-date.mjs' scripts/n8n-supplier-catalog-sync.sh
+          node tests/dailyfood-every-sync-refresh.test.mjs
+          grep -Fq 'start_step dailyfood_collect' scripts/n8n-supplier-catalog-sync.sh
+          if grep -Fq 'dailyfood_same_day_snapshot' scripts/n8n-supplier-catalog-sync.sh; then
+            echo 'DailyFood same-day snapshot reuse must not return to scheduled syncs.' >&2
+            exit 1
+          fi
