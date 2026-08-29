@@ -1,0 +1,56 @@
+name: telegram-control-plane-ci
+
+on:
+  pull_request:
+    paths:
+      - 'docs/TELEGRAM_AI_CONTROL_PLANE_CONTRACT.md'
+      - 'ai/tasks/TELEGRAM_AI_CONTROL_PLANE_REPAIR.md'
+      - 'scripts/telegram-ai-control-plane-diagnose.sh'
+      - 'scripts/telegram-ai-control-plane-diagnose.ps1'
+      - 'tests/telegram-control-plane-contract.test.ts'
+      - '.github/workflows/telegram-control-plane-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'docs/TELEGRAM_AI_CONTROL_PLANE_CONTRACT.md'
+      - 'ai/tasks/TELEGRAM_AI_CONTROL_PLANE_REPAIR.md'
+      - 'scripts/telegram-ai-control-plane-diagnose.sh'
+      - 'scripts/telegram-ai-control-plane-diagnose.ps1'
+      - 'tests/telegram-control-plane-contract.test.ts'
+      - '.github/workflows/telegram-control-plane-ci.yml'
+
+jobs:
+  shell-and-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Parse shell collector
+        run: bash -n scripts/telegram-ai-control-plane-diagnose.sh
+      - name: Install dependencies
+        run: npm ci
+      - name: Run focused contract test
+        run: npx vitest run tests/telegram-control-plane-contract.test.ts
+
+  powershell-parse:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse PowerShell wrapper
+        shell: powershell
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path '.\scripts\telegram-ai-control-plane-diagnose.ps1'),
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            exit 1
+          }
+          Write-Host 'POWERSHELL_PARSE_OK'
