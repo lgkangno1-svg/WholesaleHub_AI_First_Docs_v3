@@ -355,7 +355,7 @@ function avocadoss_is_crawler_approval_product( $product_id ) {
 }
 
 function avocadoss_product_approval_categories() {
-    $allowed_names = array( '농산물', '축산물', '수산물', '가공식품', '공동구매' );
+    $allowed_names = array( '농산물', '축산물', '수산물', '가공식품' );
     $categories = get_terms( array(
         'taxonomy'   => 'product_cat',
         'hide_empty' => false,

@@ -12,6 +12,10 @@
 - Added `wordpress/mu-plugins/wholesalehub-block-groupbuy.php`, also installed as a Production MU-plugin. It rejects creation of the retired `groupbuy` category and blocks REST product creation identified as Fafane (legacy `FAF-` SKU or `_b2b_source` marker).
 - Production no longer has a Fafane-specific scheduled crawler. The active catalog watchdog reads only DailyFood and Walldo snapshots. Do not reintroduce Fafane/group-buy collection, categories, products, or description-sync jobs.
 
+## Telegram Approval Category Tax — 2026-08-29
+- Selecting a Telegram review category automatically confirms the tax treatment for the draft candidate before publication: 농산물/축산물/수산물 → WooCommerce `none` (면세), 가공식품 → WooCommerce `taxable` (과세).
+- The rule applies to the draft parent product and every variation. Existing public products, customer orders, payments and refunds are outside this automation and remain unchanged.
+
 ## Current MVP State
 - MVP 1 sync plan complete: DailyFood 448 options, walldob2b 225 options, WooCommerce 218 products / 789 variations at plan time, no WooCommerce changes.
 - MVP 2 existing variation sync complete: 87 existing variations updated across two executions, failures 0, no new products or variations.
