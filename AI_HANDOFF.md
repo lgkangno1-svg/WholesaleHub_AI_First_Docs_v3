@@ -6,6 +6,12 @@
 - Latest commit: run git rev-parse HEAD
 - Purpose: synchronize existing WooCommerce DailyFood/walldob2b products with latest supplier price and availability while preventing duplicate customer-facing options.
 
+## Production Group-buy Retirement — 2026-08-29
+- User explicitly retired the 공동구매/Fafane lane. Production backup is stored only on the MiniPC at `/home/tnfwod/backups/20260829-remove-groupbuy/` (full WordPress DB dump plus the pre-delete target list).
+- Permanently deleted every product currently assigned to the 공동구매 term (61 products) and deleted the term itself. Post-change checks returned zero matching products and zero matching terms; the public homepage returned HTTP 200.
+- Added `wordpress/mu-plugins/wholesalehub-block-groupbuy.php`, also installed as a Production MU-plugin. It rejects creation of the retired `groupbuy` category and blocks REST product creation identified as Fafane (legacy `FAF-` SKU or `_b2b_source` marker).
+- Production no longer has a Fafane-specific scheduled crawler. The active catalog watchdog reads only DailyFood and Walldo snapshots. Do not reintroduce Fafane/group-buy collection, categories, products, or description-sync jobs.
+
 ## Current MVP State
 - MVP 1 sync plan complete: DailyFood 448 options, walldob2b 225 options, WooCommerce 218 products / 789 variations at plan time, no WooCommerce changes.
 - MVP 2 existing variation sync complete: 87 existing variations updated across two executions, failures 0, no new products or variations.
