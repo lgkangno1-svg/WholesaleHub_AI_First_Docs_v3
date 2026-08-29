@@ -28,7 +28,7 @@ fi
 
 section '2. SUPPLIER SNAPSHOT HEALTH'
 python3 - "$SNAP_DIR/dailyfood-catalog-snapshot.json" "$SNAP_DIR/walldob2b-catalog-snapshot.json" <<'PY'
-import json, os, sys
+import json, sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -75,7 +75,6 @@ def safe_snapshot(label, path_text):
 daily = safe_snapshot('DAILYFOOD', sys.argv[1])
 walldo = safe_snapshot('WALLDO', sys.argv[2])
 
-# DailyFood: authoritative crawl around 11 KST, same-day required after 13 KST.
 if daily is None:
     print('DAILYFOOD_SCHEDULE_STATUS=UNKNOWN_OR_MISSING')
 elif now.hour >= 13 and daily.date() != now.date():
@@ -85,7 +84,6 @@ elif (now - daily).total_seconds() > 30 * 3600:
 else:
     print('DAILYFOOD_SCHEDULE_STATUS=FRESH')
 
-# Walldo: current policy is 11:00 and 18:00 KST, each with a 2h grace period.
 if now.hour >= 20:
     expected = now.replace(hour=18, minute=0, second=0, microsecond=0)
     reason = 'EXPECTED_18_SNAPSHOT_AFTER_20'
@@ -141,50 +139,126 @@ else
   echo 'WP_CONTAINER_RUNNING=UNKNOWN_OR_NOT_FOUND'
 fi
 
-section '5. ORDER EXPORT SCREENING (READ ONLY)'
+section '5. ORDER EXPORT SCREENING (READ ONLY, EXPORTER-ALIGNED)'
 if command -v docker >/dev/null 2>&1 && docker inspect "$WP_CONTAINER" >/dev/null 2>&1; then
   docker exec "$WP_CONTAINER" wp --allow-root --path=/var/www/html eval '
+$path = WP_CONTENT_DIR . "/uploads/wholesalehub/wholesalehub.sqlite";
+if (defined("WHOLESALEHUB_SQLITE_PATH") && WHOLESALEHUB_SQLITE_PATH) { $path = WHOLESALEHUB_SQLITE_PATH; }
+if (!file_exists($path)) { echo "ORDER_SCREEN_DB=MISSING\n"; return; }
+try {
+  $db = new PDO("sqlite:" . $path);
+  $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+  $db->exec("PRAGMA query_only = ON");
+  $db->exec("PRAGMA busy_timeout = 3000");
+} catch (Throwable $e) {
+  echo "ORDER_SCREEN_DB=OPEN_FAILED\n";
+  return;
+}
+function whdiag_table_exists($db, $name) {
+  $s = $db->prepare("SELECT 1 FROM sqlite_master WHERE type = \"table\" AND name = :name LIMIT 1");
+  $s->execute([":name" => $name]);
+  return (bool)$s->fetchColumn();
+}
+function whdiag_columns($db, $table) {
+  $out = [];
+  foreach ($db->query("PRAGMA table_info(" . $table . ")")->fetchAll(PDO::FETCH_ASSOC) as $row) { $out[(string)$row["name"]] = true; }
+  return $out;
+}
+function whdiag_is_sent($db, $itemId, $supplier) {
+  $s = $db->prepare("SELECT 1 FROM supplier_order_export_items i JOIN supplier_order_export_batches b ON b.id = i.batch_id WHERE i.woo_order_item_id = :item AND lower(i.supplier_id) = lower(:supplier) AND b.status = \"sent\" LIMIT 1");
+  $s->execute([":item" => $itemId, ":supplier" => $supplier]);
+  return false !== $s->fetchColumn();
+}
+function whdiag_before_cutoff($value, $cutoff) {
+  if (!$value) { return false; }
+  try { return (new DateTimeImmutable((string)$value))->getTimestamp() <= $cutoff->getTimestamp(); }
+  catch (Throwable $e) { return false; }
+}
+$required = ["woo_order_item_source_snapshots", "supplier_order_export_items", "supplier_order_export_batches", "woo_order_item_source_unmapped"];
+foreach ($required as $table) {
+  if (!whdiag_table_exists($db, $table)) { echo "ORDER_SCREEN_TABLES=MISSING:" . $table . "\n"; return; }
+}
+echo "ORDER_SCREEN_DB=READ_ONLY_OK\n";
 $tz = new DateTimeZone("Asia/Seoul");
 $now = new DateTimeImmutable("now", $tz);
-$since = $now->modify("-1 day")->setTime(7, 0, 0);
-$orders = wc_get_orders([
-  "limit" => -1,
-  "status" => ["processing", "completed"],
-  "date_created" => ">=" . $since->getTimestamp(),
-  "return" => "objects",
-]);
-$summary = ["orders"=>0,"eligible_lines"=>0,"already_sent_lines"=>0,"unsent_mapped_lines"=>0,"unsent_unmapped_lines"=>0,"eligible_qty"=>0];
-foreach ($orders as $order) {
-  $hasEligible = false;
-  foreach ($order->get_items("line_item") as $item) {
-    $qty = max(0, (int)$item->get_quantity() - abs((int)$order->get_qty_refunded_for_item($item->get_id())));
-    if ($qty <= 0) { continue; }
-    $hasEligible = true;
-    $summary["eligible_lines"]++;
-    $summary["eligible_qty"] += $qty;
-    $sent = trim((string)$item->get_meta("_wholesalehub_supplier_sent_at", true)) !== "";
-    if ($sent) { $summary["already_sent_lines"]++; continue; }
-    $mapped = false;
-    foreach (["_wholesalehub_supplier_id_snapshot","_wholesalehub_offer_id_snapshot","_wholesalehub_supplier_id","_supplier_id"] as $key) {
-      if (trim((string)$item->get_meta($key, true)) !== "") { $mapped = true; break; }
-    }
-    if ($mapped) { $summary["unsent_mapped_lines"]++; } else { $summary["unsent_unmapped_lines"]++; }
+$cutoff = $now->setTime(7, 0, 0);
+if ($now < $cutoff) { $cutoff = $cutoff->modify("-1 day"); }
+echo "ORDER_SCREEN_0700_CUTOFF=" . $cutoff->format(DATE_ATOM) . "\n";
+$snapshotCols = whdiag_columns($db, "woo_order_item_source_snapshots");
+$createdExpr = isset($snapshotCols["created_at"]) ? "s.created_at" : "NULL";
+$suppliers = ["dailyfood", "walldob2b"];
+$totalRows = 0;
+$totalOrders = [];
+$totalPre0700 = 0;
+foreach ($suppliers as $supplier) {
+  $sql = "SELECT s.woo_order_id, s.woo_order_item_id, s.supplier_id, " . $createdExpr . " AS created_at FROM woo_order_item_source_snapshots s WHERE s.snapshot_status = \"mapped\" AND lower(s.supplier_id) = :supplier AND NOT EXISTS (SELECT 1 FROM supplier_order_export_items i JOIN supplier_order_export_batches b ON b.id = i.batch_id WHERE i.woo_order_item_id = s.woo_order_item_id AND lower(i.supplier_id) = lower(s.supplier_id) AND b.status = \"sent\") ORDER BY s.woo_order_id, s.woo_order_item_id";
+  $q = $db->prepare($sql);
+  $q->execute([":supplier" => $supplier]);
+  $seen = [];
+  $rows = 0;
+  $orders = [];
+  $pre0700 = 0;
+  foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $snapshot) {
+    $order = wc_get_order((int)$snapshot["woo_order_id"]);
+    if (!$order || !in_array($order->get_status(), ["processing", "completed"], true)) { continue; }
+    $item = $order->get_item((int)$snapshot["woo_order_item_id"]);
+    if (!$item instanceof WC_Order_Item_Product) { continue; }
+    $key = (int)$snapshot["woo_order_item_id"] . "|" . strtolower((string)$snapshot["supplier_id"]);
+    $seen[$key] = true;
+    $rows++;
+    $orders[(int)$snapshot["woo_order_id"]] = true;
+    if (whdiag_before_cutoff($snapshot["created_at"], $cutoff)) { $pre0700++; }
   }
-  if ($hasEligible) { $summary["orders"]++; }
+  foreach (wc_get_orders(["status" => ["processing", "completed"], "limit" => -1, "type" => "shop_order", "return" => "ids"]) as $orderId) {
+    $order = wc_get_order((int)$orderId);
+    if (!$order) { continue; }
+    foreach ($order->get_items() as $itemId => $item) {
+      if (!$item instanceof WC_Order_Item_Product) { continue; }
+      $metaSupplier = strtolower(trim((string)$item->get_meta("_wh_source_supplier_id", true)));
+      if ($metaSupplier === "" || $metaSupplier !== strtolower($supplier)) { continue; }
+      $key = (int)$itemId . "|" . $metaSupplier;
+      if (isset($seen[$key]) || whdiag_is_sent($db, (int)$itemId, $supplier)) { continue; }
+      $seen[$key] = true;
+      $rows++;
+      $orders[(int)$orderId] = true;
+      $created = $order->get_date_created();
+      if ($created && $created->getTimestamp() <= $cutoff->getTimestamp()) { $pre0700++; }
+    }
+  }
+  $label = strtoupper($supplier);
+  echo "ORDER_SCREEN_" . $label . "_PENDING_ROWS=" . $rows . "\n";
+  echo "ORDER_SCREEN_" . $label . "_PENDING_ORDERS=" . count($orders) . "\n";
+  echo "ORDER_SCREEN_" . $label . "_PENDING_PRE_0700_ROWS=" . $pre0700 . "\n";
+  $totalRows += $rows;
+  $totalPre0700 += $pre0700;
+  foreach ($orders as $orderId => $_) { $totalOrders[$orderId] = true; }
 }
-echo "ORDER_SCREEN_WINDOW_START=" . $since->format(DATE_ATOM) . "\n";
-echo "ORDER_SCREEN_WINDOW_END=" . $now->format(DATE_ATOM) . "\n";
-foreach ($summary as $key=>$value) { echo "ORDER_SCREEN_" . strtoupper($key) . "=" . $value . "\n"; }
+echo "ORDER_SCREEN_TOTAL_PENDING_ROWS=" . $totalRows . "\n";
+echo "ORDER_SCREEN_TOTAL_PENDING_ORDERS=" . count($totalOrders) . "\n";
+echo "ORDER_SCREEN_TOTAL_PENDING_PRE_0700_ROWS=" . $totalPre0700 . "\n";
+$unmapped = 0;
+foreach ($db->query("SELECT DISTINCT woo_order_id FROM woo_order_item_source_unmapped")->fetchAll(PDO::FETCH_COLUMN) as $orderId) {
+  $order = wc_get_order((int)$orderId);
+  if ($order && in_array($order->get_status(), ["processing", "completed"], true)) { $unmapped++; }
+}
+echo "ORDER_SCREEN_CURRENT_SOURCE_UNMAPPED_ORDERS=" . $unmapped . "\n";
+$batchCounts = ["sent" => 0, "failed" => 0, "started" => 0];
+foreach ($db->query("SELECT status, COUNT(*) AS n FROM supplier_order_export_batches GROUP BY status")->fetchAll(PDO::FETCH_ASSOC) as $row) { $batchCounts[(string)$row["status"]] = (int)$row["n"]; }
+foreach (["sent", "failed", "started"] as $status) { echo "ORDER_SCREEN_BATCH_" . strtoupper($status) . "=" . ($batchCounts[$status] ?? 0) . "\n"; }
+$lastSent = $db->query("SELECT MAX(sent_at) FROM supplier_order_export_batches WHERE status = \"sent\"")->fetchColumn();
+$lastStarted = $db->query("SELECT MAX(started_at) FROM supplier_order_export_batches")->fetchColumn();
+echo "ORDER_SCREEN_LAST_SENT_AT=" . ($lastSent ?: "NONE") . "\n";
+echo "ORDER_SCREEN_LAST_BATCH_STARTED_AT=" . ($lastStarted ?: "NONE") . "\n";
 ' 2>/dev/null || echo 'ORDER_SCREEN=FAILED_TO_QUERY'
 else
   echo 'ORDER_SCREEN=SKIPPED_NO_WP_CONTAINER'
 fi
 
-echo 'ORDER_SCREEN_NOTE=Read-only screening only; it does not export, mark, pay, refund, order from suppliers, or modify WooCommerce data.'
+echo 'ORDER_SCREEN_NOTE=Read-only screening mirrors the real exporter candidate rules: mapped unsent SQLite snapshots first, then eligible Woo line-item source-meta fallback, with sent-batch dedupe. It does not export or mark anything.'
 
 section '6. SAFE INTERPRETATION'
 echo 'CATALOG_NOTE=A Walldo warning is a catalog freshness signal, not proof of Telegram outage or order corruption.'
 echo 'TELEGRAM_NOTE=Receiving the scheduled report/warning proves the outbound Telegram notification path was working at those send times.'
-echo 'ORDER_NOTE=An all-zero 07:00 report is normal when there are no eligible unsent mapped processing/completed line items; compare with ORDER_SCREEN_* if orders were expected.'
+echo 'ORDER_NOTE=If TOTAL_PENDING_PRE_0700_ROWS is above zero after the 07:00 report said zero, investigate the exporter/scheduler. TOTAL_PENDING_ROWS can also include orders that became eligible after 07:00.'
 echo 'NO_MUTATION=YES'
 echo 'WHOLESALEHUB_OPERATIONS_HEALTH=DONE'
