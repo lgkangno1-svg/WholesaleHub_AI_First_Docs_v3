@@ -137,31 +137,6 @@ handle_error() {
 handle_signal() { terminate_managed_stage; finish failed 143 "$step" terminated; exit 143; }
 handle_exit() { local code=$1; [ "$finalized" -ne 0 ] || finish failed "$code" "$step" unexpected_exit; }
 
-verify_reusable_dailyfood_snapshot() {
-  node -e '
-    const fs = require("node:fs");
-    const path = process.argv[1];
-    const expectedDate = process.argv[2];
-    const snapshot = JSON.parse(fs.readFileSync(path, "utf8"));
-    const generated = new Date(snapshot.generatedAt);
-    const parts = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Seoul",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      hourCycle: "h23",
-    }).formatToParts(generated).reduce((out, part) => {
-      if (part.type !== "literal") out[part.type] = part.value;
-      return out;
-    }, {});
-    const generatedDate = `${parts.year}-${parts.month}-${parts.day}`;
-    if (snapshot.complete !== true || generatedDate !== expectedDate || parts.hour !== "11") {
-      throw new Error(`dailyfood snapshot must be complete and match expected 11 KST snapshot date ${expectedDate}: ${generatedDate}`);
-    }
-  ' "$REPORT_DIR/dailyfood-catalog-snapshot.json" "$DAILYFOOD_SNAPSHOT_DATE"
-}
-
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
   step=lock
@@ -188,23 +163,14 @@ node --check scripts/supplier-catalog/collect-dailyfood-catalog.mjs
 node --check scripts/supplier-catalog/collect-walldob2b-catalog.mjs
 node --check scripts/supplier-catalog/build-catalog-plan.mjs
 node --check scripts/supplier-catalog/generate-daily-shipping-audit.mjs
-node --check scripts/supplier-catalog/resolve-dailyfood-snapshot-date.mjs
-DAILYFOOD_SNAPSHOT_DATE="$(node scripts/supplier-catalog/resolve-dailyfood-snapshot-date.mjs "$RUN_DATE" "$RUN_HOUR" "$SECONDARY_ONLY")"
-if [ "$RUN_HOUR" = "11" ] && [ "$SECONDARY_ONLY" != "1" ]; then
-  if ! mkdir "$ADMINPLUS_RUN_DIR/$RUN_DATE" 2>/dev/null; then
-    start_step lock
-    finish skipped_locked 75 lock duplicate_adminplus_run
-    exit 75
-  fi
-  start_step dailyfood_collect
-  run_with_timeout "$CRAWLER_TIMEOUT" node scripts/supplier-catalog/collect-dailyfood-catalog.mjs
-else
-  start_step dailyfood_same_day_snapshot
-  verify_reusable_dailyfood_snapshot
-  start_step dailyfood_image_retry
-  run_with_timeout "$CRAWLER_TIMEOUT" node scripts/supplier-catalog/revalidate-catalog-images.mjs \
-    "$REPORT_DIR/dailyfood-catalog-snapshot.json"
-fi
+
+# DailyFood must be refreshed on every configured catalog-sync run. Reusing the
+# 11 KST snapshot can hide products/options added later in the same day.
+# The collector already reuses successful image-detail evidence where safe, so
+# this keeps discovery current without needlessly redownloading every image.
+start_step dailyfood_collect
+run_with_timeout "$CRAWLER_TIMEOUT" node scripts/supplier-catalog/collect-dailyfood-catalog.mjs
+
 start_step walldob2b_collect
 run_with_timeout "$CRAWLER_TIMEOUT" node scripts/supplier-catalog/collect-walldob2b-catalog.mjs
 start_step grouping
@@ -267,9 +233,9 @@ start_step shipping_audit
 node scripts/supplier-catalog/generate-daily-shipping-audit.mjs "$REPORT_DIR"
 
 step=completed
-sync_mode=11시
-if [ "$RUN_HOUR" = "18" ] || [ "$SECONDARY_ONLY" = "1" ]; then
-  sync_mode=18시/즉시
+sync_mode="${RUN_HOUR}시"
+if [ "$SECONDARY_ONLY" = "1" ]; then
+  sync_mode=즉시
 fi
 telegram_message=$(node -e '
   const result = require(process.argv[1]);
@@ -289,6 +255,7 @@ telegram_message=$(node -e '
   const lines = [
     "Supplier Catalog Sync 완료",
     `모드 ${syncMode}`,
+    "Daily 수집 매회 최신",
     `수집 상품 ${counts.collected_products ?? 0}`,
     `신규 상품 ${counts.product_created ?? 0}`,
     `가격 ${counts.price_updated ?? 0}`,
