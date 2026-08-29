@@ -14,16 +14,28 @@ describe("WholesaleHub operations health diagnostic", () => {
     expect(shell).toContain("EXPECTED_18_SNAPSHOT_AFTER_20")
   })
 
-  it("screens Woo order-export eligibility without invoking the mutating exporter", () => {
-    expect(shell).toContain("ORDER EXPORT SCREENING (READ ONLY)")
+  it("mirrors the real supplier exporter candidate and sent-dedupe rules", () => {
+    expect(shell).toContain("ORDER EXPORT SCREENING (READ ONLY, EXPORTER-ALIGNED)")
+    expect(shell).toContain("woo_order_item_source_snapshots")
+    expect(shell).toContain("supplier_order_export_items")
+    expect(shell).toContain("supplier_order_export_batches")
+    expect(shell).toContain('s.snapshot_status = \\"mapped\\"')
+    expect(shell).toContain('b.status = \\"sent\\"')
+    expect(shell).toContain("_wh_source_supplier_id")
     expect(shell).toContain("wc_get_orders")
-    expect(shell).toContain("_wholesalehub_supplier_sent_at")
-    expect(shell).toContain('"unsent_mapped_lines"=>0')
-    expect(shell).toContain('"ORDER_SCREEN_" . strtoupper($key)')
+    expect(shell).toContain("ORDER_SCREEN_TOTAL_PENDING_PRE_0700_ROWS")
+    expect(shell).toContain("ORDER_SCREEN_CURRENT_SOURCE_UNMAPPED_ORDERS")
+  })
+
+  it("enforces query-only SQLite and never invokes mutating order paths", () => {
+    expect(shell).toContain("PRAGMA query_only = ON")
     expect(shell).toContain("NO_MUTATION=YES")
     expect(shell).not.toContain("supplier-order-export --")
     expect(shell).not.toContain("wp avocadoss supplier-order-export")
     expect(shell).not.toContain("wc_create_refund")
+    expect(shell).not.toContain("mark_sent(")
+    expect(shell).not.toContain("INSERT INTO supplier_order_export")
+    expect(shell).not.toContain("UPDATE supplier_order_export")
   })
 
   it("does not expose customer/order IDs or secret values in its report", () => {
