@@ -22,6 +22,40 @@ function wholesalehub_catalog_watchdog_schedule(): void
 add_action('init', 'wholesalehub_catalog_watchdog_schedule', 30);
 
 /**
+ * Return the minimum acceptable Walldo snapshot timestamp for the active
+ * 11:00 / 18:00 KST collection schedule. Each scheduled run gets a two-hour
+ * grace period before the watchdog requires it, matching the DailyFood guard.
+ */
+function wholesalehub_catalog_watchdog_walldo_expected_after(DateTimeImmutable $nowKst): DateTimeImmutable
+{
+    $tz = new DateTimeZone('Asia/Seoul');
+    $date = $nowKst->format('Y-m-d');
+    $hour = (int) $nowKst->format('H');
+
+    if ($hour >= 20) {
+        return new DateTimeImmutable($date . ' 18:00:00', $tz);
+    }
+
+    if ($hour >= 13) {
+        return new DateTimeImmutable($date . ' 11:00:00', $tz);
+    }
+
+    return new DateTimeImmutable($nowKst->modify('-1 day')->format('Y-m-d') . ' 18:00:00', $tz);
+}
+
+function wholesalehub_catalog_watchdog_walldo_stale_reason(DateTimeImmutable $nowKst): string
+{
+    $hour = (int) $nowKst->format('H');
+    if ($hour >= 20) {
+        return 'walldob2b_expected_18_snapshot_missing_after_20';
+    }
+    if ($hour >= 13) {
+        return 'walldob2b_expected_11_snapshot_missing_after_13';
+    }
+    return 'walldob2b_previous_18_snapshot_missing_before_13';
+}
+
+/**
  * Pure freshness evaluation used by runtime and standalone tests.
  *
  * @param array{dailyfood?:array<string,mixed>,walldob2b?:array<string,mixed>} $snapshots
@@ -60,9 +94,15 @@ function wholesalehub_catalog_watchdog_evaluate(array $snapshots, DateTimeImmuta
             } elseif ($age > 30 * HOUR_IN_SECONDS) {
                 $reasons[] = 'dailyfood_snapshot_over_30h';
             }
-        } elseif ($age > 14 * HOUR_IN_SECONDS) {
-            // Walldo is collected multiple times daily; 14h tolerates the overnight gap.
-            $reasons[] = 'walldob2b_snapshot_over_14h';
+        } else {
+            // Walldo is scheduled at 11:00 and 18:00 KST. An absolute 14-hour
+            // threshold falsely alarms every morning because 18:00 -> 08:00+
+            // naturally exceeds 14 hours. Require the latest scheduled window
+            // only after a two-hour grace period instead.
+            $expectedAfter = wholesalehub_catalog_watchdog_walldo_expected_after($nowKst);
+            if ($generatedKst < $expectedAfter) {
+                $reasons[] = wholesalehub_catalog_watchdog_walldo_stale_reason($nowKst);
+            }
         }
     }
 
@@ -118,6 +158,7 @@ function wholesalehub_catalog_watchdog_run(bool $force = false): array
             avocadoss_send_telegram_message(
                 '⚠️ 도매Hub 공급사 카탈로그 감시: 최신 스냅샷 상태가 비정상입니다. '
                 . '크롤링/n8n 스케줄과 reports/runtime 상태를 확인해주세요. 이유=' . $reasonText
+                . ' | 기준=DailyFood 11:00, Walldo 11:00/18:00 KST(각 2시간 유예)'
             );
         }
     } elseif ($previousHealth === 'warning' && function_exists('avocadoss_send_telegram_message')) {
