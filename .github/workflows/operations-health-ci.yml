@@ -1,0 +1,62 @@
+name: operations-health-ci
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/operations-health-diagnose.sh'
+      - 'scripts/operations-health-diagnose.ps1'
+      - 'tests/operations-health-diagnostic-contract.test.ts'
+      - '.github/workflows/operations-health-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/operations-health-diagnose.sh'
+      - 'scripts/operations-health-diagnose.ps1'
+      - 'tests/operations-health-diagnostic-contract.test.ts'
+      - '.github/workflows/operations-health-ci.yml'
+
+jobs:
+  shell-and-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Parse read-only shell collector
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n scripts/operations-health-diagnose.sh
+          ! grep -Fq 'wp avocadoss supplier-order-export' scripts/operations-health-diagnose.sh
+          ! grep -Fq 'wc_create_refund' scripts/operations-health-diagnose.sh
+          grep -Fq 'NO_MUTATION=YES' scripts/operations-health-diagnose.sh
+      - name: Run diagnostic contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npx vitest run tests/operations-health-diagnostic-contract.test.ts
+
+  powershell-parse:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse Windows wrapper
+        shell: powershell
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path '.\scripts\operations-health-diagnose.ps1'),
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object {
+              Write-Host ("PARSE_ERROR line={0} col={1} message={2}" -f $_.Extent.StartLineNumber, $_.Extent.StartColumnNumber, $_.Message)
+            }
+            exit 1
+          }
+          Write-Host 'OPERATIONS_HEALTH_POWERSHELL_PARSE_OK'
