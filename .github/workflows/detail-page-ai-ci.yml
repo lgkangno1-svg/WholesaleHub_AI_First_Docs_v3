@@ -1,0 +1,24 @@
+name: Detail Page AI CI
+
+on:
+  pull_request:
+    paths:
+      - 'detail-page-ai/**'
+      - '.github/workflows/detail-page-ai-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'detail-page-ai/**'
+      - '.github/workflows/detail-page-ai-ci.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run Detail Page AI checks
+        working-directory: detail-page-ai
+        run: npm run check
