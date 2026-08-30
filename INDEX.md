@@ -5,6 +5,12 @@
 - `AGENTS.md` — 모든 AI/개발자의 공통 실행 규칙
 - `AI_HANDOFF.md` — 현재 운영 상태, 최근 변경, 다음 작업
 
+## 독립 서비스
+- `detail-page-ai/README.md` — 24/7 자동 상세페이지 제작 서비스 진입점
+- `detail-page-ai/docs/PRD.md` — 상품 구성, 주문 폼, 고객 우선순위, 오타 고지, 자동화/비용/보안 기준
+- `detail-page-ai/docs/ARCHITECTURE.md` — 주문/API/저장소/큐/오케스트레이터/이미지 생성/QA 경계
+- `detail-page-ai/docs/PROJECT_HANDOFF.md` — 상세페이지 서비스 현재 개발 상태와 다음 우선순위
+
 ## 공통
 - README.md
 - CODEX.md
@@ -57,5 +63,5 @@
 
 ## 유지 규칙
 - 모든 기능 작업 전 `PROJECT_NORTH_STAR.md` → `AGENTS.md` → `AI_HANDOFF.md` 순서로 확인합니다.
-- 현재 구현 상태는 `AI_HANDOFF.md`에 계속 갱신합니다.
+- 현재 구현 상태는 `AI_HANDOFF.md` 또는 독립 서비스의 living handoff에 계속 갱신하며, 저장소 전체 상태에 영향을 주는 변경은 루트 `AI_HANDOFF.md`에도 반영합니다.
 - 제품 목표/정책/개선 기준 자체가 바뀌면 같은 PR에서 `PROJECT_NORTH_STAR.md`를 갱신합니다.
