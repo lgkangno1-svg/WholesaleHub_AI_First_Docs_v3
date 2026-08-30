@@ -1,7 +1,9 @@
 # Detail Page AI — Project Handoff
 
 Updated: 2026-08-30
-Branch: `feat/detail-page-ai-service-bootstrap`
+Canonical branch: `main`
+Phase 1 merged SHA: `6feb4b7e85c7cd71d6035e184d89400d7510c459`
+Validation: GitHub Actions `Detail Page AI CI` passed 10/10 tests, failures 0.
 
 ## Intent
 
@@ -36,28 +38,36 @@ Owner sources:
 
 The repository is public, so raw prompt bodies are not committed. Production must retrieve protected versioned prompt sources server-side.
 
-## Completed in current branch
+## Phase 1 complete
 
 - comprehensive PRD
 - service architecture
-- living handoff
-- plan/order/policy/orchestration foundation (being implemented in this branch)
-- unit-test foundation
+- living handoff + repository index
+- Trial/Standard immutable plan contracts
+- customer order normalization
+- optional price/spec omission contract
+- mandatory versioned image-text typo disclosure
+- unified-upload reference ranking and near-duplicate collapse
+- internal direct-vs-TED prompt routing contract
+- customer-over-master instruction priority
+- Product Ground Truth handling contract
+- plan-aware image request contract
+- dedicated GitHub Actions CI
+- 10 automated tests passing on GitHub runner
 
 ## Next implementation priorities
 
-1. finish Phase 1 contracts/tests
-2. responsive customer order form
-3. private unified uploader
-4. durable order/job persistence
-5. protected master-prompt retrieval
-6. upload classifier/reference selector
-7. text planning/Q1–Q10 generation
-8. image generation/editing provider integration
-9. automated QA and bounded retry
-10. packaging/download
-11. payment + webhook/idempotency
-12. production observability and cost ceiling
+1. responsive customer order form
+2. unified multi-file uploader UX and server contract
+3. durable order/job persistence
+4. protected master-prompt retrieval
+5. upload classifier/reference selector implementation beyond scored metadata
+6. text planning/Q1–Q10 generation
+7. image generation/editing provider integration
+8. automated QA and bounded retry
+9. packaging/download
+10. payment + webhook/idempotency
+11. production observability and per-order cost ceiling
 
 ## Risk register
 
