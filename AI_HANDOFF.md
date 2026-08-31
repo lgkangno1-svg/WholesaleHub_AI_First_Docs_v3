@@ -17,6 +17,10 @@
 - The rule applies to the draft parent product and every variation. Existing public products, customer orders, payments and refunds are outside this automation and remain unchanged.
 - The live supplier-lane approval route is the authoritative Telegram flow. Its category selection now sets the final tax value and does not render manual `면세 확정`/`과세 확정` controls; stale tax callbacks are reset to the selected category's automatic tax policy.
 
+## Administrator Email Suppression — 2026-08-31
+- Production MU-plugin `wordpress/mu-plugins/wholesalehub-admin-email-suppression.php` suppresses the administrator mailbox's new membership approval-request email and WordPress password-change notice.
+- Telegram membership-approval notifications remain enabled. Customer-facing account messages are not suppressed by this policy.
+
 ## Current MVP State
 - MVP 1 sync plan complete: DailyFood 448 options, walldob2b 225 options, WooCommerce 218 products / 789 variations at plan time, no WooCommerce changes.
 - MVP 2 existing variation sync complete: 87 existing variations updated across two executions, failures 0, no new products or variations.
