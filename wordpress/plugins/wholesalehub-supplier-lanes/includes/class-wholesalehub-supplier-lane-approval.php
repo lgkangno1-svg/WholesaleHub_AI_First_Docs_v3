@@ -1379,7 +1379,7 @@ final class WholesaleHub_Supplier_Lane_Approval
 
     private static function approval_categories(): array
     {
-        $names = ['농산물', '가공식품', '수산물', '축산물', '공동구매'];
+        $names = ['농산물', '가공식품', '수산물', '축산물'];
         $terms = get_terms([
             'taxonomy' => 'product_cat',
             'hide_empty' => false,
@@ -1505,7 +1505,6 @@ final class WholesaleHub_Supplier_Lane_Approval
         $token = (string) $request['action_token'];
         $selection = self::selection($request);
         $selected_id = (int) ($selection['selected_category_id'] ?? 0);
-        $final_tax = (string) ($selection['final_tax_status'] ?? '');
         $rows = [];
 
         $category_row = [];
@@ -1521,19 +1520,6 @@ final class WholesaleHub_Supplier_Lane_Approval
         }
         if ($category_row !== []) {
             $rows[] = $category_row;
-        }
-
-        if ($selected_id > 0) {
-            $rows[] = [
-                [
-                    'text' => ($final_tax === 'none' ? '✅ ' : '') . '면세 확정',
-                    'callback_data' => self::callback($token, 'tax:n'),
-                ],
-                [
-                    'text' => ($final_tax === 'taxable' ? '✅ ' : '') . '과세 확정',
-                    'callback_data' => self::callback($token, 'tax:t'),
-                ],
-            ];
         }
 
         $rows[] = [[
@@ -1557,7 +1543,11 @@ final class WholesaleHub_Supplier_Lane_Approval
         if (!$term || is_wp_error($term)) {
             return self::response(false, '선택할 수 없는 카테고리입니다.');
         }
-        self::save_selection((int) $request['id'], ['selected_category_id' => (int) $term_id]);
+        $auto_tax = $term->name === '가공식품' ? 'taxable' : 'none';
+        self::save_selection((int) $request['id'], [
+            'selected_category_id' => (int) $term_id,
+            'final_tax_status' => $auto_tax,
+        ]);
         $request = self::request_by_id((int) $request['id']) ?? $request;
         self::audit(
             (int) $request['id'],
@@ -1565,11 +1555,11 @@ final class WholesaleHub_Supplier_Lane_Approval
             $actor,
             null,
             'pending_mapping',
-            ['term_id' => (int) $term_id]
+            ['term_id' => (int) $term_id, 'final_tax_status' => $auto_tax]
         );
         return self::response(
             true,
-            '카테고리를 선택했습니다.',
+            '카테고리를 선택했습니다. (세금: ' . self::tax_label($auto_tax) . ' 자동 확정)',
             self::message_text($request),
             self::approval_buttons($request)
         );
@@ -1577,23 +1567,13 @@ final class WholesaleHub_Supplier_Lane_Approval
 
     private static function select_tax_callback(array $request, string $code, string $actor): array
     {
-        $status = $code === 'n' ? 'none' : 'taxable';
-        self::save_selection((int) $request['id'], ['final_tax_status' => $status]);
-        $request = self::request_by_id((int) $request['id']) ?? $request;
-        self::audit(
-            (int) $request['id'],
-            'select_tax',
-            $actor,
-            null,
-            'pending_mapping',
-            ['tax_status' => $status]
-        );
-        return self::response(
-            true,
-            '세금을 확정했습니다.',
-            self::message_text($request),
-            self::approval_buttons($request)
-        );
+        unset($code);
+        $selection = self::selection($request);
+        $category_id = (int) ($selection['selected_category_id'] ?? 0);
+        if ($category_id <= 0) {
+            return self::response(false, '카테고리를 먼저 선택해주세요. 세금은 카테고리 기준으로 자동 확정됩니다.');
+        }
+        return self::select_category_callback($request, $category_id, $actor);
     }
 
     private static function normalized(string $value): string

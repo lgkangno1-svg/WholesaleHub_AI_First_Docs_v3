@@ -15,6 +15,7 @@
 ## Telegram Approval Category Tax — 2026-08-29
 - Selecting a Telegram review category automatically confirms the tax treatment for the draft candidate before publication: 농산물/축산물/수산물 → WooCommerce `none` (면세), 가공식품 → WooCommerce `taxable` (과세).
 - The rule applies to the draft parent product and every variation. Existing public products, customer orders, payments and refunds are outside this automation and remain unchanged.
+- The live supplier-lane approval route is the authoritative Telegram flow. Its category selection now sets the final tax value and does not render manual `면세 확정`/`과세 확정` controls; stale tax callbacks are reset to the selected category's automatic tax policy.
 
 ## Current MVP State
 - MVP 1 sync plan complete: DailyFood 448 options, walldob2b 225 options, WooCommerce 218 products / 789 variations at plan time, no WooCommerce changes.
