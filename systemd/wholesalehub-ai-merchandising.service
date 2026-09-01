@@ -1,21 +1,17 @@
 [Unit]
 Description=WholesaleHub Codex AI merchandising queue worker
-After=docker.service network-online.target
-Wants=network-online.target
 
 [Service]
 Type=oneshot
 WorkingDirectory=/home/tnfwod/projects/wholesalehub
+Environment=HOME=/home/tnfwod
+Environment=PATH=/home/tnfwod/.local/bin:/home/tnfwod/.npm-global/bin:/usr/local/bin:/usr/bin:/bin
 ExecStart=/usr/bin/env bash /home/tnfwod/projects/wholesalehub/scripts/ai-merchandising/run-queue.sh
-TimeoutStartSec=2700
+TimeoutStartSec=1800
 Nice=10
 
-# This is a per-user service. Codex ChatGPT authentication/session state lives
-# under the service user's home, so ProtectHome/ProtectSystem=strict would break
-# the authenticated CLI. Keep system paths read-only without globally weakening
-# the host sandbox/user-namespace policy.
-PrivateTmp=true
-ProtectSystem=full
+# This unit is installed in the tnfwod user manager. Codex is additionally
+# restricted by --sandbox workspace-write inside the per-job working directory.
 
 [Install]
 WantedBy=default.target
