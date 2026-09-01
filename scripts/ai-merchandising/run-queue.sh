@@ -14,6 +14,19 @@ CODEX_BIN="${WHOLESALEHUB_CODEX_BIN:-$(command -v codex 2>/dev/null || true)}"
 TIMEOUT_SECONDS="${WHOLESALEHUB_CODEX_TIMEOUT_SECONDS:-720}"
 MAX_JOBS="${WHOLESALEHUB_AI_MAX_JOBS_PER_RUN:-3}"
 
+if [[ -z "$CODEX_BIN" ]]; then
+  for candidate in \
+    "$HOME/.local/bin/codex" \
+    "$HOME/.npm-global/bin/codex" \
+    /usr/local/bin/codex \
+    /usr/bin/codex; do
+    if [[ -x "$candidate" ]]; then
+      CODEX_BIN="$candidate"
+      break
+    fi
+  done
+fi
+
 mkdir -p "$QUEUE" "$WORK" "$DONE" "$FAILED"
 exec 9>"$LOCK"
 flock -n 9 || { echo 'AI_MERCHANDISING_WORKER=SKIPPED_LOCKED'; exit 0; }
@@ -45,6 +58,7 @@ for job_file in "$QUEUE"/*.json; do
   output_dir="$job_dir/output"
   result_path="$job_dir/apply-result.json"
   codex_log="$job_dir/codex.log"
+  rm -rf "$job_dir"
   mkdir -p "$output_dir"
   cp -f "$job_file" "$job_dir/job.json"
 
@@ -105,33 +119,43 @@ Requirements:
 - No placeholders such as 확인 필요/TODO.
 - No HTML or Markdown inside JSON values.
 
-OUTPUT 2 — OPTIONAL BUT STRONGLY PREFERRED
-${sourceName ? `The real source product photo is available locally as ${sourceName}. Use it as Product Ground Truth for identity, color, shape, package and visible texture.` : 'No local source product photo is available. Keep the product visually generic and do not invent packaging/brand identity.'}
-If this Codex environment exposes its built-in image generation/editing capability, create a NEW premium ecommerce featured image at output/thumbnail.png (or .jpg/.webp), preferably square and at least 1024px. It must be clearly different from the source composition while preserving the actual product identity when a source photo exists. Use clean commercial food photography, strong product focus, no Korean text, no logos you cannot verify, no price badges, no certifications, no watermark.
+OUTPUT 2 — REQUIRED WHEN BUILT-IN IMAGE GENERATION IS AVAILABLE
+Use $imagegen explicitly. Built-in Codex image generation only; never use an image API or API key.
+${sourceName ? `The attached real source product photo (${sourceName}) is Product Ground Truth. Preserve the real product identity, color, shape, packaging and visible texture while creating a new composition.` : 'No real source product photo is attached. Do not invent a brand, label or packaging identity; create only a generic category-safe visual.'}
+Create a NEW premium ecommerce featured image at output/thumbnail.png (or .jpg/.webp), square and at least 1024px. It must be clearly different from the source composition while preserving the real product when a reference exists. Use clean commercial food photography, strong product focus, no Korean text, no logos you cannot verify, no price badges, no certifications, no watermark.
 You may additionally create up to 3 text-free supporting visuals named output/detail-01.png, output/detail-02.png, output/detail-03.png when useful.
-If image generation is not available in this Codex environment, do not fake an image file and do not call any API. Simply complete copy.json; the system will safely keep the supplier thumbnail.
+If $imagegen is unavailable in this Codex environment, do not fake an image file and do not call any API. Complete copy.json only; the system will safely keep the supplier thumbnail.
 
 Before finishing, parse output/copy.json yourself and confirm it is valid JSON.`;
 fs.writeFileSync(promptPath, prompt, 'utf8');
 NODE
 
   echo "AI_MERCHANDISING_JOB_START product_id=$product_id job=$job_name"
+  codex_args=(
+    exec
+    --sandbox workspace-write
+    --skip-git-repo-check
+    -C "$job_dir"
+  )
+  if [[ -n "$source_copy" ]]; then
+    # Official Codex image guidance: attach the real source visual with -i/--image
+    # so imagegen can use it as visual context rather than inferring from a path.
+    codex_args+=(--image "$source_copy")
+  fi
+
   set +e
   (
     cd "$job_dir"
     timeout --signal=TERM --kill-after=10s "${TIMEOUT_SECONDS}s" \
-      "$CODEX_BIN" exec \
-      --sandbox workspace-write \
-      --skip-git-repo-check \
-      -C "$job_dir" \
-      "$(cat "$prompt_file")"
+      "$CODEX_BIN" "${codex_args[@]}" "$(cat "$prompt_file")"
   ) >"$codex_log" 2>&1
   codex_exit=$?
   set -e
 
   if [[ $codex_exit -ne 0 || ! -s "$output_dir/copy.json" ]]; then
     # Nonfatal by business policy: publication already happened with supplier
-    # image/base description. Keep the failed evidence and never apply partial output.
+    # image/base description. Keep failed evidence, quarantine the job and never
+    # apply partial output.
     printf '%s\n' "codex_exit=$codex_exit" > "$job_dir/failure.txt"
     mv -f "$job_file" "$FAILED/$(basename "$job_file")"
     echo "AI_MERCHANDISING_JOB_FALLBACK product_id=$product_id codex_exit=$codex_exit"
