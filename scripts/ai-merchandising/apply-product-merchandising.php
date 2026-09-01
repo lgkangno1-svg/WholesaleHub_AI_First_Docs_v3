@@ -99,6 +99,7 @@ foreach (['thumbnail.png', 'thumbnail.jpg', 'thumbnail.jpeg', 'thumbnail.webp'] 
 }
 if ($thumbnail_file !== '') {
     $previous_id = (int) get_post_thumbnail_id($product_id);
+    $attachment_id = 0;
     try {
         $attachment_id = wh_ai_merchandising_attach_local_image($thumbnail_file, $product_id, 'AI 대표이미지', 700, 700);
         if (!set_post_thumbnail($product_id, $attachment_id)) {
@@ -110,12 +111,21 @@ if ($thumbnail_file !== '') {
             }
             throw new RuntimeException('thumbnail read-back verification failed');
         }
-        update_post_meta($attachment_id, '_wholesalehub_image_source_type', 'codex_ai_generated');
+        // Keep supplier-image source metadata empty on AI assets. Existing catalog sync treats
+        // an unclassified, valid current image as operator-owned and preserves it. AI identity
+        // is tracked only through the dedicated _wh_ai_* metadata below.
+        update_post_meta($attachment_id, '_wh_ai_thumbnail_generated', '1');
         update_post_meta($product_id, '_wh_ai_thumbnail_status', 'success');
         update_post_meta($product_id, '_wh_ai_thumbnail_attachment_id', $attachment_id);
         update_post_meta($product_id, '_wh_ai_thumbnail_generated_at', gmdate('c'));
         $result['thumbnail'] = 'success';
     } catch (Throwable $error) {
+        if ($previous_id > 0 && (int) get_post_thumbnail_id($product_id) !== $previous_id) {
+            set_post_thumbnail($product_id, $previous_id);
+        }
+        if ($attachment_id > 0 && (int) get_post_thumbnail_id($product_id) !== $attachment_id) {
+            wp_delete_attachment($attachment_id, true);
+        }
         update_post_meta($product_id, '_wh_ai_thumbnail_status', 'fallback');
         $result['errors'][] = 'thumbnail:' . sanitize_text_field($error->getMessage());
     }
