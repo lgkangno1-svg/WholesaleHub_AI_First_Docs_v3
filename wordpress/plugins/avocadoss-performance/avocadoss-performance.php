@@ -542,6 +542,27 @@ function avocadoss_recharge_content() {
     
     <div style="border: 1px solid #e2e8f0; padding:25px; border-radius:8px; background:#fff;">
         <h4 style="margin-top:0; margin-bottom:15px; font-weight:bold;">무통장 입금 충전 신청</h4>
+
+        <div style="margin-bottom:20px; overflow:hidden; border:1px solid #cfe7c3; border-radius:10px; background:#f3f9ef;">
+            <div style="display:flex; align-items:center; gap:12px; padding:16px 18px;">
+                <span style="display:inline-flex; width:30px; height:30px; align-items:center; justify-content:center; border-radius:50%; background:#3d9b2b; color:#fff; font-weight:700;">1</span>
+                <div><strong style="display:block; color:#1f2937;">충전 신청 먼저</strong><span style="color:#4b5563; font-size:0.9em;">금액과 실제 입금자명을 입력해 신청하세요.</span></div>
+            </div>
+            <div style="height:1px; background:#dcebd4;"></div>
+            <div style="display:flex; align-items:center; gap:12px; padding:16px 18px;">
+                <span style="display:inline-flex; width:30px; height:30px; align-items:center; justify-content:center; border-radius:50%; background:#3d9b2b; color:#fff; font-weight:700;">2</span>
+                <div><strong style="display:block; color:#1f2937;">그다음 입금</strong><span style="color:#4b5563; font-size:0.9em;">신청을 완료한 뒤 안내 계좌로 입금해 주세요.</span></div>
+            </div>
+        </div>
+
+        <div style="background:#fff8eb; border:1px solid #f4bd61; border-radius:10px; padding:17px 18px; margin-bottom:20px; line-height:1.7;">
+            <strong style="display:block; color:#b45309; font-size:1.05em; margin-bottom:7px;">⚠️ 입금자명은 신청한 이름과 100% 일치해야 자동 매칭됩니다.</strong>
+            <div style="color:#713f12;">은행 거래내역에는 입금자명이 최대 6글자까지만 표시될 수 있습니다. 사업자 계좌의 입금자명은 긴 상호·대표자명 때문에 잘려 서로 다르게 보이는 경우가 있습니다.</div>
+            <div style="color:#713f12; margin-top:8px;">입금자명이 길다면, 이체 화면에서 <strong>받는 분에게 표시되는 이름</strong>을 6글자 이내로 수정한 뒤 입금하고 충전 신청에도 같은 이름을 입력해 주세요.</div>
+            <div style="margin-top:11px; padding:10px 12px; border:1px dashed #f2b454; border-radius:7px; background:#fffdf8; color:#713f12; font-size:0.93em;">
+                <strong>예시</strong> &mdash; <span style="text-decoration:line-through; color:#8a6d3b;">홍길동(주식회사)</span> → 거래내역에 <strong>홍길동(주식</strong>으로 표시될 수 있습니다. 이체·신청 모두 <strong>홍길동(주식</strong>처럼 동일하게 입력해 주세요.
+            </div>
+        </div>
         
         <div style="background:#fffaf0; border-left:4px solid #dd6b20; padding:15px; margin-bottom:20px; font-size:0.95em; line-height:1.6;">
             <strong>입금 계좌 안내:</strong><br>
