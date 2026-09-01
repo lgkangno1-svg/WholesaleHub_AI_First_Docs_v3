@@ -38,8 +38,13 @@ assert.doesNotMatch(plugin, /WP_CLI::error/u);
 
 // Queue data must be public-safe and must not carry supplier/source IDs or costs.
 assert.match(plugin, /function wh_ai_merchandising_public_facts/u);
+const publicFactsStart = plugin.indexOf('function wh_ai_merchandising_public_facts');
+const publicFactsEnd = plugin.indexOf('\nfunction wh_ai_merchandising_source_hash', publicFactsStart);
+const publicFactsBody = publicFactsStart >= 0 && publicFactsEnd > publicFactsStart
+  ? plugin.slice(publicFactsStart, publicFactsEnd)
+  : '';
+assert.notEqual(publicFactsBody, '', 'public fact packet function was not isolated');
 for (const forbidden of ['supplier_id', 'source_product_id', 'source_option_id', 'supplier_cost', 'source_url']) {
-  const publicFactsBody = plugin.match(/function wh_ai_merchandising_public_facts[\s\S]*?\n}\n/u)?.[0] ?? '';
   assert.equal(publicFactsBody.includes(`'${forbidden}'`), false, `public fact packet leaked ${forbidden}`);
 }
 
