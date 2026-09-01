@@ -10,12 +10,12 @@ ExecStart=/usr/bin/env bash /home/tnfwod/projects/wholesalehub/scripts/ai-mercha
 TimeoutStartSec=2700
 Nice=10
 
-# Codex ChatGPT authentication lives under the service user's home. Do not use
-# ProtectHome=true here and do not weaken host sandbox/user-namespace policy.
-NoNewPrivileges=true
+# This is a per-user service. Codex ChatGPT authentication/session state lives
+# under the service user's home, so ProtectHome/ProtectSystem=strict would break
+# the authenticated CLI. Keep system paths read-only without globally weakening
+# the host sandbox/user-namespace policy.
 PrivateTmp=true
-ProtectSystem=strict
-ReadWritePaths=/home/tnfwod/projects/wholesalehub/reports /home/tnfwod/avocadoss-wordpress/wp_data/wp-content/uploads/wholesalehub/ai-merchandising /tmp
+ProtectSystem=full
 
 [Install]
 WantedBy=default.target
