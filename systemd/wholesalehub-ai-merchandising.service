@@ -1,0 +1,21 @@
+[Unit]
+Description=WholesaleHub Codex AI merchandising queue worker
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/tnfwod/projects/wholesalehub
+ExecStart=/usr/bin/env bash /home/tnfwod/projects/wholesalehub/scripts/ai-merchandising/run-queue.sh
+TimeoutStartSec=2700
+Nice=10
+
+# Codex ChatGPT authentication lives under the service user's home. Do not use
+# ProtectHome=true here and do not weaken host sandbox/user-namespace policy.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/home/tnfwod/projects/wholesalehub/reports /home/tnfwod/avocadoss-wordpress/wp_data/wp-content/uploads/wholesalehub/ai-merchandising /tmp
+
+[Install]
+WantedBy=default.target
