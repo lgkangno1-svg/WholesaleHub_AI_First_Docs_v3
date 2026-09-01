@@ -166,6 +166,27 @@ function wh_ai_merchandising_on_publish(string $new_status, string $old_status, 
 add_action('transition_post_status', 'wh_ai_merchandising_on_publish', 20, 3);
 
 /**
+ * Telegram approval deliberately publishes through a compare-and-swap SQL update,
+ * which bypasses transition_post_status. Its processed marker is written only after
+ * that publish succeeds, so use that marker as the non-blocking queue trigger.
+ */
+function wh_ai_merchandising_on_telegram_approval_meta(int $meta_id, int $product_id, string $meta_key, mixed $meta_value): void
+{
+    if (
+        $meta_key !== '_avocadoss_pa_processed'
+        || (string) $meta_value !== 'published'
+        || $product_id <= 0
+        || get_post_type($product_id) !== 'product'
+        || get_post_status($product_id) !== 'publish'
+    ) {
+        return;
+    }
+    wh_ai_merchandising_enqueue_product($product_id);
+}
+add_action('added_post_meta', 'wh_ai_merchandising_on_telegram_approval_meta', 20, 4);
+add_action('updated_post_meta', 'wh_ai_merchandising_on_telegram_approval_meta', 20, 4);
+
+/**
  * Prevent later catalog/price/stock updates from accidentally deleting the managed AI detail block.
  */
 function wh_ai_merchandising_preserve_detail_on_update(array $data, array $postarr): array
