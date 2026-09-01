@@ -6,6 +6,7 @@ on:
       - 'wordpress/mu-plugins/wholesalehub-ai-merchandising.php'
       - 'scripts/ai-merchandising/**'
       - 'scripts/supplier-catalog/apply-catalog-thumbnails.php'
+      - 'scripts/deploy-wholesalehub.ps1'
       - 'systemd/wholesalehub-ai-merchandising.*'
       - 'tests/ai-merchandising-*'
       - '.github/workflows/ai-merchandising-ci.yml'
@@ -15,6 +16,7 @@ on:
       - 'wordpress/mu-plugins/wholesalehub-ai-merchandising.php'
       - 'scripts/ai-merchandising/**'
       - 'scripts/supplier-catalog/apply-catalog-thumbnails.php'
+      - 'scripts/deploy-wholesalehub.ps1'
       - 'systemd/wholesalehub-ai-merchandising.*'
       - 'tests/ai-merchandising-*'
       - '.github/workflows/ai-merchandising-ci.yml'
@@ -40,6 +42,8 @@ jobs:
           php -l scripts/ai-merchandising/apply-product-merchandising.php
           php -l scripts/supplier-catalog/apply-catalog-thumbnails.php
           bash -n scripts/ai-merchandising/run-queue.sh
+          bash -n scripts/ai-merchandising/install-runtime.sh
+          bash -n scripts/ai-merchandising/runtime-smoke.sh
           node --check tests/ai-merchandising-contract.test.mjs
           php -l tests/ai-merchandising-php.test.php
       - name: Behavior contracts
@@ -52,7 +56,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          grep -Fq '"$CODEX_BIN" exec' scripts/ai-merchandising/run-queue.sh
+          grep -Fq 'codex_args=(' scripts/ai-merchandising/run-queue.sh
+          grep -Fq '"$CODEX_BIN" "${codex_args[@]}"' scripts/ai-merchandising/run-queue.sh
+          grep -Fq 'Use $imagegen explicitly' scripts/ai-merchandising/run-queue.sh
+          grep -Fq 'codex_args+=(--image "$source_copy")' scripts/ai-merchandising/run-queue.sh
           grep -Fq 'unset OPENAI_API_KEY OPENROUTER_API_KEY' scripts/ai-merchandising/run-queue.sh
           ! grep -Fq 'api.openai.com' scripts/ai-merchandising/run-queue.sh
           ! grep -Fq 'openrouter.ai' scripts/ai-merchandising/run-queue.sh
