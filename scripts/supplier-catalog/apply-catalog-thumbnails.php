@@ -50,6 +50,14 @@ foreach ($products as $row) {
         if ($product_id <= 0 || get_post_type($product_id) !== 'product') {
             throw new RuntimeException('product identity is invalid');
         }
+        if (
+            function_exists('wh_ai_merchandising_has_valid_thumbnail')
+            && wh_ai_merchandising_has_valid_thumbnail($product_id)
+        ) {
+            $entry['status'] = 'preserved_ai';
+            $results[] = $entry;
+            continue;
+        }
         if ($image_url === '' && $existing_attachment_id <= 0) {
             throw new RuntimeException('source image URL is invalid');
         }
@@ -141,6 +149,10 @@ $output = [
         'repaired' => count(array_filter(
             $results,
             static fn(array $row): bool => $row['status'] === 'repaired'
+        )),
+        'preserved_ai' => count(array_filter(
+            $results,
+            static fn(array $row): bool => $row['status'] === 'preserved_ai'
         )),
         'failed' => count(array_filter(
             $results,
