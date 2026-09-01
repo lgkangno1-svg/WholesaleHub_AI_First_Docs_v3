@@ -25,11 +25,27 @@ try {
 }
 assert.equal(duplicatePluginModule, false, 'duplicate AI merchandising module must not exist');
 
-// Central hook means both Telegram and bulk REST publication paths are covered.
+// Normal publication is caught by the status hook. Telegram uses an intentional
+// compare-and-swap SQL publish, so its post-success processed marker is the queue trigger.
 assert.ok(plugin.includes("add_action('transition_post_status', 'wh_ai_merchandising_on_publish'"));
 assert.ok(plugin.includes("['draft', 'pending']"));
-assert.ok(telegram.includes("set_status('publish')"));
+assert.ok(plugin.includes("_avocadoss_pa_processed"));
+assert.ok(plugin.includes("(string) $meta_value !== 'published'"));
+assert.ok(plugin.includes("add_action('added_post_meta', 'wh_ai_merchandising_on_telegram_approval_meta'"));
+assert.ok(plugin.includes("add_action('updated_post_meta', 'wh_ai_merchandising_on_telegram_approval_meta'"));
+assert.ok(telegram.includes("$wpdb->update("));
+assert.ok(telegram.includes("array( 'post_status' => 'publish' )"));
+assert.ok(telegram.includes("'_avocadoss_pa_processed', 'publish' === $action ? 'published' : 'held'"));
 assert.match(bulkPublish, /status:\s*"publish"/u);
+
+const publishStart = telegram.indexOf('function avocadoss_publish_approved_product');
+const publishEnd = telegram.indexOf('\nfunction avocadoss_product_source_image_url', publishStart);
+const telegramPublish = publishStart >= 0 && publishEnd > publishStart
+  ? telegram.slice(publishStart, publishEnd)
+  : '';
+assert.notEqual(telegramPublish, '', 'Telegram publish helper was not isolated');
+assert.ok(telegramPublish.includes("'post_status' => 'publish'"));
+assert.equal(telegramPublish.includes('avocadoss_generate_ai_thumbnail'), false, 'Telegram publish must not use legacy OpenRouter AI image path');
 
 // Publishing is deliberately non-blocking. Existing supplier thumbnail/base description are fallback.
 assert.ok(plugin.includes('Never block publication'));
