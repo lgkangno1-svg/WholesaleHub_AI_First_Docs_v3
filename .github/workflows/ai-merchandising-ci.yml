@@ -1,0 +1,70 @@
+name: ai-merchandising-ci
+
+on:
+  pull_request:
+    paths:
+      - 'wordpress/mu-plugins/wholesalehub-ai-merchandising.php'
+      - 'scripts/ai-merchandising/**'
+      - 'scripts/supplier-catalog/apply-catalog-thumbnails.php'
+      - 'scripts/deploy-wholesalehub.ps1'
+      - 'systemd/wholesalehub-ai-merchandising.*'
+      - 'tests/ai-merchandising-*'
+      - '.github/workflows/ai-merchandising-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'wordpress/mu-plugins/wholesalehub-ai-merchandising.php'
+      - 'scripts/ai-merchandising/**'
+      - 'scripts/supplier-catalog/apply-catalog-thumbnails.php'
+      - 'scripts/deploy-wholesalehub.ps1'
+      - 'systemd/wholesalehub-ai-merchandising.*'
+      - 'tests/ai-merchandising-*'
+      - '.github/workflows/ai-merchandising-ci.yml'
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+      - name: Syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l wordpress/mu-plugins/wholesalehub-ai-merchandising.php
+          php -l scripts/ai-merchandising/apply-product-merchandising.php
+          php -l scripts/supplier-catalog/apply-catalog-thumbnails.php
+          bash -n scripts/ai-merchandising/run-queue.sh
+          bash -n scripts/ai-merchandising/install-runtime.sh
+          bash -n scripts/ai-merchandising/runtime-smoke.sh
+          node --check tests/ai-merchandising-contract.test.mjs
+          php -l tests/ai-merchandising-php.test.php
+      - name: Behavior contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/ai-merchandising-contract.test.mjs
+          php tests/ai-merchandising-php.test.php
+      - name: No API-billing route in Codex worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'codex_args=(' scripts/ai-merchandising/run-queue.sh
+          grep -Fq '"$CODEX_BIN" "${codex_args[@]}"' scripts/ai-merchandising/run-queue.sh
+          grep -Fq 'Use $imagegen explicitly' scripts/ai-merchandising/run-queue.sh
+          grep -Fq 'codex_args+=(--image "$source_copy")' scripts/ai-merchandising/run-queue.sh
+          grep -Fq 'unset OPENAI_API_KEY OPENROUTER_API_KEY' scripts/ai-merchandising/run-queue.sh
+          ! grep -Fq 'api.openai.com' scripts/ai-merchandising/run-queue.sh
+          ! grep -Fq 'openrouter.ai' scripts/ai-merchandising/run-queue.sh
+      - name: Systemd unit syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          systemd-analyze verify systemd/wholesalehub-ai-merchandising.service systemd/wholesalehub-ai-merchandising.timer

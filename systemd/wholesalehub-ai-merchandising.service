@@ -1,0 +1,17 @@
+[Unit]
+Description=WholesaleHub Codex AI merchandising queue worker
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/tnfwod/projects/wholesalehub
+Environment=HOME=/home/tnfwod
+Environment=PATH=/home/tnfwod/.local/bin:/home/tnfwod/.npm-global/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/env bash /home/tnfwod/projects/wholesalehub/scripts/ai-merchandising/run-queue.sh
+TimeoutStartSec=1800
+Nice=10
+
+# This unit is installed in the tnfwod user manager. Codex is additionally
+# restricted by --sandbox workspace-write inside the per-job working directory.
+
+[Install]
+WantedBy=default.target

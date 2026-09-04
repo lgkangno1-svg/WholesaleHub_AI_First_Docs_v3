@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [switch]$RunCatalogCatchup,
+    [switch]$RunAiSmoke,
     [string]$SshHost = 'minipc',
     [string]$RemoteProject = '/home/tnfwod/projects/wholesalehub',
     [string]$RemoteWpRoot = '/home/tnfwod/avocadoss-wordpress/wp_data'
@@ -43,11 +44,11 @@ try {
         Assert-NativeSuccess 'Failed to inspect Git worktree'
         if ($trackedChanges) { throw 'Tracked files are modified in the deploy clone. Reset it to origin/main first.' }
 
-        Write-Host "[1/6] Checking SSH connection: $SshHost"
+        Write-Host "[1/7] Checking SSH connection: $SshHost"
         ssh -o BatchMode=yes -o ConnectTimeout=15 $SshHost "test -d '$RemoteProject' && test -d '$RemoteWpRoot/wp-content' && printf 'REMOTE_OK\n'"
         Assert-NativeSuccess "MiniPC connection or production path check failed: $SshHost"
 
-        Write-Host "[2/6] Packaging GitHub HEAD: $head"
+        Write-Host "[2/7] Packaging GitHub HEAD: $head"
         git archive --format=tar --output=$archivePath HEAD
         Assert-NativeSuccess 'Failed to create Git release archive'
 
@@ -125,6 +126,13 @@ grep -Fxq 'scripts/n8n-supplier-catalog-sync.sh' "$STAGE/archive.list" || { echo
 grep -Fxq 'scripts/supplier-catalog-watchdog.sh' "$STAGE/archive.list" || { echo 'ARCHIVE_FAIL catalog-watchdog-missing' >&2; exit 27; }
 grep -Fxq 'scripts/supplier-catalog/collect-dailyfood-catalog.mjs' "$STAGE/archive.list" || { echo 'ARCHIVE_FAIL daily-collector-missing' >&2; exit 28; }
 grep -q '^wordpress/plugins/avocadoss-performance/' "$STAGE/archive.list" || { echo 'ARCHIVE_FAIL performance-plugin-missing' >&2; exit 29; }
+grep -Fxq 'wordpress/mu-plugins/wholesalehub-ai-merchandising.php' "$STAGE/archive.list" || { echo 'ARCHIVE_FAIL ai-mu-missing' >&2; exit 34; }
+grep -Fxq 'scripts/ai-merchandising/run-queue.sh' "$STAGE/archive.list" || { echo 'ARCHIVE_FAIL ai-worker-missing' >&2; exit 35; }
+grep -Fxq 'scripts/ai-merchandising/install-runtime.sh' "$STAGE/archive.list" || { echo 'ARCHIVE_FAIL ai-runtime-installer-missing' >&2; exit 36; }
+grep -Fxq 'scripts/ai-merchandising/runtime-smoke.sh' "$STAGE/archive.list" || { echo 'ARCHIVE_FAIL ai-smoke-missing' >&2; exit 37; }
+grep -Fxq 'scripts/ai-merchandising/apply-product-merchandising.php' "$STAGE/archive.list" || { echo 'ARCHIVE_FAIL ai-apply-missing' >&2; exit 38; }
+grep -Fxq 'systemd/wholesalehub-ai-merchandising.service' "$STAGE/archive.list" || { echo 'ARCHIVE_FAIL ai-service-missing' >&2; exit 39; }
+grep -Fxq 'systemd/wholesalehub-ai-merchandising.timer' "$STAGE/archive.list" || { echo 'ARCHIVE_FAIL ai-timer-missing' >&2; exit 40; }
 
 echo "[R2] Extracting release and normalizing shell EOL"
 tar -xf "$ARCHIVE" -C "$RELEASE"
@@ -141,6 +149,9 @@ fi
 echo "[R3] Running release preflight"
 bash -n "$RELEASE/scripts/n8n-supplier-catalog-sync.sh"
 bash -n "$RELEASE/scripts/supplier-catalog-watchdog.sh"
+bash -n "$RELEASE/scripts/ai-merchandising/run-queue.sh"
+bash -n "$RELEASE/scripts/ai-merchandising/install-runtime.sh"
+bash -n "$RELEASE/scripts/ai-merchandising/runtime-smoke.sh"
 node --check "$RELEASE/scripts/supplier-catalog/collect-dailyfood-catalog.mjs"
 node --check "$RELEASE/scripts/supplier-catalog/collect-walldob2b-catalog.mjs"
 node --check "$RELEASE/scripts/supplier-catalog/build-catalog-plan.mjs"
@@ -157,6 +168,7 @@ mu_files=(
   wholesalehub-frontend-regressions.php
   wholesalehub-catalog-watchdog.php
   wholesalehub-bulk-home-toggle.php
+  wholesalehub-ai-merchandising.php
 )
 for file in "${mu_files[@]}"; do
   [ -f "$RELEASE/wordpress/mu-plugins/$file" ] || { echo "RELEASE_FAIL mu_missing=$file" >&2; exit 33; }
@@ -206,7 +218,8 @@ for f in \
   /var/www/html/wp-content/mu-plugins/wholesalehub-meta-policy.php \
   /var/www/html/wp-content/mu-plugins/wholesalehub-frontend-regressions.php \
   /var/www/html/wp-content/mu-plugins/wholesalehub-catalog-watchdog.php \
-  /var/www/html/wp-content/mu-plugins/wholesalehub-bulk-home-toggle.php; do
+  /var/www/html/wp-content/mu-plugins/wholesalehub-bulk-home-toggle.php \
+  /var/www/html/wp-content/mu-plugins/wholesalehub-ai-merchandising.php; do
   php -l "$f" >/dev/null
 done
 '
@@ -224,6 +237,10 @@ case "$SEARCH_CODE" in 2??|3??) ;; *) echo "LIVE_FAIL search_http=$SEARCH_CODE" 
 
 echo "[R6] Updating MiniPC source mirror from normalized release"
 tar -C "$RELEASE" -cf - . | tar -C "$PROJECT" -xf -
+chmod +x "$PROJECT/scripts/ai-merchandising/run-queue.sh" "$PROJECT/scripts/ai-merchandising/install-runtime.sh" "$PROJECT/scripts/ai-merchandising/runtime-smoke.sh"
+
+echo "[R7] Installing unattended AI merchandising scheduler"
+bash "$PROJECT/scripts/ai-merchandising/install-runtime.sh" | tee "$PROJECT/reports/runtime/ai-merchandising-runtime.txt"
 printf '%s\n' "$HEAD_SHA" > "$PROJECT/reports/runtime/deployed-github-head.txt"
 
 DEPLOY_OK=1
@@ -234,24 +251,33 @@ echo "WHOLESALEHUB_DEPLOY_OK head=$HEAD_SHA http=$HTTP_CODE search_http=$SEARCH_
         [System.IO.File]::WriteAllText($remoteScriptPath, $remoteScript, [System.Text.UTF8Encoding]::new($false))
         if ([System.IO.File]::ReadAllBytes($remoteScriptPath) -contains 13) { throw 'Generated remote Bash script still contains CR bytes.' }
 
-        Write-Host '[3/6] Uploading release and safe remote deploy script'
+        Write-Host '[3/7] Uploading release and safe remote deploy script'
         scp -q $archivePath "${SshHost}:$remoteArchive"
         Assert-NativeSuccess 'Failed to upload release archive'
         scp -q $remoteScriptPath "${SshHost}:$remoteScriptFile"
         Assert-NativeSuccess 'Failed to upload remote deploy script'
 
-        Write-Host '[4/6] Deploying Production WordPress with shell-EOL normalization, backup and rollback'
+        Write-Host '[4/7] Deploying Production WordPress and AI scheduler with backup and rollback'
         ssh $SshHost "bash '$remoteScriptFile' '$head' '$remoteArchive' '$RemoteProject' '$RemoteWpRoot'"
         Assert-NativeSuccess 'Production deploy or live verification failed. The remote script attempted rollback.'
 
-        Write-Host '[5/6] Verifying deployed GitHub HEAD'
+        Write-Host '[5/7] Verifying deployed GitHub HEAD'
         $deployedHead = (ssh $SshHost "cat '$RemoteProject/reports/runtime/deployed-github-head.txt'").Trim()
         Assert-NativeSuccess 'Failed to read deployed GitHub HEAD'
         if ($deployedHead -ne $head) { throw "Deployed HEAD mismatch. expected=$head actual=$deployedHead" }
         Write-Host "DEPLOYED_HEAD_OK $deployedHead"
 
+        if ($RunAiSmoke) {
+            Write-Host '[6/7] Running ChatGPT-authenticated Codex text + image smoke'
+            ssh $SshHost "cd '$RemoteProject' && bash scripts/ai-merchandising/runtime-smoke.sh"
+            Assert-NativeSuccess 'Codex text/image runtime smoke failed.'
+            Write-Host 'AI_RUNTIME_SMOKE_OK'
+        } else {
+            Write-Host '[6/7] AI runtime smoke skipped (use -RunAiSmoke for release verification)'
+        }
+
         if ($RunCatalogCatchup) {
-            Write-Host '[6/6] Running supplier catalog catch-up'
+            Write-Host '[7/7] Running supplier catalog catch-up'
             ssh $SshHost "cd '$RemoteProject' && WHOLESALEHUB_SECONDARY_ONLY=1 bash scripts/n8n-supplier-catalog-sync.sh"
             if ($LASTEXITCODE -eq 75) {
                 Write-Warning 'Catalog sync is already running. Production deploy completed; catch-up was skipped.'
@@ -261,7 +287,7 @@ echo "WHOLESALEHUB_DEPLOY_OK head=$HEAD_SHA http=$HTTP_CODE search_http=$SEARCH_
                 Write-Host 'CATALOG_CATCHUP_OK'
             }
         } else {
-            Write-Host '[6/6] Catalog catch-up skipped'
+            Write-Host '[7/7] Catalog catch-up skipped'
         }
 
         Write-Host ''

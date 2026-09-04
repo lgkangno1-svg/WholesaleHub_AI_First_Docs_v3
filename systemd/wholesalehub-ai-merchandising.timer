@@ -1,0 +1,12 @@
+[Unit]
+Description=Run WholesaleHub Codex AI merchandising queue continuously
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=60s
+AccuracySec=15s
+Persistent=true
+Unit=wholesalehub-ai-merchandising.service
+
+[Install]
+WantedBy=timers.target
