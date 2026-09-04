@@ -135,4 +135,15 @@ assert.ok(service.includes('Environment=HOME=/home/tnfwod'));
 assert.ok(service.includes('run-queue.sh'));
 assert.ok(timer.includes('OnUnitActiveSec=60s'));
 
+// Production MU files may be root-owned on the host bind mount. The deployer must
+// write and roll back through the already-authorized WordPress container instead of
+// weakening host permissions or relying on direct host redirection.
+assert.ok(deploy.includes('WP_CONTAINER="avocadoss-wp"'));
+assert.ok(deploy.includes('CONTAINER_MU="/var/www/html/wp-content/mu-plugins"'));
+assert.ok(deploy.includes('docker exec -i "$WP_CONTAINER" sh -lc'));
+assert.ok(deploy.includes('remove_mu_file'));
+assert.ok(deploy.includes('wp_container_not_running'));
+assert.equal(deploy.includes('chmod 777'), false);
+assert.equal(deploy.includes('chown -R'), false);
+
 console.log('AI_MERCHANDISING_CONTRACT_OK');
