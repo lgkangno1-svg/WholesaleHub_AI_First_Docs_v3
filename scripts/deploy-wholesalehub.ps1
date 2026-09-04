@@ -62,6 +62,8 @@ PROJECT="$3"
 WP_ROOT="$4"
 LIVE_PLUGINS="$WP_ROOT/wp-content/plugins"
 LIVE_MU="$WP_ROOT/wp-content/mu-plugins"
+WP_CONTAINER="avocadoss-wp"
+CONTAINER_MU="/var/www/html/wp-content/mu-plugins"
 STAMP="$(TZ=Asia/Seoul date +%Y%m%d-%H%M%S)"
 BACKUP="$PROJECT/reports/deploy-backups/$STAMP-$HEAD_SHA"
 STAGE="$(mktemp -d /tmp/wholesalehub-deploy.XXXXXX)"
@@ -78,12 +80,16 @@ mkdir -p "$RELEASE" "$FAILED/plugins" "$BACKUP/plugins" "$BACKUP/mu" "$PROJECT/r
 : > "$MU_NEW"
 
 write_mu_contents() {
-  local src="$1" dst="$2"
-  if [ -e "$dst" ]; then
-    cat "$src" > "$dst"
-  else
-    (umask 022; cat "$src" > "$dst")
-  fi
+  local src="$1" dst="$2" file
+  file="$(basename "$dst")"
+  [ -f "$src" ] || return 1
+  docker exec -i "$WP_CONTAINER" sh -lc 'umask 022; cat > "$1"; chmod 0644 "$1"' sh "$CONTAINER_MU/$file" < "$src"
+}
+
+remove_mu_file() {
+  local dst="$1" file
+  file="$(basename "$dst")"
+  docker exec "$WP_CONTAINER" rm -f "$CONTAINER_MU/$file"
 }
 
 rollback_live() {
@@ -99,7 +105,7 @@ rollback_live() {
   done < "$MU_EXISTING"
   while IFS= read -r file; do
     [ -n "$file" ] || continue
-    rm -f "$LIVE_MU/$file" 2>/dev/null || true
+    remove_mu_file "$LIVE_MU/$file" >/dev/null 2>&1 || true
   done < "$MU_NEW"
 }
 
@@ -118,6 +124,8 @@ trap cleanup EXIT
 command -v docker >/dev/null 2>&1 || { echo "PRECHECK_FAIL docker_missing" >&2; exit 23; }
 command -v tar >/dev/null 2>&1 || { echo "PRECHECK_FAIL tar_missing" >&2; exit 24; }
 command -v node >/dev/null 2>&1 || { echo "PRECHECK_FAIL node_missing" >&2; exit 25; }
+docker inspect -f '{{.State.Running}}' "$WP_CONTAINER" 2>/dev/null | grep -Fxq true || { echo "PRECHECK_FAIL wp_container_not_running=$WP_CONTAINER" >&2; exit 52; }
+docker exec "$WP_CONTAINER" test -d "$CONTAINER_MU" || { echo "PRECHECK_FAIL container_mu_missing=$CONTAINER_MU" >&2; exit 53; }
 
 echo "REMOTE_STAGE=$STAGE"
 echo "[R1] Validating archive inventory"
