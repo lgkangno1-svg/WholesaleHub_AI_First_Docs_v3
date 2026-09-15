@@ -1,0 +1,10 @@
+[Unit]
+Description=Check fresh WholesaleHub thumbnail queue every five minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=5min
+Unit=wholesalehub-codex-thumbnails.service
+
+[Install]
+WantedBy=timers.target

@@ -1,5 +1,10 @@
 # WholesaleHub Project North Star
 
+> 2026-09-15 thumbnail policy: new DailyFood/Walldo products may use Codex's ChatGPT-subscription built-in
+> image generation. No paid image API fallback. Generated thumbnails require Telegram review before
+> publication and visible AI-illustration disclosure. Existing products are not batch-replaced. Missing,
+> stale, or failed images hold the new-product request; usage limits must not trigger unbounded retries.
+
 > **Canonical product / engineering / improvement charter**
 >
 > 이 문서는 도매Hub의 **개발 목적, 제품 기획, 운영 철학, 개선 우선순위, 안전 기준, 완료 기준**을 하나로 묶은 최상위 기준 문서입니다. Codex, OpenCode, Antigravity, 기타 AI/개발자는 기능을 추가하거나 수정하기 전에 반드시 이 문서를 먼저 읽어야 합니다.

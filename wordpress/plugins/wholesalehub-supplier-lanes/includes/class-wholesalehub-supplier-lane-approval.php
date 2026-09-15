@@ -512,6 +512,9 @@ final class WholesaleHub_Supplier_Lane_Approval
         ) {
             return false;
         }
+        if (!apply_filters('wholesalehub_approval_thumbnail_ready', true, $request)) {
+            return false;
+        }
         $now = current_time('mysql', true);
         $stale_before = gmdate('Y-m-d H:i:s', time() - (10 * MINUTE_IN_SECONDS));
         $claimed = $wpdb->query($wpdb->prepare(
@@ -533,7 +536,7 @@ final class WholesaleHub_Supplier_Lane_Approval
             usleep((int) ((1.1 - $elapsed) * 1000000));
         }
         $message_id = (int) avocadoss_send_telegram_approval_message(
-            self::message_text($request),
+            apply_filters('wholesalehub_approval_preview_text', self::message_text($request), $request),
             self::initial_buttons($request)
         );
         self::$last_notification_time = microtime(true);
@@ -785,6 +788,10 @@ final class WholesaleHub_Supplier_Lane_Approval
     private static function apply_request(array $request, string $mode, string $actor): array
     {
         global $wpdb;
+        $thumbnail_error = apply_filters('wholesalehub_approval_thumbnail_error', '', $request, $mode);
+        if ($thumbnail_error !== '') {
+            return self::response(false, $thumbnail_error, $thumbnail_error);
+        }
         $updated = $wpdb->query($wpdb->prepare(
             "UPDATE " . self::table() . "
              SET status='processing',processed_by=%s,updated_at=%s
@@ -960,8 +967,8 @@ final class WholesaleHub_Supplier_Lane_Approval
             WC_Product_Variable::sync($parent_id);
             $parent = wc_get_product($parent_id);
             if ($mode === 'new' && $parent instanceof WC_Product_Variable) {
-                $ai_thumbnail_id = 0;
-                if (function_exists('avocadoss_generate_ai_thumbnail')) {
+                $ai_thumbnail_id = (int) apply_filters('wholesalehub_approved_thumbnail', 0, $request, $parent_id);
+                if ($ai_thumbnail_id <= 0 && function_exists('avocadoss_generate_ai_thumbnail')) {
                     $ai_thumbnail_id = (int) avocadoss_generate_ai_thumbnail($parent_id);
                 }
                 if ($ai_thumbnail_id <= 0 && !$test_mode && function_exists('avocadoss_ensure_product_thumbnail')) {
