@@ -1,5 +1,18 @@
 # AI_HANDOFF
 
+## 2026-09-15 — Codex subscription thumbnails
+
+- Added subscription-only MiniPC worker and WordPress bridge; no API key/provider fallback.
+- Native isolated Codex image generation was tested with a synthetic apple PNG and visually inspected.
+- Production activation baseline: approval request ID 217. Only later DailyFood/Walldo product requests
+  are gated until a generated preview is ready. Old products/requests and option additions are unchanged.
+- Telegram preview link uses the existing review buttons; new-parent approval attaches the image and AI disclosure.
+- Five-minute systemd user timer, 3 attempts/day KST, per-job retry bound/backoff, process lock, stale-fact digest,
+  and daily Telegram hold alerts. n8n may invoke the same worker instead (do not enable two schedulers).
+- Live-only approval-class edits were preserved. Backup: `/home/tnfwod/backups/codex-thumbnails-20260915`.
+- Generated imagery requires human review; the first real new-product approval remains a live acceptance check.
+- Details and rollback: `scripts/codex-thumbnails/README.md`.
+
 > Current operational handoff. Product/engineering policy is defined by `PROJECT_NORTH_STAR.md`.
 >
 > **Last reviewed against GitHub `main`: 2026-08-30 KST**

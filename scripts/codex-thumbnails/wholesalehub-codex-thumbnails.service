@@ -1,0 +1,11 @@
+[Unit]
+Description=WholesaleHub subscription-only thumbnail worker
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /home/tnfwod/wholesalehub-thumbnail-worker/worker.py --run
+WorkingDirectory=/home/tnfwod/wholesalehub-thumbnail-worker
+TimeoutStartSec=20min
+UMask=0077
+NoNewPrivileges=true
+KillMode=control-group
