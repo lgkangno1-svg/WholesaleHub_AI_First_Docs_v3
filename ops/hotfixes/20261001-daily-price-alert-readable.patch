@@ -1,0 +1,68 @@
+--- a/wordpress/mu-plugins/wholesalehub-daily-price-watch.php
++++ b/wordpress/mu-plugins/wholesalehub-daily-price-watch.php
+@@ -156,7 +156,14 @@
+     $current = $header;
+ 
+     foreach ( $groups as $group ) {
+-        $rows = array();
++        $heading = "\n\n<b>" . wholesalehub_daily_price_watch_html( $group['name'] ) . '</b>'
++            . ' · ' . count( $group['changes'] ) . '개 옵션';
++        if ( strlen( $current . $heading ) > 3000 ) {
++            $chunks[] = $current;
++            $current = $header . "\n(계속)";
++        }
++        $current .= $heading;
++
+         foreach ( $group['changes'] as $change ) {
+             $before = (float) $change['before_price'];
+             $after = (float) $change['after_price'];
+@@ -166,36 +173,22 @@
+                 (string) $change['option_name'],
+                 '옵션 #' . (string) $change['option_id']
+             );
+-            $diff_text = ( 0 < $diff ? '+' : '' ) . number_format( $diff, abs( $diff - round( $diff ) ) < 0.001 ? 0 : 2 );
+-            if ( null !== $rate ) {
+-                $diff_text .= ' ' . ( 0 < $rate ? '+' : '' ) . number_format( $rate, 1 ) . '%';
+-            }
+-            $rows[] = wholesalehub_daily_price_watch_fit( $option_name, 16 ) . ' '
+-                . wholesalehub_daily_price_watch_fit( number_format( $before, abs( $before - round( $before ) ) < 0.001 ? 0 : 2 ), 9, true ) . ' '
+-                . wholesalehub_daily_price_watch_fit( number_format( $after, abs( $after - round( $after ) ) < 0.001 ? 0 : 2 ), 9, true ) . ' '
+-                . wholesalehub_daily_price_watch_fit( $diff_text, 12, true );
+-        }
++            $direction = 0 < $diff ? '▲' : '▼';
++            $rate_text = null === $rate
++                ? ''
++                : ' (' . ( 0 < $rate ? '+' : '' ) . number_format( $rate, 1 ) . '%)';
++            $entry = "\n\n• <b>" . wholesalehub_daily_price_watch_html( $option_name ) . "</b>\n  "
++                . wholesalehub_daily_price_watch_amount( $before ) . ' → '
++                . wholesalehub_daily_price_watch_amount( $after ) . '  '
++                . $direction . ' ' . wholesalehub_daily_price_watch_amount( abs( $diff ) )
++                . $rate_text;
+ 
+-        foreach ( array_chunk( $rows, 12 ) as $part_index => $part_rows ) {
+-            $title = $group['name'] . ( 0 < $part_index ? ' (계속)' : '' );
+-            $table_rows = array_merge(
+-                array(
+-                    wholesalehub_daily_price_watch_fit( '옵션', 16 ) . ' '
+-                        . wholesalehub_daily_price_watch_fit( '이전', 9, true ) . ' '
+-                        . wholesalehub_daily_price_watch_fit( '현재', 9, true ) . ' '
+-                        . wholesalehub_daily_price_watch_fit( '증감', 12, true ),
+-                    str_repeat( '-', 49 ),
+-                ),
+-                $part_rows
+-            );
+-            $block = "\n\n<b>" . wholesalehub_daily_price_watch_html( $title ) . '</b>'
+-                . ' · ' . count( $group['changes'] ) . "개 옵션 · 단위 원\n<pre>"
+-                . wholesalehub_daily_price_watch_html( implode( "\n", $table_rows ) ) . '</pre>';
+-            if ( strlen( $current . $block ) > 3000 ) {
++            if ( strlen( $current . $entry ) > 3000 ) {
+                 $chunks[] = $current;
+-                $current = $header . "\n(계속)";
++                $current = $header . "\n(계속)\n\n<b>"
++                    . wholesalehub_daily_price_watch_html( $group['name'] ) . ' (계속)</b>';
+             }
+-            $current .= $block;
++            $current .= $entry;
+         }
+     }
+ 
