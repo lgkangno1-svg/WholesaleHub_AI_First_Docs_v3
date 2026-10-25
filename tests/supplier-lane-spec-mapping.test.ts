@@ -80,13 +80,13 @@ describe("Option A Spec Normalization & Spec Mapping", () => {
     expect(row2.comparison_group).toBe("특품 5kg 수동확정")
   })
 
-  it("verifies PHP plugin includes schema 1.2.0, spec_mappings table, and Option A UI rendering", () => {
-    expect(plugin).toContain("SCHEMA_VERSION = '1.2.0'")
+  it("verifies PHP plugin includes schema 1.4.0, spec_mappings table, and Option A UI rendering", () => {
+    expect(plugin).toContain("SCHEMA_VERSION = '1.4.0'")
     expect(plugin).toContain("supplier_lane_spec_mappings")
     expect(plugin).toContain("parse_spec_label")
     expect(plugin).toContain("render_option_a_ui")
     expect(plugin).toContain("원하는 규격을 선택하세요")
-    expect(plugin).toContain("상품가격 최저")
+    expect(plugin).toContain("최저가 (배송비 포함)")
     expect(plugin).toContain("wh-spec-mapping")
   })
 

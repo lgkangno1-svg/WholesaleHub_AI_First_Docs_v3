@@ -16,7 +16,7 @@ assert.doesNotMatch(shell, /revalidate-catalog-images\.mjs[\s\S]*dailyfood-catal
 assert.match(shell, /Daily 수집 매회 최신/u)
 
 const scheduleGate = shell.match(
-  /if \[ "\$RUN_HOUR" != "11" \][\s\S]*?schedule_not_due[\s\S]*?fi/u,
+  /if \[ "\$RUN_HOUR" != "09" \] && \[ "\$RUN_HOUR" != "15" \] && \[ "\$RUN_HOUR" != "21" \][\s\S]*?schedule_not_due[\s\S]*?fi/u,
 )
 assert.ok(scheduleGate, "configured schedule gate must remain present")
 

@@ -33,7 +33,7 @@
     "report:mapping": "npm run build && node dist/reports/report-cli.js mapping",
     "report:raw": "npm run build && node dist/reports/report-cli.js raw",
     "report:woocommerce-dry-run": "npm run build && node dist/reports/report-cli.js woocommerce-dry-run",
-    "test": "npm run build && vitest run",
+    "test": "npm run build && vitest run --exclude '**/*.test.mjs' && node --test tests/*.test.mjs detail-page-ai/tests/*.test.mjs",
     "test:gemini-live": "npm run build && node dist/normalization/gemini-live-test.js",
     "walldob2b:import": "npm run build && node dist/adapters/walldob2b/walldob2b-import-cli.js",
     "walldob2b:sample": "npm run build && node dist/adapters/walldob2b/walldob2b-sample-cli.js",
