@@ -31,43 +31,34 @@ function wholesalehub_catalog_watchdog_walldo_expected_after(DateTimeImmutable $
     $tz = new DateTimeZone('Asia/Seoul');
     $date = $nowKst->format('Y-m-d');
     $hour = (int) $nowKst->format('H');
-
-    if ($hour >= 20) {
-        return new DateTimeImmutable($date . ' 18:00:00', $tz);
-    }
-
-    if ($hour >= 13) {
-        return new DateTimeImmutable($date . ' 11:00:00', $tz);
-    }
-
-    return new DateTimeImmutable($nowKst->modify('-1 day')->format('Y-m-d') . ' 18:00:00', $tz);
+    $minute = (int) $nowKst->format('i');
+    $clock = $hour * 60 + $minute;
+    // Actual catalog audits: 09:20, 14:20 and 19:20 KST.
+    // Each run receives a two-hour grace period.
+    if ($clock >= 21 * 60 + 20) return new DateTimeImmutable($date . ' 19:00:00', $tz);
+    if ($clock >= 16 * 60 + 20) return new DateTimeImmutable($date . ' 14:00:00', $tz);
+    if ($clock >= 11 * 60 + 20) return new DateTimeImmutable($date . ' 09:00:00', $tz);
+    return new DateTimeImmutable($nowKst->modify('-1 day')->format('Y-m-d') . ' 19:00:00', $tz);
 }
 
 function wholesalehub_catalog_watchdog_walldo_stale_reason(DateTimeImmutable $nowKst): string
 {
-    $hour = (int) $nowKst->format('H');
-    if ($hour >= 20) {
-        return 'walldob2b_expected_18_snapshot_missing_after_20';
-    }
-    if ($hour >= 13) {
-        return 'walldob2b_expected_11_snapshot_missing_after_13';
-    }
-    return 'walldob2b_previous_18_snapshot_missing_before_13';
+    return 'walldob2b_scheduled_catalog_snapshot_missing';
 }
 
 /**
  * Pure freshness evaluation used by runtime and standalone tests.
  *
- * @param array{dailyfood?:array<string,mixed>,walldob2b?:array<string,mixed>} $snapshots
+ * @param array{sanjiro?:array<string,mixed>,walldob2b?:array<string,mixed>} $snapshots
  * @return array{health:string,reasons:string[],fingerprint:string}
  */
 function wholesalehub_catalog_watchdog_evaluate(array $snapshots, DateTimeImmutable $nowKst): array
 {
     $reasons = [];
-    $daily = is_array($snapshots['dailyfood'] ?? null) ? $snapshots['dailyfood'] : [];
+    $sanjiro = is_array($snapshots['sanjiro'] ?? null) ? $snapshots['sanjiro'] : [];
     $walldo = is_array($snapshots['walldob2b'] ?? null) ? $snapshots['walldob2b'] : [];
 
-    foreach (['dailyfood' => $daily, 'walldob2b' => $walldo] as $supplier => $snapshot) {
+    foreach (['sanjiro' => $sanjiro, 'walldob2b' => $walldo] as $supplier => $snapshot) {
         if ($snapshot === []) {
             $reasons[] = $supplier . '_snapshot_missing';
             continue;
@@ -86,19 +77,13 @@ function wholesalehub_catalog_watchdog_evaluate(array $snapshots, DateTimeImmuta
             $reasons[] = $supplier . '_generated_in_future';
             continue;
         }
-        if ($supplier === 'dailyfood') {
-            // DailyFood's authoritative full crawl is expected around 11 KST.
-            // Give it until 13 KST, then require a same-calendar-day snapshot.
-            if ((int) $nowKst->format('H') >= 13 && $generatedKst->format('Y-m-d') !== $nowKst->format('Y-m-d')) {
-                $reasons[] = 'dailyfood_same_day_snapshot_missing_after_13';
-            } elseif ($age > 30 * HOUR_IN_SECONDS) {
-                $reasons[] = 'dailyfood_snapshot_over_30h';
+        if ($supplier === 'sanjiro') {
+            // Sanjiro Excel imports are scheduled every three hours.
+            // A five-hour limit allows two hours of collection grace.
+            if ($age > 5 * HOUR_IN_SECONDS) {
+                $reasons[] = 'sanjiro_snapshot_over_5h';
             }
         } else {
-            // Walldo is scheduled at 11:00 and 18:00 KST. An absolute 14-hour
-            // threshold falsely alarms every morning because 18:00 -> 08:00+
-            // naturally exceeds 14 hours. Require the latest scheduled window
-            // only after a two-hour grace period instead.
             $expectedAfter = wholesalehub_catalog_watchdog_walldo_expected_after($nowKst);
             if ($generatedKst < $expectedAfter) {
                 $reasons[] = wholesalehub_catalog_watchdog_walldo_stale_reason($nowKst);
@@ -142,7 +127,7 @@ function wholesalehub_catalog_watchdog_run(bool $force = false): array
 {
     $now = new DateTimeImmutable('now', new DateTimeZone('Asia/Seoul'));
     $evaluation = wholesalehub_catalog_watchdog_evaluate([
-        'dailyfood' => wholesalehub_catalog_watchdog_read_snapshot('dailyfood-catalog-snapshot.json'),
+        'sanjiro' => wholesalehub_catalog_watchdog_read_snapshot('sanjiro-catalog-snapshot.json'),
         'walldob2b' => wholesalehub_catalog_watchdog_read_snapshot('walldob2b-catalog-snapshot.json'),
     ], $now);
 
@@ -150,15 +135,20 @@ function wholesalehub_catalog_watchdog_run(bool $force = false): array
     $previous = is_array($previous) ? $previous : [];
     $previousHealth = (string) ($previous['health'] ?? 'unknown');
     $previousFingerprint = (string) ($previous['fingerprint'] ?? '');
+    // Do not alert hourly merely because one stale-snapshot reason changed.
+    // Repeat a persistent incident at most once every 12 hours.
+    $lastNotifiedAt = (int) ($previous['last_notified_at'] ?? 0);
+    $nowEpoch = $now->getTimestamp();
 
     if ($evaluation['health'] === 'warning') {
-        $shouldNotify = $force || $previousHealth !== 'warning' || $previousFingerprint !== $evaluation['fingerprint'];
+        $shouldNotify = $force || $previousHealth !== 'warning'
+            || ($lastNotifiedAt > 0 && $nowEpoch - $lastNotifiedAt >= 12 * HOUR_IN_SECONDS);
         if ($shouldNotify && function_exists('avocadoss_send_telegram_message')) {
             $reasonText = implode(', ', $evaluation['reasons']);
             avocadoss_send_telegram_message(
                 '⚠️ 도매Hub 공급사 카탈로그 감시: 최신 스냅샷 상태가 비정상입니다. '
                 . '크롤링/n8n 스케줄과 reports/runtime 상태를 확인해주세요. 이유=' . $reasonText
-                . ' | 기준=DailyFood 11:00, Walldo 11:00/18:00 KST(각 2시간 유예)'
+                . ' | 기준=산지로 3시간 주기(5시간 이내), Walldo 09:20/14:20/19:20 KST(각 2시간 유예)'
             );
         }
     } elseif ($previousHealth === 'warning' && function_exists('avocadoss_send_telegram_message')) {
@@ -170,6 +160,8 @@ function wholesalehub_catalog_watchdog_run(bool $force = false): array
         'fingerprint' => $evaluation['fingerprint'],
         'reasons' => $evaluation['reasons'],
         'checked_at' => $now->format(DATE_ATOM),
+        'last_notified_at' => $evaluation['health'] === 'warning'
+            ? ($shouldNotify ? $nowEpoch : $lastNotifiedAt) : 0,
     ], false);
 
     return $evaluation;
